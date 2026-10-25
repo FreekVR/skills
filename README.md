@@ -1,6 +1,6 @@
 # skills
 
-This repo contains personal [Agent Skills](https://agentskills.io) that I find useful in my own development workflow. My personal preferences shine through: I use AI as a supplement, but I prefer to stay in control, understand what it is doing, and have it work the way I work.
+This repo contains [Agent Skills](https://agentskills.io) that I created for my own development workflow. My personal preferences shine through: I use AI as a supplement, but I prefer to stay in control, understand what it is doing, and have it work the way I work.
 
 You may find these skills useful for your workflows too. If you end up using them, I'd love to know. And if you have suggestions, please open an [issue](https://github.com/FreekVR/skills/issues) or a pull request 🙂
 
