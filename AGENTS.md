@@ -149,7 +149,7 @@ You MUST update them when you change the `description`.
 All verification and tests MUST run in isolation, so that nothing outside this repository affects the result.
 
 - The verifying context MUST NOT contain the chat history or the context in which the change was written. A fresh session, or a subagent that starts without that context, both qualify.
-- You MUST use a clean checkout of this repository as the working directory. The only instructions are this `AGENTS.md` and the skills under `skills/`.
+- The verifying context MUST see the change under verification, including work that is not committed yet, and no unrelated changes. The only instructions are this `AGENTS.md` and the skills under `skills/`. You MUST NOT switch branches, reset or discard work to get there; verify in place, or in a separate copy of the current state.
 - You MUST turn off user-level and global instructions, memory, and skills installed elsewhere, as far as the harness allows. If something cannot be turned off, you MUST say so in the result.
 - You MUST report the harness, the model and the result of every trigger prompt.
 
