@@ -1,20 +1,29 @@
 # skills
 
-My personal [Agent Skills](https://agentskills.io) for development workflow and writing. One set of `SKILL.md` files that works in Claude Code, Codex, pi, Mistral Vibe and any other harness that supports the format.
+This repo contains personal [Agent Skills](https://agentskills.io) that I find useful in my own development workflow. My personal preferences shine through: I use AI as a supplement, but I prefer to stay in control, understand what it is doing, and have it work the way I work.
 
-```bash
-npx skills add FreekVR/skills
-```
+You may find these skills useful for your workflows too. If you end up using them, I'd love to know. And if you have suggestions, please open an [issue](https://github.com/FreekVR/skills/issues) or a pull request 🙂
 
-## Why this exists
+The skills use the open `SKILL.md` format, so they work in Claude Code, Codex, pi, Mistral Vibe and other harnesses that support it.
 
-Coding agents are good at generic defaults. These skills teach them how I work instead: how I write commits and pull requests, how I review code, and how I write tickets and docs.
+## Skills
 
-I build them for myself, but they are not tied to any employer or private setup. If one is useful to you, use it.
+| Skill | Category | What it does |
+| ----- | -------- | ------------ |
+| _None yet_ | | |
 
-## Install
+Categories:
 
-Requires a recent Node.js.
+- **Review/verification**
+- **Coding/execution**
+- **Planning**
+- **Workflow** (non-development)
+
+## Installation
+
+### With npx skills
+
+The easiest route is the [`skills`](https://skills.sh) CLI. It needs Node.js.
 
 ```bash
 # Pick skills and harnesses interactively
@@ -25,36 +34,30 @@ npx skills add FreekVR/skills --skill <skill-name> -a claude-code
 
 # Available in all your projects
 npx skills add FreekVR/skills -g
-
-# Try a skill without installing it
-npx skills use FreekVR/skills@<skill-name>
 ```
 
 Keep them current with `npx skills check` and `npx skills update`.
 
-To install by hand, copy or symlink a folder from `skills/` into your harness's skills directory, for example `.agents/skills/`, `.claude/skills/` or `.vibe/skills/`.
+### Manually
 
-## Skills
+Copy or symlink a folder from `skills/` into your harness's skills directory, for example `.agents/skills/`, `.claude/skills/` or `.vibe/skills/`.
 
-| Skill | What it does |
-| ----- | ------------ |
-| _None yet_ | |
+## Contributing
 
-## Layout
+Every skill and contribution follows the rules in [AGENTS.md](AGENTS.md).
+
+### Layout
 
 ```
 skills/
   <skill-name>/
     SKILL.md        # frontmatter + instructions
+    tests/
+      triggers.md   # prompts that should and should not load the skill
     scripts/        # optional: code the agent runs
     references/     # optional: docs the agent reads on demand
     assets/         # optional: templates and static files
-    tests/          # trigger tests: prompts that must and must not load it
 ```
-
-## Feedback
-
-Using one of these skills? I'd love to hear about it: [open an issue](https://github.com/FreekVR/skills/issues) or just drop a note. Improvements are welcome as pull requests; see [AGENTS.md](AGENTS.md) for the rules every skill follows.
 
 ## License
 
