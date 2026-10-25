@@ -172,6 +172,7 @@ Pull requests are squash-merged, so the title and description become the commit 
 - The description MUST start with the AI disclosure.
 - After the disclosure, the description MUST be at most two paragraphs: the symptom, the fix or improvement, and why. You MAY add one code example or reproduction steps when they help.
 - The description MUST NOT repeat what the diff already shows: no file lists, no change summaries, no test logs.
+- A pull request that adds or changes a skill MUST end its description with one sentence that names the models the skill was built with and tested with, for example "Built with model A, tested with models A and B." It does not count toward the two-paragraph limit.
 - A line in the description MUST NOT start with a token followed by a colon or by a space and `#`, such as `Fixes:` or `Refs #12`, except an intended footer such as `BREAKING CHANGE:`. Release-please reads those lines as footers.
 
 ### Issues and comments
@@ -181,13 +182,13 @@ Pull requests are squash-merged, so the title and description become the commit 
 
 ### AI disclosure
 
-Every issue, pull request and comment MUST carry an AI disclosure. It MUST say if AI was used for the text, the code or the skill, whether a human read and approved what AI generated, and which parts a human wrote by hand. For a pull request, it MUST also name the models the skill was built with and tested with.
+Every issue, pull request and comment MUST carry an AI disclosure. It MUST say if AI was used for the text, the code or the skill, whether a human read and approved what AI generated, and which parts a human wrote by hand. It MUST NOT name a harness or a model.
 
-Pull request and issue descriptions MUST start with a GitHub note panel. Omit "Tested with" for issues. Omit "Written by a human" when a human wrote none of it. Template:
+Pull request and issue descriptions MUST start with a GitHub note panel. Omit "Written by a human" when a human wrote none of it. Template:
 
 ```markdown
 > [!NOTE]
-> **AI disclosure.** AI used for: <the text / the code / the skill / nothing>. Tested with: <models, or "not applicable">. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts>.
+> **AI disclosure.** AI used for: <the text / the code / the skill / nothing>. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts>.
 ```
 
 Comments MUST end with a single `<sub>` line. Omit "Written by a human" when a human wrote none of it. Template:
@@ -223,6 +224,6 @@ This repository has no CI/CD and no automated review. You MUST verify every chan
 - The skill has a Preflight section where it needs one, and ends with a Self-healing section.
 - Every file that `SKILL.md` refers to exists. No references break the References rules.
 - No private data in the skill, the commit, the issue or the pull request.
-- The AI disclosure is present and filled in.
+- The AI disclosure is present and filled in, and a pull request that adds or changes a skill names the models it was built and tested with.
 - Attribution notes are in the pull request or the commit where needed.
 - The skills table in the README is up to date, with a category for each skill. Skills with `metadata.internal: true` are not listed.
