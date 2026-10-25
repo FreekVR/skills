@@ -4,6 +4,8 @@ Rules for coding agents and human contributors working in this repository. Read 
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY in this document are to be interpreted as described in RFC 2119 and RFC 8174: they have this meaning only in capitals.
 
+Every code block in this document is labelled. A **template** MUST be used as written, with each `<placeholder>` replaced. An **example** only illustrates a rule; you MUST NOT copy its content.
+
 ## General rules
 
 ### Scope
@@ -46,10 +48,12 @@ Code MUST explain itself through clear names and small functions. Comments MUST 
 
 ### Frontmatter
 
+Template:
+
 ```yaml
 ---
-name: skill-name
-description: Use when …
+name: <skill-name>
+description: Use when <…>
 ---
 ```
 
@@ -95,6 +99,8 @@ Every skill that depends on input, tools or environment state MUST have a sectio
 - It MUST cover what applies: the information the skill needs is present, system requirements are met, the environment is in the expected state.
 - Each check MUST say what to do when it fails: ask the user, or stop.
 
+Example. The heading and the first sentence are fixed; the checks are illustrative:
+
 ```markdown
 ## Preflight
 
@@ -112,7 +118,9 @@ Every skill MUST end with a self-healing section. When the skill's task is done,
 1. draft an issue for this repository that describes the frustration or mistake as it relates to the skill;
 2. optionally draft a pull request that improves the skill.
 
-The agent MUST show the draft and get the user's agreement before it opens anything. Issues and pull requests MUST follow Submitting changes. Use this section in each skill, adapted where needed:
+The agent MUST show the draft and get the user's agreement before it opens anything. Issues and pull requests MUST follow Submitting changes.
+
+Template. You MAY add skill-specific wording, but MUST keep every rule in it:
 
 ```markdown
 ## Self-healing
@@ -175,14 +183,14 @@ Pull requests are squash-merged, so the title and description become the commit 
 
 Every issue, pull request and comment MUST carry an AI disclosure. It MUST say if AI was used for the text, the code or the skill, whether a human read and approved what AI generated, and which parts a human wrote by hand. For a pull request, it MUST also name the models the skill was built with and tested with.
 
-Pull request and issue descriptions MUST start with a GitHub note panel. Omit "Tested with" for issues.
+Pull request and issue descriptions MUST start with a GitHub note panel. Omit "Tested with" for issues. Template:
 
 ```markdown
 > [!NOTE]
 > **AI disclosure.** AI used for: <the text / the code / the skill / nothing>, with <harness> and <model>. Tested with: <models, or "not applicable">. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.
 ```
 
-Comments MUST end with a single `<sub>` line:
+Comments MUST end with a single `<sub>` line. Template:
 
 ```markdown
 <sub>AI disclosure: written with <harness> and <model>. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.</sub>
@@ -190,7 +198,7 @@ Comments MUST end with a single `<sub>` line:
 
 ### Attribution
 
-When a change uses someone else's concept, idea or input, you MUST credit them in a plain note. Put it in the pull request description, or in the commit message body for a commit that does not go through a pull request. The note does not count toward the two-paragraph limit. For example:
+When a change uses someone else's concept, idea or input, you MUST credit them in a plain note. Put it in the pull request description, or in the commit message body for a commit that does not go through a pull request. The note does not count toward the two-paragraph limit. Example:
 
 ```
 Idea for the review checklist from <author>'s <project or post>.
