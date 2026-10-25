@@ -187,13 +187,13 @@ Pull request and issue descriptions MUST start with a GitHub note panel. Omit "T
 
 ```markdown
 > [!NOTE]
-> **AI disclosure.** AI used for: <the text / the code / the skill / nothing>, with <harness> and <model>. Tested with: <models, or "not applicable">. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.
+> **AI disclosure.** AI used for: <the text / the code / the skill / nothing>. Tested with: <models, or "not applicable">. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.
 ```
 
 Comments MUST end with a single `<sub>` line. Template:
 
 ```markdown
-<sub>AI disclosure: written with <harness> and <model>. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.</sub>
+<sub>AI disclosure: written with AI. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.</sub>
 ```
 
 ### Attribution
