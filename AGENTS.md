@@ -8,7 +8,14 @@ The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY in this document are to
 
 ### Scope
 
-Every skill MUST fit one of the categories listed in the README. You MUST ask the user before you add a skill outside those categories.
+Every skill MUST fit exactly one of these categories:
+
+- Review/verification
+- Coding/execution
+- Planning
+- Workflow (non-development)
+
+You MUST ask the user before you add a skill outside these categories. The category goes in the Category column of the skills table in the README.
 
 ### Language
 

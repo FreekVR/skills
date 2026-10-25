@@ -12,13 +12,6 @@ The skills use the open `SKILL.md` format, so they work in Claude Code, Codex, p
 | ----- | -------- | ------------ |
 | _None yet_ | | |
 
-Categories:
-
-- **Review/verification**
-- **Coding/execution**
-- **Planning**
-- **Workflow** (non-development)
-
 ## Installation
 
 ### With npx skills
