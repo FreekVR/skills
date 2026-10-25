@@ -183,17 +183,17 @@ Pull requests are squash-merged, so the title and description become the commit 
 
 Every issue, pull request and comment MUST carry an AI disclosure. It MUST say if AI was used for the text, the code or the skill, whether a human read and approved what AI generated, and which parts a human wrote by hand. For a pull request, it MUST also name the models the skill was built with and tested with.
 
-Pull request and issue descriptions MUST start with a GitHub note panel. Omit "Tested with" for issues. Template:
+Pull request and issue descriptions MUST start with a GitHub note panel. Omit "Tested with" for issues. Omit "Written by a human" when a human wrote none of it. Template:
 
 ```markdown
 > [!NOTE]
-> **AI disclosure.** AI used for: <the text / the code / the skill / nothing>. Tested with: <models, or "not applicable">. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.
+> **AI disclosure.** AI used for: <the text / the code / the skill / nothing>. Tested with: <models, or "not applicable">. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts>.
 ```
 
-Comments MUST end with a single `<sub>` line. Template:
+Comments MUST end with a single `<sub>` line. Omit "Written by a human" when a human wrote none of it. Template:
 
 ```markdown
-<sub>AI disclosure: written with AI. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.</sub>
+<sub>AI disclosure: written with AI. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts>.</sub>
 ```
 
 ### Attribution
