@@ -162,18 +162,24 @@ Pull requests are squash-merged, so the title and description become the commit 
 ### Issues and comments
 
 - An issue MUST start with the AI disclosure, followed by at most two paragraphs: the symptom, the expected behavior, and why it matters. You MAY add one code example or reproduction steps.
-- A comment on an issue or pull request MUST start with the AI disclosure.
+- A comment on an issue or pull request MUST end with the AI disclosure line.
 
 ### AI disclosure
 
-Every issue, comment and pull request MUST start with this block, filled in. It MUST say if AI was used for the text, the code or the skill, whether a human read and approved what AI generated, and which parts a human wrote by hand. For a pull request, it MUST also name the models the skill was built with and tested with.
+Every issue, pull request and comment MUST carry an AI disclosure. It MUST say if AI was used for the text, the code or the skill, whether a human read and approved what AI generated, and which parts a human wrote by hand. For a pull request, it MUST also name the models the skill was built with and tested with.
+
+Pull request and issue descriptions MUST start with a GitHub note panel. Omit "Tested with" for issues.
 
 ```markdown
 > [!NOTE]
 > **AI disclosure.** AI used for: <the text / the code / the skill / nothing>, with <harness> and <model>. Tested with: <models, or "not applicable">. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.
 ```
 
-Omit "Tested with" for issues and comments.
+Comments MUST end with a single `<sub>` line:
+
+```markdown
+<sub>AI disclosure: written with <harness> and <model>. Human review: <read and approved by a human / not yet reviewed by a human>. Written by a human: <parts, or "none">.</sub>
+```
 
 ### Attribution
 
