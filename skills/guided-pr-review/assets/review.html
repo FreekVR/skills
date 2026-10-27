@@ -221,7 +221,7 @@ code { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-
 .legend-dot.changes { background: var(--act-danger); border-color: var(--act-danger); }
 .legend-dot svg { width: 8px; height: 8px; }
 .legend-dot.changes svg, .legend-dot.comment svg { width: 11px; height: 11px; }
-.verdict-changes svg, .verdict svg, [data-action="final"] svg { width: 15px; height: 15px; vertical-align: -3px; margin-right: 4px; }
+.verdict-changes svg, .verdict svg, [data-action="final"] svg, [data-update-review] svg { width: 15px; height: 15px; vertical-align: -3px; margin-right: 4px; }
 .verdict[data-verdict="APPROVE"] svg { color: var(--act-ok); }
 .verdict[data-verdict="REQUEST_CHANGES"] svg { color: var(--act-danger); }
 .legend-dot.here { width: 14px; height: 14px; border: 2px solid var(--ink); vertical-align: -3px; }
@@ -438,7 +438,6 @@ kbd { display: inline-grid; place-items: center; min-width: 24px; height: 24px; 
 .opinion.disagree .opinion-icon { background: var(--act-danger); }
 .opinion.unsure .opinion-icon { background: var(--ink-3); }
 .opinion b { color: var(--ink); font-weight: 650; }
-.note-check { margin: 6px 0 0; font-size: 13px; color: var(--ink-2); max-width: 76ch; }
 .note-actions { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; align-items: center; }
 .note-block.accepted { background: color-mix(in srgb, var(--ok) 7%, var(--ground)); }
 .note-block.dismissed .note-body, .note-block.dismissed .note-title { color: var(--ink-3); text-decoration: line-through; text-decoration-thickness: 1px; }
@@ -583,11 +582,39 @@ summary.check-head::after { color: var(--ink-3); }
 .posted-text h2 { margin: 0; }
 .posted-text p { margin: 2px 0 0; color: var(--ink-2); font-size: 14px; }
 .posted-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 8px; }
-.posted-checks, .round { margin-top: 26px; }
-.posted-checks > summary, .round > summary { cursor: pointer; font-weight: 650; }
-.round + .round { margin-top: 10px; }
 .not-posted-hunk + .not-posted-hunk { margin-top: 14px; }
 .not-posted-hunk > p { margin: 0 0 6px; }
+.rail-reviews { margin-bottom: 8px; }
+.update-footer { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--rule); }
+.update-footer h3 { margin: 0 0 4px; font-size: 15.5px; }
+.review-card { border: 1px solid var(--rule); border-radius: 10px; margin-top: 12px; background: var(--ground); }
+.review-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 12px 16px; cursor: pointer; list-style: none; }
+.review-head::-webkit-details-marker { display: none; }
+.review-head .term-counts { margin-left: auto; }
+.review-state { display: inline-flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 600; }
+.review-state svg { width: 14px; height: 14px; }
+.review-state.approved { color: var(--ok); }
+.review-state.changes { color: var(--error); }
+.review-body { padding: 0 16px 16px; border-top: 1px solid var(--rule); }
+.review-body > .markdown { margin-top: 12px; }
+.thread { margin-top: 14px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 8px; background: var(--panel); }
+.thread.resolved { padding: 8px 14px; }
+.thread-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+details.thread > summary { cursor: pointer; list-style: none; }
+details.thread > summary::-webkit-details-marker { display: none; }
+.thread-head .btn { margin-left: auto; }
+.thread-loc { font: 12.5px/1.4 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
+.thread-code { margin: 8px 0; overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; }
+.thread-code .diff-table { font-size: 12.5px; }
+.replies { list-style: none; margin: 10px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--rule); display: grid; gap: 10px; }
+.replies li { display: flex; gap: 8px; align-items: flex-start; }
+.replies .markdown > :first-child { margin-top: 2px; }
+.replies .markdown > :last-child { margin-bottom: 0; }
+.fix { margin: 10px 0 0; font-size: 13.5px; color: var(--ink-2); max-width: 76ch; }
+.fix.fixed b { color: var(--ok); }
+.fix.not-fixed b { color: var(--error); }
+.thread-calls { margin-top: 10px; }
+.thread-reply { margin-top: 8px; }
 .draft-line { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; padding: 8px 12px; border: 1px solid var(--rule); border-radius: 8px; font-size: 13.5px; color: var(--ink-2); }
 .verdict-posted { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; color: var(--ink-2); }
 .draft-line svg, .verdict-posted svg { width: 14px; height: 14px; }
@@ -840,7 +867,7 @@ function themeToggle() {
 }
 
 function emptyReviewer() {
-  return { seen: [], decisions: {}, edits: {}, severities: {}, remarks: [], summary: '', verdict: null, hunkVerdicts: {}, knownHunks: [], sent: [], imported: [] };
+  return { seen: [], decisions: {}, edits: {}, severities: {}, remarks: [], summary: '', verdict: null, hunkVerdicts: {}, threadCalls: {}, threadReplies: {}, knownHunks: [], sent: [], imported: [] };
 }
 
 // Lines, hunks and stations only change with review.json, so index them once per change.
@@ -963,7 +990,8 @@ function opinionLine(opinion) {
   return `<p class="opinion ${kind}"><span class="opinion-icon">${VERDICT_ICONS[OPINIONS[kind].icon]}</span><span><b>${OPINIONS[kind].label}.</b> ${inlineMarkup(opinion.text)}</span></p>`;
 }
 
-function reviewCommentsOn(hunkId) { return (state.review.reviewComments || []).filter((comment) => comment.hunkId === hunkId); }
+function openReviewComments() { return (state.review.reviewComments || []).filter((comment) => !comment.resolved); }
+function reviewCommentsOn(hunkId) { return openReviewComments().filter((comment) => comment.hunkId === hunkId); }
 
 function ownRemark(id) { return (state.review.ownRemarks || []).find((own) => own.id === id); }
 
@@ -1059,12 +1087,22 @@ function localCount() {
 // Severities of everything still standing: AI findings not dismissed and the reviewer's remarks. Without a hunk, the whole PR.
 function postedOwnRemarks() { return (state.review.ownRemarks || []).filter((own) => own.state === 'posted'); }
 
+// The reviewer's posted comments that are still open on GitHub each need a call: resolve, or leave open.
+function openOwnThreads() { return postedOwnRemarks().filter((own) => own.threadId && !own.resolved); }
+function threadCall(own) { return state.reviewer.threadCalls?.[own.threadId]; }
+function threadsWithoutCall() { return openOwnThreads().filter((own) => !threadCall(own)); }
+
+// A posted comment stands until GitHub shows it resolved or the reviewer chose to resolve it.
+function standingOwnRemarks() { return postedOwnRemarks().filter((own) => !own.resolved && threadCall(own) !== 'resolve'); }
+
+function undecidedLabel() { return plural(hunksWithoutVerdict().length, 'hunk'); }
+
 function standingSeverities(hunkId) {
   const on = (item) => hunkId === undefined || item.hunkId === hunkId;
   return [
     ...state.review.findings.filter((finding) => on(finding) && decisionOf(finding) !== 'dismissed').map(findingSeverity),
     ...state.reviewer.remarks.filter(on).map((remark) => remark.severity),
-    ...postedOwnRemarks().filter(on).map((own) => own.severity),
+    ...standingOwnRemarks().filter(on).map((own) => own.severity),
   ];
 }
 
@@ -1084,7 +1122,7 @@ function hunksWithoutVerdict() { return state.review.hunks.filter((hunk) => !ver
 function proposedVerdict() {
   if (hunksWithoutVerdict().length) return null;
   const order = ['approved', 'comment', 'changes'];
-  const posted = postedOwnRemarks().map((own) => own.severity);
+  const posted = standingOwnRemarks().map((own) => own.severity);
   const severities = [...acceptedItems().map((item) => item.severity), ...posted];
   const levels = [verdictFromSeverities(severities), ...Object.values(state.reviewer.hunkVerdicts)];
   return REVIEW_EVENTS[order[Math.max(...levels.map((level) => order.indexOf(level)))]];
@@ -1150,7 +1188,7 @@ function renderUpdates() {
   }
   if (remote.headSha && remote.headSha !== state.review.pr.headSha) {
     const updating = state.ui.updatingTo === remote.headSha;
-    banners.push(`<div class="update" data-banner="head-${escapeHtml(remote.headSha)}"><p><strong>New commits on this PR.</strong> ${updating ? 'The agent is updating the review…' : 'Some hunks may have changed since this review was prepared.'}</p>${updating ? '<button class="btn btn-quiet" data-action="update">Ask again</button>' : '<button class="btn btn-outline-go" data-action="update">Update the review</button>'}${postedReview() ? '<button class="btn" data-action="new-round">Start a new review round</button>' : ''}</div>`);
+    banners.push(`<div class="update" data-banner="head-${escapeHtml(remote.headSha)}"><p><strong>New commits on this PR.</strong> ${updating ? 'The agent is loading the new commits…' : 'Some hunks may have changed since this review was prepared.'}</p>${updating ? '<button class="btn btn-quiet" data-action="refresh">Ask again</button>' : '<button class="btn btn-outline-go" data-action="refresh">Load the new commits</button>'}${postedReview() ? '<button class="btn" data-action="new-round">Start a new review round</button>' : ''}</div>`);
   }
   const fresh = newComments();
   if (fresh.length) {
@@ -1202,13 +1240,19 @@ function timeLabel(at) {
   return new Intl.DateTimeFormat(undefined, today ? { timeStyle: 'short' } : { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
-// A new round empties the form. Its remarks, summary and accepted findings are on GitHub already.
+// A new round empties the form: its remarks, summary, accepted findings and thread calls are on GitHub already.
+// Hunk verdicts stay, because a changed hunk gets a new ID and so has no verdict yet.
 function startNewRound() {
   const last = postedReview();
   if (!last) return;
-  Object.assign(state.reviewer, { reopenedAfter: last.id, summary: '', verdict: null, hunkVerdicts: {}, remarks: [] });
+  Object.assign(state.reviewer, { reopenedAfter: last.id, summary: '', verdict: null, remarks: [], threadCalls: {}, threadReplies: {}, updateNote: '', copiedToSummary: [] });
   saveReviewer();
-  render();
+}
+
+// New commits after a posted review start the next round.
+function startRoundOnNewCommits() {
+  const last = postedReview();
+  if (last?.headSha && last.headSha !== state.review.pr.headSha) startNewRound();
 }
 
 // Where a hunk sits in reading order, so a move between hunks has a direction.
@@ -1252,6 +1296,18 @@ function goHome() {
   render();
 }
 
+const PAGE_VIEWS = ['home', 'reviews', 'terminus'];
+
+function goReviews() {
+  state.view = { kind: 'reviews' };
+  state.ui.askOpen = false;
+  state.ui.focusView = true;
+  state.ui.composer = null;
+  state.ui.resetScroll = true;
+  savePosition();
+  render();
+}
+
 function goTerminus() {
   state.view = { kind: 'terminus' };
   state.ui.askOpen = false;
@@ -1264,14 +1320,14 @@ function goTerminus() {
 
 // A reload reopens the hunk the reviewer was on, so questions and remarks on it stay in view.
 function savePosition() {
-  state.reviewer.position = state.view.kind === 'terminus' || state.view.kind === 'home' ? { kind: state.view.kind } : { kind: 'hunk', line: state.view.line, hunkId: lineById(state.view.line).stops[state.view.index]?.hunkId };
+  state.reviewer.position = PAGE_VIEWS.includes(state.view.kind) ? { kind: state.view.kind } : { kind: 'hunk', line: state.view.line, hunkId: lineById(state.view.line).stops[state.view.index]?.hunkId };
   saveReviewer();
 }
 
 function restorePosition() {
   const position = state.reviewer.position;
   if (!position) return false;
-  if (position.kind === 'terminus' || position.kind === 'home') { state.view = { kind: position.kind }; return true; }
+  if (PAGE_VIEWS.includes(position.kind)) { state.view = { kind: position.kind }; return true; }
   const line = state.lines.find((candidate) => candidate.id === position.line);
   const index = line ? line.stops.findIndex((stop) => stop.hunkId === position.hunkId) : -1;
   if (index === -1) return false;
@@ -1281,6 +1337,7 @@ function restorePosition() {
 
 function step(delta) {
   if (state.view.kind === 'home') return delta > 0 ? nextUnseen() : undefined;
+  if (state.view.kind === 'reviews') return delta > 0 ? goTerminus() : undefined;
   if (state.view.kind === 'terminus') {
     if (delta < 0) {
       const all = lines();
@@ -1432,7 +1489,8 @@ function bullet(line, hollow = false, size = '') {
 
 function viewTitle() {
   if (state.view.kind === 'home') return 'Overview';
-  if (state.view.kind === 'terminus') return postedReview() ? 'Review posted' : 'Submit review';
+  if (state.view.kind === 'terminus') return postedReview() ? 'Review posted' : hasOwnReview() ? 'Post a new review' : 'Submit review';
+  if (state.view.kind === 'reviews') return 'Existing reviews';
   const line = lineById(state.view.line);
   const hunk = hunkById(line.stops[state.view.index]?.hunkId);
   return `${stationCode(line, state.view.index)} ${hunk ? fileName(hunk.file) : ''}`;
@@ -1452,7 +1510,7 @@ function render() {
   state.ui.mapScroll = document.querySelector('.map')?.scrollLeft || 0;
   const scroll = { main: document.querySelector('.main')?.scrollTop || 0, rail: document.querySelector('.rail-scroll')?.scrollTop || 0, page: window.scrollY };
   document.title = `${viewTitle()} · ${state.review.pr.title}`;
-  app.innerHTML = `<a class="skip-link" href="#main">Skip to the content</a>` + renderStrip() + renderRail() + `<main class="main" id="main" tabindex="-1">${renderUpdates()}${state.view.kind === 'home' ? renderHome() : state.view.kind === 'terminus' ? renderTerminus() : renderStation()}</main>`;
+  app.innerHTML = `<a class="skip-link" href="#main">Skip to the content</a>` + renderStrip() + renderRail() + `<main class="main" id="main" tabindex="-1">${renderUpdates()}${state.view.kind === 'home' ? renderHome() : state.view.kind === 'terminus' ? renderTerminus() : state.view.kind === 'reviews' ? renderReviews() : renderStation()}</main>`;
   document.querySelector('.rail-scroll').scrollTop = scroll.rail;
   const askPanel = document.getElementById('ask-panel');
   if (askPanel && state.ui.askOpen) {
@@ -1511,7 +1569,7 @@ function renderStrip() {
       <div class="actions">${draftButton()}${themeToggle()}</div>
     </div></header>`;
   }
-  if (state.view.kind === 'terminus') {
+  if (state.view.kind === 'terminus' || state.view.kind === 'reviews') {
     return `<header class="strip"><div class="strip-top solo">
       <div class="line-name"><h1 tabindex="-1">${viewTitle()}</h1></div>
       <div class="actions">${draftButton()}${themeToggle()}</div>
@@ -1583,7 +1641,6 @@ function renderRail() {
   const proposal = VERDICTS.find((option) => option.id === proposedVerdict());
   const posted = postedReview();
   const shown = posted ? postedVerdict(posted) : proposal || { icon: 'undecided' };
-  const without = hunksWithoutVerdict().length;
   return `<aside class="rail" aria-label="Review navigation">
     <div class="rail-top">
       <button class="rail-item" data-action="home" aria-current="${state.view.kind === 'home'}">
@@ -1598,9 +1655,14 @@ function renderRail() {
       <ul class="rail-list">${items}</ul>
     </div>
     <div class="rail-bottom">
+      ${(state.review.reviews || []).length ? `<button class="rail-item rail-reviews" data-action="reviews" aria-current="${state.view.kind === 'reviews'}">
+        <span class="rail-icon" aria-hidden="true">${VERDICT_ICONS.comment}</span>
+        <span class="rail-label">Existing reviews</span>
+        ${threadsWithoutCall().length ? `<span class="rail-count" title="Your comments that need a call">${threadsWithoutCall().length} to check</span>` : ''}
+      </button>` : ''}
       <button class="rail-submit ${shown.icon}${posted ? ' posted' : ''}" data-action="terminus" aria-current="${terminusCurrent}">
         <span class="rail-submit-icon" aria-hidden="true">${VERDICT_ICONS[shown.icon]}</span>
-        <span class="rail-submit-text">${posted ? `<b>Review posted</b><span>${shown.done}</span>` : `<b>Submit review</b><span>${plural(accepted, 'remark')} · ${proposal ? `${proposal.label.toLowerCase()} proposed` : `${plural(without, 'hunk')} without a verdict`}</span>`}</span>
+        <span class="rail-submit-text">${posted ? `<b>Review posted</b><span>${shown.done}</span>` : `<b>${hasOwnReview() ? 'Post new review' : 'Submit review'}</b><span>${plural(accepted, 'remark')} · ${proposal ? `${proposal.label.toLowerCase()} proposed` : `${undecidedLabel()} to decide`}</span>`}</span>
       </button>
     </div>
   </aside>`;
@@ -1932,6 +1994,7 @@ function renderNote(note) {
       <div class="note-head">${avatar(comment.author)}<span class="who"><b>${author}</b> commented${comment.line ? ` on ${lineLabel(comment)}` : ''} · not your remark, not posted again</span></div>
       <div class="note-body markdown">${markdownHtml(comment.body)}</div>
       ${opinionLine(comment.opinion)}
+      <div class="note-actions">${copyButton(comment)}</div>
     </div>`;
   }
   if (note.type === 'finding') {
@@ -1955,11 +2018,10 @@ function renderNote(note) {
   }
   const remark = note.item;
   const own = ownRemark(remark.id);
-  const check = own && own.check ? `<p class="note-check">${aiTag('AI check')}${inlineMarkup(own.check)}</p>` : '';
   if (note.type === 'posted') {
     return `<div class="note-block">
       <div class="note-head">${avatar(viewerLogin())}<span class="sev ${severityClass(remark.severity)}">${escapeHtml(remark.severity)}</span><span class="who">You posted this earlier${remark.url ? ` · <a href="${escapeHtml(remark.url)}" target="_blank" rel="noopener">open on GitHub</a>` : ''}. It is not posted again.</span></div>
-      <p class="note-body">${inlineMarkup(remark.body)}</p>${check}
+      <p class="note-body">${inlineMarkup(remark.body)}</p>${repliesHtml(remark)}${fixLine(remark)}${threadActions(remark)}
     </div>`;
   }
   const editing = state.ui.editing === remark.id;
@@ -1968,9 +2030,116 @@ function renderNote(note) {
     <div class="note-head">${avatar(viewerLogin())}<span class="sev ${severityClass(remark.severity)}">${escapeHtml(remark.severity)}</span><span class="who">${own ? 'Your pending remark from GitHub' : 'Your remark'}${remark.line ? ` · ${lineLabel(remark)}` : ''}</span>${statusBadge(remark.id, remark.body)}</div>
     ${editing ? `<div class="composer"><textarea id="edit-${remark.id}" data-edit="${remark.id}" aria-label="Edit your remark">${escapeHtml(state.ui.drafts[`edit:${remark.id}`] ?? remark.body)}</textarea>
         <div class="composer-row"><label>Severity <select id="edit-severity-${remark.id}">${options}</select></label><button class="btn btn-ink" data-save-remark="${remark.id}">Save remark</button><button class="btn btn-quiet" data-cancel-edit="${remark.id}">Cancel</button></div></div>`
-      : `<p class="note-body">${inlineMarkup(remark.body)}</p>${check}
+      : `<p class="note-body">${inlineMarkup(remark.body)}</p>
     <div class="note-actions"><button class="btn btn-quiet" data-start-edit="${remark.id}">Edit</button><button class="btn btn-quiet danger-text" data-delete-remark="${remark.id}">Delete</button></div>`}
   </div>`;
+}
+
+const REVIEW_STATES = {
+  APPROVED: { label: 'approved', icon: 'approved' },
+  CHANGES_REQUESTED: { label: 'requested changes', icon: 'changes' },
+  COMMENTED: { label: 'commented', icon: 'comment' },
+  DISMISSED: { label: 'review dismissed', icon: 'comment' },
+};
+const FIX_LABELS = { fixed: 'Looks fixed', 'not-fixed': 'Not fixed', unclear: 'Unclear' };
+
+function renderReviews() {
+  const reviews = [...(state.review.reviews || [])].sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''));
+  const mine = reviews.filter((review) => review.author === viewerLogin());
+  const others = reviews.filter((review) => review.author !== viewerLogin());
+  return `<section class="terminus reviews-view">
+    ${reviews.length ? '' : '<p class="lede">Nobody has reviewed this PR yet.</p>'}
+    ${mine.length ? `<div class="check-group"><h2>Your reviews</h2>${mine.map((review, index) => reviewCard(review, index === 0)).join('')}</div>` : ''}
+    ${others.length ? `<div class="check-group"><h2>Other reviewers</h2>${others.map((review) => reviewCard(review, false)).join('')}</div>` : ''}
+  </section>`;
+}
+
+// The reviewer's newest review is their current one: it holds the update. Their older ones and approvals are closed.
+function reviewCard(review, current) {
+  const kind = REVIEW_STATES[review.state] || REVIEW_STATES.COMMENTED;
+  const mine = review.author === viewerLogin();
+  const comments = mine ? postedOwnRemarks().filter((own) => own.reviewId === review.id) : (state.review.reviewComments || []).filter((comment) => comment.reviewId === review.id);
+  const toCheck = mine ? comments.filter((own) => own.threadId && !own.resolved && !threadCall(own)).length : 0;
+  const key = `review-${review.id}`;
+  // After an update, the comments still open sit in an older review; that review stays open so they are in reach.
+  const open = state.ui.terminusOpen?.[key] ?? (current || (mine ? toCheck > 0 : review.state !== 'APPROVED'));
+  return `<details class="review-card" data-term-section="${key}"${open ? ' open' : ''}>
+    <summary class="review-head">${avatar(review.author)}<b>${mine ? 'You' : `@${escapeHtml(review.author)}`}</b>${current ? '<span class="state-tag">current</span>' : ''}
+      <span class="review-state ${kind.icon}">${VERDICT_ICONS[kind.icon]}${kind.label}</span>
+      ${review.submittedAt ? `<span class="muted">${escapeHtml(timeLabel(review.submittedAt))}</span>` : ''}
+      <span class="term-counts">${plural(comments.length, 'comment')}${toCheck ? ` · ${toCheck} to check` : ''}</span></summary>
+    <div class="review-body">
+      ${review.body ? `<div class="markdown">${markdownHtml(review.body)}</div>` : ''}
+      ${review.url ? `<p><a href="${escapeHtml(review.url)}" target="_blank" rel="noopener">Open on GitHub</a></p>` : ''}
+      ${comments.map((comment) => renderThread(comment, mine)).join('')}
+      ${current ? updateFooter(review) : ''}
+    </div>
+  </details>`;
+}
+
+function renderThread(comment, mine) {
+  const at = comment.hunkId && firstStationOf(comment.hunkId);
+  const head = `<span class="thread-loc">${threadPlace(comment)}</span>${comment.outdated ? '<span class="muted">outdated</span>' : ''}
+    ${at ? stationButton(at.line, at.index, 'Show in flow', { title: 'Open this hunk in its flow' }) : ''}`;
+  const body = `${threadCode(comment)}
+    <div class="note-body markdown">${markdownHtml(comment.body)}</div>
+    ${repliesHtml(comment)}
+    ${mine ? `${fixLine(comment)}${threadActions(comment)}` : `<div class="note-actions">${copyButton(comment)}</div>`}`;
+  if (comment.resolved) return `<details class="thread resolved"><summary class="thread-head">${head}<span class="state-tag">Resolved</span></summary>${body}</details>`;
+  return `<div class="thread"><div class="thread-head">${head}</div>${body}</div>`;
+}
+
+// GitHub's diff hunk ends at the commented line, so its last lines show the code the comment is about.
+function threadCode(comment) {
+  if (!comment.diffHunk) return '';
+  const language = languageOf(comment.path || hunkById(comment.hunkId)?.file || '');
+  const sign = { '+': 'add', '-': 'del' };
+  const rows = comment.diffHunk.split('\n').filter((line) => !line.startsWith('@@')).slice(-4)
+    .map((line) => `<tr class="${sign[line[0]] || 'ctx'}"><td class="sign">${line[0] === '-' ? '−' : line[0] === '+' ? '+' : ' '}</td><td class="code">${codeHtml(line.slice(1), language)}</td></tr>`).join('');
+  return `<div class="thread-code"><table class="diff-table"><tbody>${rows}</tbody></table></div>`;
+}
+
+function repliesHtml(comment) {
+  if (!(comment.replies || []).length) return '';
+  return `<ul class="replies">${comment.replies.map((reply) => `<li>${avatar(reply.author)}<div><span class="who"><b>@${escapeHtml(reply.author)}</b>${reply.at ? ` · ${escapeHtml(timeLabel(reply.at))}` : ''}</span><div class="markdown">${markdownHtml(reply.body)}</div></div></li>`).join('')}</ul>`;
+}
+
+function fixLine(own) {
+  if (!own.fix || own.resolved) return '';
+  return `<p class="fix ${own.fix.verdict}">${aiTag('AI check')}<b>${FIX_LABELS[own.fix.verdict] || 'Unclear'}.</b> ${inlineMarkup(own.fix.note || '')}</p>`;
+}
+
+// Resolve or leave open. The AI's recommendation is the stronger button; a thread left open can get a reply.
+function threadActions(own) {
+  if (!own.threadId || own.resolved) return own.resolved ? '<p class="who">Resolved on GitHub.</p>' : '';
+  const call = threadCall(own);
+  const suggested = own.fix?.verdict === 'fixed' ? 'resolve' : own.fix?.verdict === 'not-fixed' ? 'open' : null;
+  const button = (value, label, kind) => `<button class="btn verdict-${kind}${call === value ? ' on' : ''}${suggested && value !== suggested ? ' muted' : ''}" data-thread-call="${value}" data-thread="${escapeHtml(own.threadId)}" aria-pressed="${call === value}">${VERDICT_ICONS[kind]}${label}</button>`;
+  const reply = call === 'open' ? `<div class="composer thread-reply"><textarea data-thread-reply="${escapeHtml(own.threadId)}" aria-label="Reply in this thread" placeholder="Optional: what is still missing?">${escapeHtml(state.reviewer.threadReplies[own.threadId] ?? '')}</textarea>
+      <p class="who">Posted as a reply in the thread when you post the review. Leave it empty for no reply.${own.fix?.reply ? ' The text starts as the AI draft.' : ''}</p></div>` : '';
+  return `<div class="verdict-buttons thread-calls" role="group" aria-label="Your call on this comment">
+      ${own.canResolve === false ? '' : button('resolve', 'Resolve', 'approved')}${button('open', 'Leave open', 'changes')}</div>${reply}`;
+}
+
+function copyButton(comment) {
+  const copied = state.reviewer.remarks.some((remark) => remark.copiedFrom === comment.id) || (state.reviewer.copiedToSummary || []).includes(comment.id);
+  return copied ? '<span class="who">Copied to your review</span>' : `<button class="btn btn-quiet" data-copy-comment="${escapeHtml(comment.id)}">Copy to my review</button>`;
+}
+
+// A colleague's comment becomes a remark of the reviewer on the same lines, or part of the review body when those lines are gone.
+function copyComment(comment) {
+  const text = `> @${comment.author}: ${comment.body.replace(/\n/g, '\n> ')}\n\n`;
+  const hunk = comment.hunkId && hunkById(comment.hunkId);
+  const at = hunk && comment.line && diffRows(hunk).some((row) => rowMatches(row, comment)) && firstStationOf(hunk.id);
+  if (at) {
+    go(at.line.id, at.index);
+    return openComposer({ hunkId: hunk.id, startLine: comment.startLine ?? comment.line, startSide: comment.startSide ?? comment.side, line: comment.line, side: comment.side, text, copiedFrom: comment.id });
+  }
+  state.reviewer.summary = [state.reviewer.summary.trim(), text.trim()].filter(Boolean).join('\n\n');
+  state.reviewer.copiedToSummary = [...(state.reviewer.copiedToSummary || []), comment.id];
+  saveReviewer();
+  goTerminus();
+  toast('Added to your review summary. Edit it there.');
 }
 
 function renderComposer(composer) {
@@ -2043,10 +2212,9 @@ function renderHome() {
   const items = acceptedItems();
   const onGitHub = items.filter((item) => ['posted', 'draft'].includes(githubStatus(item.id, item.body))).length;
   const proposal = VERDICTS.find((option) => option.id === (state.reviewer.verdict || proposedVerdict()));
-  const without = hunksWithoutVerdict().length;
   const tickets = (context.tickets || []).map((ticket) => `<li>${referenceAnchor(ticket.key, ticket.url, `${ticket.key}: ${ticket.title}`)} ${escapeHtml(ticket.title)}</li>`).join('');
   const linked = (context.linkedPrs || []).map((pr) => `<li>${githubLink(`${pr.repo}#${pr.number}`, pr.repo, pr.number)} <span class="muted">${escapeHtml(pr.state.toLowerCase())}</span><br>${inlineMarkup(pr.summary || pr.title)}</li>`).join('');
-  const general = (review.reviewComments || []).filter((comment) => !comment.hunkId || !hunkById(comment.hunkId));
+  const general = openReviewComments().filter((comment) => !comment.hunkId || !hunkById(comment.hunkId));
   return `<section class="home">
     <p class="home-ref"><a href="${escapeHtml(review.pr.url)}" target="_blank" rel="noopener">${escapeHtml(review.pr.owner)}/${escapeHtml(review.pr.repo)}#${review.pr.number}</a></p>
     <h2 class="home-title">${inlineMarkup(review.pr.title)}</h2>
@@ -2059,7 +2227,7 @@ function renderHome() {
         <div><dt>Hunks seen</dt><dd>${seen} of ${total}</dd></div>
         <div><dt>Your verdicts per hunk</dt><dd class="counts"><span class="tag-approved">${count('approved')} approved ·</span><span class="tag-changes">${count('changes')} changes requested ·</span><span>${count('comment')} commented</span></dd></div>
         <div><dt>Remarks to post</dt><dd>${items.length} · ${onGitHub} on GitHub, ${items.length - onGitHub} local only</dd></div>
-        <div><dt>Proposed verdict</dt><dd>${proposal ? `${VERDICT_ICONS[proposal.icon]}${proposal.label}` : `None yet: ${plural(without, 'hunk')} without a verdict`}</dd></div>
+        <div><dt>Proposed verdict</dt><dd>${proposal ? `${VERDICT_ICONS[proposal.icon]}${proposal.label}` : `None yet: ${undecidedLabel()} to decide`}</dd></div>
       </dl>
       <div class="post-row">
         ${seen < total
@@ -2079,6 +2247,8 @@ function renderHome() {
   </section>`;
 }
 
+function threadPlace(item) { return `${escapeHtml(item.path || hunkById(item.hunkId)?.file || '')}${item.line ? ` ${lineLabel(item)}` : ''}`; }
+
 function previewHtml(post) {
   return [
     `<div class="preview-item"><div class="preview-loc">Review body</div>${post.body ? `<div class="preview-text markdown">${markdownHtml(post.body)}</div>` : '<p class="preview-text empty">Empty</p>'}</div>`,
@@ -2097,31 +2267,16 @@ function postedCard(sent) {
   </div>`;
 }
 
-// Reviews posted before this event did not keep their payload; their contents still show what went out.
-function postedContent(sent) {
-  if (sent.payload) return previewHtml(sent.payload);
-  return (sent.contents || []).map((content) => `<div class="preview-item"><div class="preview-text markdown">${markdownHtml(content.body)}</div></div>`).join('');
-}
-
-function earlierRounds(before) {
-  const rounds = postedFinals().filter((sent) => sent !== before);
-  if (!rounds.length) return '';
-  return `<div class="check-group"><h2>Earlier rounds</h2>${rounds.map((sent, index) => `<details class="round" data-term-section="round-${escapeHtml(sent.id)}"${state.ui.terminusOpen?.[`round-${sent.id}`] ? ' open' : ''}>
-      <summary>Round ${index + 1}: ${postedVerdict(sent).done}${sent.at ? `, ${escapeHtml(timeLabel(sent.at))}` : ''}</summary>
-      <div class="preview">${postedContent(sent)}</div></details>`).join('')}</div>`;
-}
-
-function renderPostedTerminus(sent, beforeYouPost) {
+function renderPostedTerminus(sent) {
   const finishing = isFinishing();
   return `<section class="terminus">
     ${postedCard(sent)}
     <div class="posted-actions">
       ${finishing ? '<p class="lede">The agent asks in the chat whether to clean up.</p>' : '<button class="btn btn-ink" data-action="finish">Finish the review</button>'}
+      <button class="btn" data-action="reviews">See it in Existing reviews</button>
       <button class="btn btn-quiet" data-action="new-round">Start a new review round</button>
     </div>
-    <div class="check-group"><h2>What was posted</h2><div class="preview">${postedContent(sent)}</div></div>
-    <details class="posted-checks" data-term-section="posted-checks"${state.ui.terminusOpen?.['posted-checks'] ? ' open' : ''}><summary>Before you post: the checks</summary>${beforeYouPost}</details>
-    ${earlierRounds(sent)}
+    <p class="lede">Waiting for the author. New commits start the next round, where you check whether your comments are fixed.</p>
   </section>`;
 }
 
@@ -2172,12 +2327,12 @@ function renderTerminus() {
       ${notPosted ? checkItem({ number: 4, key: 'not-posted', title: 'AI findings on hunks you are not posting', counts: notPosted.counts, body: notPosted.body }) : ''}
     </ol>`;
   const posted = postedReview();
-  if (posted) return renderPostedTerminus(posted, beforeYouPost);
+  if (posted) return renderPostedTerminus(posted);
   return `<section class="terminus">
     ${draftLine()}
     <p class="lede">Nothing reaches GitHub until you press a post button.</p>
+    ${hasOwnReview() ? `<p class="lede">This posts a new review with new comments. To approve the fixes or follow up on your earlier comments, <button class="btn btn-quiet" data-action="reviews">update your review</button> instead.</p>` : ''}
     ${ownPr}
-    ${earlierRounds()}
     <div class="check-group"><h2>Before you post</h2>${beforeYouPost}</div>
     <div class="check-group"><h2>Your review</h2><ol class="check-list">
       ${checkItem({ number: 1, title: `Summary ${state.reviewer.summary.trim() ? statusBadge('summary', state.reviewer.summary.trim()) : ''}`, body: `<div class="summary"><textarea id="summary" data-summary placeholder="The review body: what you checked and what you want from the author." aria-label="Review summary">${escapeHtml(state.reviewer.summary)}</textarea></div>` })}
@@ -2186,7 +2341,7 @@ function renderTerminus() {
       ${checkItem({ number: 4, title: 'Verdict and post', body: `<div class="verdicts" role="group" aria-label="Verdict">${verdictButtons}</div>${warn}
         <p class="post-status">Posts ${posts}.${openFindings.length ? ` ${plural(openFindings.length, 'AI finding')} ${openFindings.length === 1 ? 'is' : 'are'} still open and not posted.` : ''}</p>
         <div class="post-row">
-          ${finalVerdict ? `<button class="btn ${finalVerdict.button}" data-action="final">${VERDICT_ICONS[finalVerdict.icon]}Post review: ${escapeHtml(finalVerdict.label.toLowerCase())}</button>` : '<button class="btn" disabled>Choose a verdict to post</button>'}
+          ${finalVerdict ? `<button class="btn ${finalVerdict.button}" data-action="final">${VERDICT_ICONS[finalVerdict.icon]}${hasOwnReview() ? 'Post new review' : 'Post review'}: ${escapeHtml(finalVerdict.label.toLowerCase())}</button>` : '<button class="btn" disabled>Choose a verdict to post</button>'}
           ${draftButton()}
         </div>
         ${renderPosts()}` })}
@@ -2250,6 +2405,72 @@ function notPostedFindings() {
   };
 }
 
+function hasOwnReview() { return (state.review.reviews || []).some((review) => review.author === viewerLogin()); }
+
+// Replies and resolved threads of an update: only threads the reviewer made a call on, and only replies with text.
+function threadPayload() {
+  const disclosure = state.review.conventions.disclosure || {};
+  const calls = (call) => openOwnThreads().filter((own) => threadCall(own) === call);
+  return {
+    resolve: calls('resolve').filter((own) => own.canResolve !== false).map((own) => own.threadId),
+    replies: calls('open').map((own) => ({ own, body: (state.reviewer.threadReplies[own.threadId] || '').trim() })).filter(({ body }) => body)
+      .map(({ own, body }) => ({ threadId: own.threadId, body: withDisclosure(body, body === own.fix?.reply?.trim() && disclosure.comment) })),
+  };
+}
+
+// An update adds a review on top of the reviewer's earlier one. It carries no new line comments.
+async function postUpdate(verdict) {
+  const body = (state.reviewer.updateNote || '').trim();
+  if (verdict !== 'APPROVE' && !body) return toast('Write a note to the author first. GitHub needs a body for this verdict.', true);
+  const event = { type: 'post', kind: 'update', verdict, body, comments: [], ...threadPayload() };
+  const id = await sendEvent(event, { at: new Date().toISOString(), payload: { verdict, body, resolve: event.resolve, replies: event.replies } });
+  if (!id) return;
+  // Sent replies are not sent again; a thread left open keeps its call until new commits start the next round.
+  for (const reply of event.replies) state.reviewer.threadReplies[reply.threadId] = '';
+  state.reviewer.updateNote = '';
+  saveReviewer();
+  render();
+  toast('The update is on its way to GitHub.');
+}
+
+function updateStatus() {
+  const last = sentEvents('post').filter((sent) => sent.kind === 'update').at(-1);
+  return last ? postResultRow(last) : '';
+}
+
+// Below the reviewer's newest review: the call on each open comment becomes an update of that review.
+// A review that requests changes always gets the footer, so the reviewer can approve on top of it.
+function updateFooter(review) {
+  const threads = openOwnThreads();
+  const requested = review.state === 'CHANGES_REQUESTED';
+  if (!threads.length && !requested && !sentEvents('post').some((sent) => sent.kind === 'update')) return '';
+  const left = threadsWithoutCall().length;
+  const open = threads.filter((own) => threadCall(own) === 'open').length;
+  const note = `<textarea data-update-note aria-label="Note to the author" placeholder="Note to the author. Optional for approve, needed for request changes and comment.">${escapeHtml(state.reviewer.updateNote || '')}</textarea>`;
+  const button = (verdict, label, kind) => `<button class="btn ${kind}" data-update-review="${verdict}">${VERDICT_ICONS[VERDICTS.find((option) => option.id === verdict).icon]}${label}</button>`;
+  const comment = button('COMMENT', 'Update review: comment', 'btn-quiet');
+  const buttons = left ? `<button class="btn" disabled>Decide on ${plural(left, 'comment')} first</button>`
+    : open ? `${button('REQUEST_CHANGES', 'Update review: request changes', 'btn-danger')}${button('APPROVE', `Update review: approve (${plural(open, 'comment')} left open)`, 'btn-outline-ok')}${comment}`
+    : `${button('APPROVE', 'Update review: approve', 'btn-ok')}${comment}`;
+  const intro = threads.length
+    ? `${threadCallCounts()}. Replies and resolved comments go to GitHub with the update.`
+    : 'Your review requests changes. Approving now replaces that as your verdict.';
+  return `<div class="update-footer">
+    <h3>Update your review</h3>
+    ${threads.length || requested ? `<p class="lede">${intro} GitHub shows the update as your newest review. It adds no new line comments: for those, <button class="btn btn-quiet" data-action="terminus">post a new review</button>.</p>
+    <div class="composer">${note}</div>
+    <div class="post-row">${buttons}</div>` : ''}
+    ${updateStatus()}
+  </div>`;
+}
+
+function threadCallCounts() {
+  const threads = openOwnThreads();
+  const count = (call) => threads.filter((own) => threadCall(own) === call).length;
+  const left = threadsWithoutCall().length;
+  return `${count('resolve')} to resolve · ${count('open')} left open${left ? ` · ${left} without a call` : ''}`;
+}
+
 function hunkVerdictsCheck() {
   const verdicts = state.reviewer.hunkVerdicts;
   const changes = state.review.hunks.filter((hunk) => verdicts[hunk.id] === 'changes');
@@ -2276,17 +2497,22 @@ function checkItem({ number, done, key, title, counts, body, open = false }) {
   return `<li class="check-item"><details${isOpen ? ' open' : ''} data-term-section="${key}"><summary class="check-head">${head('span')}</summary><div class="check-body">${body}</div></details></li>`;
 }
 
+const POST_NOUNS = { final: 'review', draft: 'draft', update: 'update' };
+
+function postResultRow({ id, kind, at }) {
+  const result = postFor(id);
+  const noun = POST_NOUNS[kind];
+  if (!result) return `<div class="post-result"><span class="pending">Posting the ${noun}…</span></div>`;
+  if (result.status !== 'posted') return `<div class="post-result ${result.status}">GitHub refused the ${noun}: ${escapeHtml(result.message)}</div>`;
+  const link = result.url ? ` <a href="${escapeHtml(result.url)}" target="_blank" rel="noopener">Open on GitHub</a>` : '';
+  return `<div class="post-result posted">${noun[0].toUpperCase() + noun.slice(1)} posted${at ? ` at ${escapeHtml(timeLabel(at))}` : ''}.${link}</div>`;
+}
+
+// Updates show under the review they update, not here.
 function renderPosts() {
-  const posts = sentEvents('post');
+  const posts = sentEvents('post').filter((sent) => sent.kind !== 'update');
   if (!posts.length) return '';
-  const rows = [...posts].reverse().map(({ id, kind }) => {
-    const result = postFor(id);
-    const noun = kind === 'final' ? 'review' : 'draft';
-    if (!result) return `<div class="post-result"><span class="pending">Posting the ${noun}…</span></div>`;
-    const link = result.url ? ` <a href="${escapeHtml(result.url)}" target="_blank" rel="noopener">Open on GitHub</a>` : '';
-    return `<div class="post-result ${result.status}">${result.status === 'posted' ? `${noun[0].toUpperCase() + noun.slice(1)} posted.${link}` : `GitHub refused the ${noun}: ${escapeHtml(result.message)}`}</div>`;
-  }).join('');
-  return `<div class="section posts"><h3>Sent to GitHub</h3>${rows}</div>`;
+  return `<div class="section posts"><h3>Sent to GitHub</h3>${[...posts].reverse().map(postResultRow).join('')}</div>`;
 }
 
 // The page is drawn again on most actions; focus goes back to the same control, found by its id or its data attributes.
@@ -2347,7 +2573,7 @@ async function post(kind) {
     return;
   }
   const payload = { body: event.body, comments: event.comments, verdict: event.verdict };
-  const id = await sendEvent(event, { contents, at: new Date().toISOString(), payload });
+  const id = await sendEvent(event, { contents, at: new Date().toISOString(), headSha: state.review.pr.headSha, payload });
   if (id) toast(kind === 'final' ? 'The review is on its way to GitHub.' : 'The draft is on its way to GitHub.');
 }
 
@@ -2369,6 +2595,15 @@ document.addEventListener('click', (event) => {
     const unseen = line.stops.findIndex((stop) => !isSeen(stop.hunkId));
     return go(line.id, remembered !== -1 ? remembered : unseen === -1 ? 0 : unseen);
   }
+  if (data.threadCall) {
+    const own = openOwnThreads().find((candidate) => candidate.threadId === data.thread);
+    state.reviewer.threadCalls = { ...state.reviewer.threadCalls, [data.thread]: data.threadCall };
+    if (data.threadCall === 'open' && state.reviewer.threadReplies[data.thread] === undefined) state.reviewer.threadReplies[data.thread] = own?.fix?.reply || '';
+    saveReviewer();
+    return render();
+  }
+  if (data.updateReview) return postUpdate(data.updateReview);
+  if (data.copyComment) return copyComment((state.review.reviewComments || []).find((comment) => comment.id === data.copyComment));
   if (data.decide) {
     if (data.decision === 'open') delete state.reviewer.decisions[data.decide]; else state.reviewer.decisions[data.decide] = data.decision;
     saveReviewer(); return render();
@@ -2438,10 +2673,11 @@ document.addEventListener('click', (event) => {
     case 'prev': return step(-1);
     case 'unseen': return nextUnseen();
     case 'terminus': return goTerminus();
+    case 'reviews': return goReviews();
     case 'home': return goHome();
-    case 'update': state.ui.updatingTo = state.review.remote.headSha; return sendEvent({ type: 'update' });
+    case 'refresh': state.ui.updatingTo = state.review.remote.headSha; return sendEvent({ type: 'refresh' });
     case 'finish': return sendEvent({ type: 'finish' });
-    case 'new-round': return startNewRound();
+    case 'new-round': startNewRound(); return render();
     case 'show-comments': return showNewComments();
     case 'show-unseen':
       state.ui.terminusOpen = { ...state.ui.terminusOpen, coverage: true };
@@ -2460,7 +2696,7 @@ document.addEventListener('click', (event) => {
       const textarea = document.getElementById('composer');
       const body = textarea.value.trim();
       if (!body) return toast('Write the remark first.', true);
-      state.reviewer.remarks.push({ id: crypto.randomUUID(), hunkId: composer.hunkId, startLine: composer.startLine, startSide: composer.startSide, line: composer.line, side: composer.side, severity: document.getElementById('composer-severity').value, body, ...(composer.aiSuggested && { aiSuggested: true }) });
+      state.reviewer.remarks.push({ id: crypto.randomUUID(), hunkId: composer.hunkId, startLine: composer.startLine, startSide: composer.startSide, line: composer.line, side: composer.side, severity: document.getElementById('composer-severity').value, body, ...(composer.aiSuggested && { aiSuggested: true }), ...(composer.copiedFrom && { copiedFrom: composer.copiedFrom }) });
       delete state.ui.drafts[textarea.dataset.draft];
       state.ui.composer = null;
       saveReviewer();
@@ -2690,6 +2926,8 @@ document.addEventListener('input', (event) => {
   if (target.dataset.draft) state.ui.drafts[target.dataset.draft] = target.value;
   if (target.dataset.edit) state.ui.drafts[`edit:${target.dataset.edit}`] = target.value;
   if ('summary' in target.dataset) { state.reviewer.summary = target.value; saveReviewer(); }
+  if ('updateNote' in target.dataset) { state.reviewer.updateNote = target.value; saveReviewer(); }
+  if (target.dataset.threadReply) { state.reviewer.threadReplies[target.dataset.threadReply] = target.value; saveReviewer(); }
 });
 
 function noteFreshHunks() {
@@ -2708,6 +2946,7 @@ async function poll() {
       setReview(review, json);
       noteFreshHunks();
       importOwnReview();
+      startRoundOnNewCommits();
       render();
     }
   } catch (error) {
@@ -2725,6 +2964,7 @@ async function boot() {
     applyTheme();
     noteFreshHunks();
     importOwnReview();
+    startRoundOnNewCommits();
     // Comments that were there when the review first opened are not new.
     state.reviewer.knownComments ??= (review.reviewComments || []).map((comment) => comment.id);
     saveReviewer();

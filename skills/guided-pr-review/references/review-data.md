@@ -53,12 +53,21 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
       "title": "<one line>", "body": "<the comment text as it will be posted>", "rule": "<which review rule found it>" }
   ],
   "viewer": { "login": "<login of the authenticated GitHub user>" },
+  "reviews": [
+    { "id": 5653742310, "author": "other-reviewer", "state": "CHANGES_REQUESTED", "submittedAt": "<ISO time>", "url": "<link to the review>", "body": "<the review body, verbatim>" }
+  ],
   "reviewComments": [
-    { "id": "c1", "author": "other-reviewer", "url": "<link to the comment>", "hunkId": "3f2a9c1d0b7e", "line": 2, "side": "RIGHT",
-      "body": "<the comment exactly as its author wrote it>", "opinion": { "stance": "agree", "text": "<one line: why>" } }
+    { "id": "c1", "reviewId": 5653742310, "threadId": "<GraphQL ID of the thread>", "author": "other-reviewer", "url": "<link to the comment>", "hunkId": "3f2a9c1d0b7e", "path": "src/cache.ts", "line": 2, "side": "RIGHT",
+      "body": "<the comment exactly as its author wrote it>", "diffHunk": "<the comment's diff_hunk from GitHub>", "resolved": false,
+      "replies": [ { "author": "sample-author", "body": "<text>", "at": "<ISO time>" } ],
+      "opinion": { "stance": "agree", "text": "<one line: why>" } }
   ],
   "ownRemarks": [
-    { "id": "gh-123456", "state": "pending", "hunkId": "3f2a9c1d0b7e", "line": 1, "side": "RIGHT", "body": "<the user's comment, without severity label>", "severity": "minor", "check": "<one line: still valid or not, and why>", "url": "<link, posted only>" }
+    { "id": "gh-123456", "state": "posted", "reviewId": 5653742311, "threadId": "<GraphQL ID of the thread>", "hunkId": "3f2a9c1d0b7e", "path": "src/cache.ts", "line": 1, "side": "RIGHT",
+      "body": "<the user's comment, without severity label>", "severity": "minor", "url": "<link, posted only>",
+      "diffHunk": "<the comment's diff_hunk from GitHub>", "resolved": false, "outdated": false, "canResolve": true,
+      "replies": [ { "author": "sample-author", "body": "<text>", "at": "<ISO time>" } ],
+      "fix": { "verdict": "not-fixed", "note": "<one line: what changed, with the commit or line>", "reply": "<draft reply that says what is still missing; not-fixed only>" } }
   ],
   "ownPendingReview": { "id": 987654, "body": "<the pending review body, or empty>" },
   "answers": [ { "eventId": "<id>", "hunkId": "<id or null>", "question": "<text>", "answer": "<text>" } ],
@@ -73,12 +82,14 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - An acceptance criterion has `source` `ticket` when the ticket lists it, or `description` when the agent took it from the description because the ticket lists none. Do not repeat that in `text`. `verdict` is `met`, `not-met` or `unclear`, with a one-line `note`.
 - `relatedTickets` holds open tickets that concern the same code, found by searching the tracker. Each one has `key`, `url` and `title`, and no criteria. The review page links their keys like the linked tickets; a related ticket's project prefix also makes other keys with that prefix linkable. They do not count as acceptance criteria.
 - `tickets` holds Jira tickets (`key` like `WX-42`) and GitHub issues (`key` like `example-org/sample-api#12`), each with `url` and `title`. The review page links every reference it can resolve in any text, with the title as tooltip.
-- `reviewComments` are other reviewers' open comments. `stance` is `agree`, `disagree` or `unsure`. A comment with `hunkId: null`, or on a line outside the diff, shows on the home page. The review page never posts these comments.
+- `reviews` are the submitted reviews on the PR, by the user and by others, without pending ones. `state` is GitHub's: `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED` or `DISMISSED`. The Existing reviews tab shows them, the user's own first.
+- `reviewComments` are other reviewers' line comments, resolved ones too, each with the `reviewId` it belongs to. `stance` is `agree`, `disagree` or `unsure`. Open comments also show on their hunk; a comment with `hunkId: null`, or on a line outside the diff, shows on the home page. The review page never posts these comments. The reviewer can copy one into their own review as a new remark.
 - `viewer.login` is the authenticated GitHub user; the review page shows that account's avatar on the user's own remarks, and none when `viewer` is missing.
 - `pr.body` is the PR description, verbatim; the home page shows it as a collapsible block.
 - `pr.localPath` is set for a big PR only. The local server then serves whole files from the worktree, and the review page links each file to VS Code and to its folder, and a PHP file also to PhpStorm. Without it, the server serves whole files from `files/` in the review directory. The server serves only files that a hunk changes.
-- `ownRemarks` are the user's own review comments. The review page loads the `pending` ones and the `ownPendingReview` body into the reviewer's remarks and summary once, so they are posted again with the review. `posted` ones are shown with their `check` and are not posted again. `severity` is the label the comment starts with, or the lowest severity when it has none.
-- `remote` is what the agent found on GitHub at the last `check`. `state` is `open`, `closed` or `merged`. When `remote.headSha` differs from `pr.headSha`, the review page offers to update the review.
+- `ownRemarks` are the user's own review comments. The review page loads the `pending` ones and the `ownPendingReview` body into the reviewer's remarks and summary once, so they are posted again with the review. `posted` ones are not posted again. `severity` is the label the comment starts with, or the lowest severity when it has none.
+- `fix` is the agent's recommendation for a posted comment: `fixed`, `not-fixed` or `unclear`, with a one-line `note`. For `not-fixed`, `reply` is a short draft that says what is still missing. A posted comment that is not `resolved` needs the reviewer's call: resolve it or leave it open. `canResolve` is GitHub's `viewerCanResolve`; `outdated` is GitHub's `isOutdated`.
+- `remote` is what the agent found on GitHub at the last `check`. `state` is `open`, `closed` or `merged`. When `remote.headSha` differs from `pr.headSha`, the review page offers to load the new commits.
 - A finding with `hunkId: null` is about the whole PR, for example a missing acceptance criterion. It goes in the review body.
 - `line` and `side` follow GitHub review comments: `side` is `RIGHT` for added and context lines, `LEFT` for removed lines. A finding or remark on several lines also has `startLine` and `startSide` for its first line; in a `post` event these become `start_line` and `start_side`.
 
@@ -90,7 +101,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   "decisions": { "f1": "accepted" },
   "edits": { "f1": "<reviewer's edited text of the finding>" },
   "severities": { "f1": "nit" },
-  "remarks": [ { "id": "r1", "hunkId": "3f2a9c1d0b7e", "startLine": 1, "startSide": "RIGHT", "line": 3, "side": "RIGHT", "severity": "minor", "body": "<text>" } ],
+  "remarks": [ { "id": "r1", "hunkId": "3f2a9c1d0b7e", "startLine": 1, "startSide": "RIGHT", "line": 3, "side": "RIGHT", "severity": "minor", "body": "<text>", "copiedFrom": "c1" } ],
   "summary": "<review body written by the reviewer>",
   "verdict": "REQUEST_CHANGES",
   "hunkVerdicts": { "3f2a9c1d0b7e": "approved" },
@@ -100,12 +111,15 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   "theme": "system",
   "flowPositions": { "forecast-read": "3f2a9c1d0b7e" },
   "knownComments": ["c1"],
+  "threadCalls": { "<threadId>": "resolve" },
+  "threadReplies": { "<threadId>": "<reply text>" },
+  "copiedToSummary": ["c1"],
   "sent": [ { "id": "<event id>", "type": "ask", "hunkId": "3f2a9c1d0b7e", "question": "<text>" } ],
   "reopenedAfter": "<id of the posted final review after which the reviewer started a new round>"
 }
 ```
 
-`knownHunks` lets the review page mark hunks that are new since the last session. `imported` lists the own remarks and pending review body it already loaded, so it loads each one once. `position` is where the reviewer was, so a reload opens the same hunk. `knownComments` lists the `reviewComments` the reviewer already knows about; the review page announces the others as new. `flowPositions` holds the hunk the reviewer last had open in each flow, so opening a flow again returns there. `theme` is the colour theme the reviewer picked: `system`, `light` or `dark`. `severities` holds the severity the reviewer set on a finding, where it differs from the AI's. `hunkVerdicts` holds the reviewer's own verdict per hunk (`approved`, `changes` or `comment`); it stays in the page and only shapes the proposed verdict. `sent` lists the events the review page sent, so it can show their answers and post results; each `post` entry also lists the IDs and texts it contained, so the page can show what is on GitHub and what is still local. A `post` entry also holds `at`, the time it was sent, and `payload`, the body, comments and verdict it sent. When GitHub accepted a final review, the page shows that payload instead of the form, until the reviewer starts a new round; `reopenedAfter` marks that moment.
+`knownHunks` lets the review page mark hunks that are new since the last session. `imported` lists the own remarks and pending review body it already loaded, so it loads each one once. `position` is where the reviewer was, so a reload opens the same hunk. `knownComments` lists the `reviewComments` the reviewer already knows about; the review page announces the others as new. `flowPositions` holds the hunk the reviewer last had open in each flow, so opening a flow again returns there. `theme` is the colour theme the reviewer picked: `system`, `light` or `dark`. `severities` holds the severity the reviewer set on a finding, where it differs from the AI's. `hunkVerdicts` holds the reviewer's own verdict per hunk (`approved`, `changes` or `comment`); it stays in the page and only shapes the proposed verdict. `threadCalls` holds the reviewer's call on each of their open posted comments: `resolve` or `open`. `threadReplies` holds the reply to post in a thread left open; it starts as the agent's draft. A remark with `copiedFrom` started as a copy of another reviewer's comment on the same lines; `copiedToSummary` lists the comments copied into the summary because their lines are not in the diff. `sent` lists the events the review page sent, so it can show their answers and post results; each `post` entry also lists the IDs and texts it contained, so the page can show what is on GitHub and what is still local. A `post` entry also holds `at`, the time it was sent, `headSha`, the head commit at that time, and `payload`, what it sent. When GitHub accepted a final review, the page shows that it is posted instead of the form, until the reviewer starts a new round or `pr.headSha` changes; `reopenedAfter` marks the start of the new round.
 
 ## events.jsonl
 
@@ -115,9 +129,9 @@ Every event has `id`, `at`, `type` and `review`, the pull request it belongs to 
 | --- | --- | --- |
 | `ask` | `hunkId` (or null), `question` | Answer it and add an entry to `answers`. |
 | `explain` | `hunkId` | Fill `explanationMore` of that hunk. |
-| `post` | `kind` (`draft` or `final`), `verdict` (final only), `body`, `comments` | Post exactly this payload, then add an entry to `posts`. |
-| `check` | none | Read the PR's head commit, state and comments on GitHub. Write `remote`. Add new open comments by others to `reviewComments` and the user's new ones to `ownRemarks`, as in step 5. Change nothing else. |
-| `update` | none | Run the Resume steps for a changed head commit, then set `pr.headSha` to the new head. |
+| `post` | `kind` (`draft`, `final` or `update`), `verdict` (final and update only), `body`, `comments`, and for update only `replies` and `resolve` | Post exactly this payload, then add an entry to `posts`. |
+| `check` | none | Read the PR's head commit, state, reviews and comments on GitHub. Write `remote`. Update `reviews`, `reviewComments` and `ownRemarks`, as in step 5: new ones, new replies, `resolved`. Change nothing else. |
+| `refresh` | none | Run the Resume steps for a changed head commit, then set `pr.headSha` to the new head. |
 | `finish` | none | Go to step 8. |
 
 `comments` in a `post` event:
@@ -127,3 +141,9 @@ Every event has `id`, `at`, `type` and `review`, the pull request it belongs to 
 ```
 
 The review page builds `body` and every comment `body` in full, with the severity label. Only AI findings, and remarks that started from an AI answer, get the disclosure.
+
+A `post` of kind `update` posts no line comments. It answers the reviewer's earlier comments and adds a review on top of their earlier one. Its `replies` and `resolve`:
+
+```json
+{ "replies": [ { "threadId": "<threadId>", "body": "<text, with the disclosure when it is the agent's draft>" } ], "resolve": ["<threadId>"] }
+```
