@@ -482,6 +482,12 @@ select { border: 1px solid var(--rule-strong); border-radius: 6px; background: v
 .tone-quiet { --tone: var(--ink-3); }
 .pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font: 650 12.5px/1.4 var(--sans); white-space: nowrap; color: color-mix(in srgb, var(--tone) 72%, var(--ink)); background: color-mix(in srgb, var(--tone) 14%, var(--ground)); border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent); }
 .pill svg { width: 13px; height: 13px; }
+.summary-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 8px; }
+.summary-row .btn { display: inline-flex; align-items: center; gap: 6px; }
+.summary-row .btn svg { width: 14px; height: 14px; }
+.summary-row .muted { font-size: 13px; }
+.summary-draft { margin-top: 10px; padding: 12px 14px; border-radius: 8px; border: 1px dashed var(--rule-strong); background: color-mix(in srgb, var(--focus) 5%, var(--ground)); }
+.summary-draft p { margin: 8px 0 4px; white-space: pre-wrap; font-size: 14.5px; line-height: 1.6; }
 .pill.tone-warn { color: color-mix(in srgb, var(--tone) 52%, var(--ink)); }
 .pill-go { cursor: pointer; padding: 6px 13px; font-size: 13.5px; transition: background .15s var(--ease), border-color .15s var(--ease); }
 .pill-go:hover { background: color-mix(in srgb, var(--tone) 22%, var(--ground)); border-color: color-mix(in srgb, var(--tone) 60%, transparent); }
@@ -1117,7 +1123,7 @@ function buildPost(kind) {
   if (state.reviewer.summary.trim()) parts.push(state.reviewer.summary.trim());
   // Lines after the first are indented, so a finding with several paragraphs stays one list item under its label.
   if (general.length) parts.push(general.map((item) => `- ${labelled(item.severity, item.body).replace(/\n(?=.)/g, '\n  ')}`).join('\n'));
-  const body = withDisclosure(parts.join('\n\n'), general.some((item) => item.source === 'ai') && disclosure.review).trim();
+  const body = withDisclosure(parts.join('\n\n'), (state.reviewer.summaryAiSuggested || general.some((item) => item.source === 'ai')) && disclosure.review).trim();
   const event = { type: 'post', kind, body, comments };
   if (kind === 'final') event.verdict = state.reviewer.verdict || proposedVerdict();
   const contents = items.map((item) => ({ id: item.id, body: item.body }));
@@ -1320,7 +1326,7 @@ function timeLabel(at) {
 function startNewRound() {
   const last = postedReview();
   if (!last) return;
-  Object.assign(state.reviewer, { reopenedAfter: last.id, summary: '', verdict: null, remarks: [], threadCalls: {}, threadReplies: {}, updateNote: '', copiedToSummary: [] });
+  Object.assign(state.reviewer, { reopenedAfter: last.id, summary: '', summaryAiSuggested: false, verdict: null, remarks: [], threadCalls: {}, threadReplies: {}, updateNote: '', copiedToSummary: [] });
   saveReviewer();
 }
 
@@ -2498,6 +2504,20 @@ function draftLine() {
   return `<p class="draft-line">${VERDICT_ICONS.comment}Draft on GitHub${last.at ? `, updated ${escapeHtml(timeLabel(last.at))}` : ''}.${result.url ? ` <a href="${escapeHtml(result.url)}" target="_blank" rel="noopener">View</a>` : ''}</p>`;
 }
 
+function summaryTools() {
+  const asked = sentEvents('summarize').at(-1);
+  const waiting = asked && !answerFor(asked.id);
+  const draft = pendingSummaryDraft();
+  const count = acceptedItems().length;
+  return `${draft ? `<div class="summary-draft">${aiTag('AI draft')}<p>${escapeHtml(draft.text)}</p>
+      <div class="note-actions"><button class="btn btn-outline-go" data-action="use-summary" data-event="${escapeHtml(draft.eventId)}">Replace your summary with this</button><button class="btn btn-quiet" data-action="dismiss-summary" data-event="${escapeHtml(draft.eventId)}">Keep yours</button></div></div>` : ''}
+    <div class="summary-row">
+      ${waiting ? '<span class="pending">The agent is writing a summary…</span>'
+        : `<button class="btn btn-quiet" data-action="summarize"${count ? '' : ' disabled'}>${ICONS.ai}${state.reviewer.summary.trim() ? 'Write a new summary from your remarks' : 'Write a summary from your remarks'}</button>`}
+      <span class="muted">${count ? `Uses the ${plural(count, 'remark')} that will be posted.` : 'Accept a finding or write a remark first.'}</span>
+    </div>`;
+}
+
 function renderTerminus() {
   const review = state.review;
   const unseen = unseenHunks();
@@ -2545,7 +2565,7 @@ function renderTerminus() {
     ${ownPr}
     <div class="check-group"><h2>Before you post</h2>${beforeYouPost}</div>
     <div class="check-group"><h2>Your review</h2><ol class="check-list">
-      ${checkItem({ number: 1, title: `Summary ${state.reviewer.summary.trim() ? statusBadge('summary', state.reviewer.summary.trim()) : ''}`, body: `<div class="summary"><textarea id="summary" data-summary placeholder="The review body: what you checked and what you want from the author." aria-label="Review summary">${escapeHtml(state.reviewer.summary)}</textarea></div>` })}
+      ${checkItem({ number: 1, title: `Summary ${state.reviewer.summary.trim() ? statusBadge('summary', state.reviewer.summary.trim()) : ''}`, body: `<div class="summary"><textarea id="summary" data-summary placeholder="The review body: what you checked and what you want from the author." aria-label="Review summary">${escapeHtml(state.reviewer.summary)}</textarea>${summaryTools()}</div>` })}
       ${checkItem({ number: 2, done: verdicts.done, key: 'hunk-verdicts', title: 'Your verdicts per hunk', counts: verdicts.counts, body: verdicts.body })}
       ${checkItem({ number: 3, key: 'preview', title: 'What will be posted', counts: posts, body: `<div class="preview">${previewItems}</div>` })}
       ${checkItem({ number: 4, title: 'Verdict and post', body: `<div class="verdicts" role="group" aria-label="Verdict">${verdictButtons}</div>${warn}
@@ -2910,6 +2930,9 @@ document.addEventListener('click', (event) => {
     case 'open-folder': return transport.openFolder(data.file).catch((error) => toast(`Cannot open the folder: ${error.message}`, true));
     case 'first': return go(lines()[0].id, 0);
     case 'draft': return post('draft');
+    case 'summarize': return sendEvent({ type: 'summarize', verdict: state.reviewer.verdict || proposedVerdict(), remarks: acceptedItems().map((item) => ({ severity: item.severity, where: item.hunkId ? `${hunkById(item.hunkId)?.file || ''} ${lineLabel(item)}` : 'the whole PR', body: item.body })) });
+    case 'use-summary': useSummaryDraft(data.event); return render();
+    case 'dismiss-summary': state.reviewer.summaryFrom = data.event; saveReviewer(); return render();
     case 'final': return post('final');
     case 'explain': state.ui.openExplain.add(data.hunk); return sendEvent({ type: 'explain', hunkId: data.hunk });
     case 'cancel-remark': state.ui.composer = null; return render();
@@ -3172,7 +3195,15 @@ document.addEventListener('input', (event) => {
   const target = event.target;
   if (target.dataset.draft) state.ui.drafts[target.dataset.draft] = target.value;
   if (target.dataset.edit) state.ui.drafts[`edit:${target.dataset.edit}`] = target.value;
-  if ('summary' in target.dataset) { state.reviewer.summary = target.value; saveReviewer(); }
+  if ('summary' in target.dataset) {
+    state.reviewer.summary = target.value;
+    // Once the reviewer clears the AI draft, what they write is their own.
+    if (!target.value.trim()) state.reviewer.summaryAiSuggested = false;
+    saveReviewer();
+    // Only the preview is drawn again, so the textarea keeps focus and caret.
+    const preview = document.querySelector('.preview');
+    if (preview) preview.innerHTML = previewHtml(buildPost('final').event);
+  }
   if ('updateNote' in target.dataset) { state.reviewer.updateNote = target.value; saveReviewer(); }
   if (target.dataset.threadReply) { state.reviewer.threadReplies[target.dataset.threadReply] = target.value; saveReviewer(); }
 });
@@ -3185,6 +3216,25 @@ function noteFreshHunks() {
   state.reviewer.knownHunks = allHunkIds();
 }
 
+function pendingSummaryDraft() {
+  const asked = sentEvents('summarize').at(-1);
+  const answer = asked && answerFor(asked.id);
+  return answer && state.reviewer.summaryFrom !== asked.id ? { eventId: asked.id, text: answer.answer } : null;
+}
+
+function useSummaryDraft(eventId) {
+  const draft = pendingSummaryDraft();
+  if (!draft || draft.eventId !== eventId) return;
+  Object.assign(state.reviewer, { summary: draft.text.trim(), summaryFrom: eventId, summaryAiSuggested: true });
+  saveReviewer();
+}
+
+// Text the reviewer wrote is never overwritten without asking.
+function applySummaryDraft() {
+  const draft = pendingSummaryDraft();
+  if (draft && !state.reviewer.summary.trim()) useSummaryDraft(draft.eventId);
+}
+
 async function poll() {
   try {
     const review = await transport.loadReview();
@@ -3194,6 +3244,7 @@ async function poll() {
       noteFreshHunks();
       importOwnReview();
       startRoundOnNewCommits();
+      applySummaryDraft();
       render();
     }
   } catch (error) {
@@ -3212,6 +3263,7 @@ async function boot() {
     noteFreshHunks();
     importOwnReview();
     startRoundOnNewCommits();
+    applySummaryDraft();
     // Comments that were there when the review first opened are not new.
     state.reviewer.knownComments ??= (review.reviewComments || []).map((comment) => comment.id);
     saveReviewer();
