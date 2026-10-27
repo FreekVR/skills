@@ -106,6 +106,9 @@ body {
 button, select, textarea, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 a { color: var(--focus); text-underline-offset: 3px; }
+/* An action inside a sentence reads as a link, so the sentence stays one line of text. */
+.btn-link { all: unset; color: var(--focus); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.btn-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 2px; }
 code { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-nums; }
 * { scrollbar-color: var(--rule-strong) transparent; scrollbar-width: thin; }
 
@@ -2561,7 +2564,7 @@ function renderTerminus() {
   return `<section class="terminus">
     ${draftLine()}
     <p class="lede">Nothing reaches GitHub until you press a post button.</p>
-    ${hasOwnReview() ? `<p class="lede">This posts a new review with new comments. To approve the fixes or follow up on your earlier comments, <button class="btn btn-quiet" data-action="reviews">update your review</button> instead.</p>` : ''}
+    ${hasOwnReview() ? `<p class="lede">This posts a new review with new comments. To approve the fixes or follow up on your earlier comments, <button class="btn-link" data-action="reviews">update your review</button> instead.</p>` : ''}
     ${ownPr}
     <div class="check-group"><h2>Before you post</h2>${beforeYouPost}</div>
     <div class="check-group"><h2>Your review</h2><ol class="check-list">
@@ -2696,7 +2699,7 @@ function updateFooter(review) {
     : 'Your review requests changes. Approving now replaces that as your verdict.';
   return `<div class="update-footer">
     <h3>Update your review</h3>
-    ${threads.length || requested ? `<p class="lede">${intro} GitHub shows the update as your newest review. It adds no new line comments: for those, <button class="btn btn-quiet" data-action="terminus">post a new review</button>.</p>
+    ${threads.length || requested ? `<p class="lede">${intro} GitHub shows the update as your newest review. It adds no new line comments: for those, <button class="btn-link" data-action="terminus">post a new review</button>.</p>
     <div class="composer">${note}</div>
     <div class="post-row">${buttons}</div>` : ''}
     ${updateStatus()}
