@@ -667,10 +667,16 @@ details.thread > summary::-webkit-details-marker { display: none; }
 .thread-code { margin: 8px 0; overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; }
 .thread-code .diff-table { font-size: 12.5px; }
 .thread-code tr:last-child td.num { box-shadow: inset 3px 0 0 var(--focus); color: var(--ink); font-weight: 650; }
-.replies { list-style: none; margin: 10px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--rule); display: grid; gap: 10px; }
-.replies li { display: flex; gap: 8px; align-items: flex-start; }
-.replies .markdown > :first-child { margin-top: 2px; }
-.replies .markdown > :last-child { margin-bottom: 0; }
+.conversation { list-style: none; margin: 10px 0 0; padding: 0; display: grid; gap: 16px; }
+.conversation li { position: relative; display: flex; gap: 10px; align-items: flex-start; }
+.conversation li .avatar { align-self: flex-start; }
+/* A line from avatar to avatar joins the replies to the comment they answer. */
+.conversation li:not(:last-child)::before { content: ""; position: absolute; left: 11px; top: 28px; bottom: -14px; border-left: 2px solid var(--rule-strong); }
+.conversation-entry { min-width: 0; flex: 1; }
+.conversation li + li .conversation-entry { padding: 8px 12px; border-radius: 8px; background: color-mix(in srgb, var(--line, var(--ink-3)) 6%, transparent); }
+.conversation .markdown { font-size: 14.5px; line-height: 1.6; }
+.conversation .markdown > :first-child { margin-top: 4px; }
+.conversation .markdown > :last-child { margin-bottom: 0; }
 .fix { margin: 10px 0 0; font-size: 13.5px; color: var(--ink-2); max-width: 76ch; }
 .fix.fixed b { color: var(--ok); }
 .fix.not-fixed b { color: var(--error); }
@@ -1710,6 +1716,7 @@ function renderRail() {
   const proposal = VERDICTS.find((option) => option.id === proposedVerdict());
   const posted = postedReview();
   const shown = posted ? postedVerdict(posted) : proposal || { icon: 'undecided' };
+  const reviewCounts = [othersReviewCount() ? `${othersReviewCount()} by others` : '', threadsWithoutCall().length ? `${threadsWithoutCall().length} to check` : ''].filter(Boolean).join(' · ');
   return `<aside class="rail" aria-label="Review navigation">
     <div class="rail-top">
       <button class="rail-item" data-action="home" aria-current="${state.view.kind === 'home'}">
@@ -1727,7 +1734,7 @@ function renderRail() {
       ${(state.review.reviews || []).length ? `<button class="rail-item rail-reviews" data-action="reviews" aria-current="${state.view.kind === 'reviews'}">
         <span class="rail-icon" aria-hidden="true">${VERDICT_ICONS.comment}</span>
         <span class="rail-label">Existing reviews</span>
-        ${threadsWithoutCall().length ? `<span class="rail-count" title="Your comments that need a call">${threadsWithoutCall().length} to check</span>` : ''}
+        ${reviewCounts ? `<span class="rail-count">${reviewCounts}</span>` : ''}
       </button>` : ''}
       <button class="rail-submit ${shown.icon}${posted ? ' posted' : ''}" data-action="terminus" aria-current="${terminusCurrent}">
         <span class="rail-submit-icon" aria-hidden="true">${VERDICT_ICONS[shown.icon]}</span>
@@ -2061,8 +2068,8 @@ function renderNote(note) {
     const author = comment.url ? `<a href="${escapeHtml(comment.url)}" target="_blank" rel="noopener">@${escapeHtml(comment.author)}</a>` : `@${escapeHtml(comment.author)}`;
     return `<div class="note-block review-comment">
       <div class="note-head">${avatar(comment.author)}<span class="who"><b>${author}</b> commented${comment.line ? ` on ${lineLabel(comment)}` : ''} · not your remark, not posted again</span></div>
-      <div class="note-body markdown">${markdownHtml(comment.body)}</div>
-      ${opinionLine(comment.opinion)}
+      ${comment.replies?.length ? conversationHtml(comment) : `<div class="note-body markdown">${markdownHtml(comment.body)}</div>`}
+      ${fixLine(comment)}${opinionLine(comment.opinion)}
       <div class="note-actions">${copyButton(comment)}</div>
     </div>`;
   }
@@ -2090,7 +2097,7 @@ function renderNote(note) {
   if (note.type === 'posted') {
     return `<div class="note-block">
       <div class="note-head">${avatar(viewerLogin())}<span class="sev ${severityClass(remark.severity)}">${escapeHtml(remark.severity)}</span><span class="who">You posted this earlier${remark.url ? ` · <a href="${escapeHtml(remark.url)}" target="_blank" rel="noopener">open on GitHub</a>` : ''}. It is not posted again.</span></div>
-      <p class="note-body">${inlineMarkup(remark.body)}</p>${repliesHtml(remark)}${fixLine(remark)}${threadActions(remark)}
+      ${remark.replies?.length ? conversationHtml(remark) : `<p class="note-body">${inlineMarkup(remark.body)}</p>`}${fixLine(remark)}${threadActions(remark)}
     </div>`;
   }
   const editing = state.ui.editing === remark.id;
@@ -2151,9 +2158,8 @@ function renderThread(comment, mine) {
   const head = `<span class="thread-loc">${threadPlace(comment)}</span>${comment.outdated ? '<span class="muted">outdated</span>' : ''}
     ${at ? stationButton(at.line, at.index, 'Show in flow', { title: 'Open this hunk in its flow' }) : ''}`;
   const body = `${threadCode(comment)}
-    <div class="note-body markdown">${markdownHtml(comment.body)}</div>
-    ${repliesHtml(comment)}
-    ${mine ? `${fixLine(comment)}${threadActions(comment)}` : `${comment.resolved ? '' : opinionLine(comment.opinion)}<div class="note-actions">${copyButton(comment)}</div>`}`;
+    ${conversationHtml(comment)}
+    ${mine ? `${fixLine(comment)}${threadActions(comment)}` : `${comment.resolved ? '' : fixLine(comment) + opinionLine(comment.opinion)}<div class="note-actions">${copyButton(comment)}</div>`}`;
   if (comment.resolved) return `<details class="thread resolved"><summary class="thread-head">${head}<span class="state-tag">Resolved</span></summary>${body}</details>`;
   return `<div class="thread"><div class="thread-head">${head}</div>${body}</div>`;
 }
@@ -2170,9 +2176,9 @@ function threadCode(comment) {
   return `<div class="thread-code"><table class="diff-table" aria-label="The commented line is the last one"><tbody>${body}</tbody></table></div>`;
 }
 
-function repliesHtml(comment) {
-  if (!(comment.replies || []).length) return '';
-  return `<ul class="replies">${comment.replies.map((reply) => `<li>${avatar(reply.author)}<div><span class="who"><b>@${escapeHtml(reply.author)}</b>${reply.at ? ` · ${escapeHtml(timeLabel(reply.at))}` : ''}</span><div class="markdown">${markdownHtml(reply.body)}</div></div></li>`).join('')}</ul>`;
+function conversationHtml(comment) {
+  const entries = [{ author: comment.author || viewerLogin(), body: comment.body }, ...(comment.replies || [])];
+  return `<ol class="conversation">${entries.map((entry, index) => `<li>${avatar(entry.author)}<div class="conversation-entry"><span class="who"><b>@${escapeHtml(entry.author)}</b>${index ? ' replied' : ''}${entry.at ? ` · ${escapeHtml(timeLabel(entry.at))}` : ''}</span><div class="markdown">${markdownHtml(entry.body)}</div></div></li>`).join('')}</ol>`;
 }
 
 function fixLine(own) {
@@ -2603,6 +2609,8 @@ function notPostedFindings() {
       ${hunks.map((hunk) => `<div class="not-posted-hunk"><p>${hunkLink(hunk)}</p><div class="diff">${open.filter((finding) => finding.hunkId === hunk.id).map((finding) => renderNote({ type: 'finding', item: finding })).join('')}</div></div>`).join('')}`,
   };
 }
+
+function othersReviewCount() { return (state.review.reviews || []).filter((review) => review.author !== viewerLogin()).length; }
 
 function hasOwnReview() { return (state.review.reviews || []).some((review) => review.author === viewerLogin()); }
 

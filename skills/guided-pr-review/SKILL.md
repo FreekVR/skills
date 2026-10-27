@@ -96,8 +96,8 @@ Attach each finding to the hunk and line it is about, or set `hunkId` to null fo
 
 Always verify the existing review comments from step 1, whatever the user chose above:
 
-- Reviews: add every submitted review, by the user and by others, to `reviews`, with its body verbatim.
-- Comments by others: add each one to `reviewComments` with its body and replies exactly as their authors wrote them. You MUST NOT restate, shorten or correct them. For an open one, add an `opinion`: whether you agree, disagree or are not sure, and why, in one line.
+- Reviews: add every submitted review, by the user and by others, to `reviews`, with its body verbatim. You MUST leave out a `COMMENTED` review that has no body and no comments of its own.
+- Comments by others: add each one to `reviewComments` with its body and replies exactly as their authors wrote them. You MUST NOT restate, shorten or correct them. For an open one, add an `opinion`: whether the comment is right (agree, disagree or not sure), and why, in one line. The opinion does not say whether the author fixed it. When commits came after the comment, also add a `fix` as for the user's own remarks, without `reply`.
 - The user's own remarks, posted or pending: add each to `ownRemarks`. For each posted one that is not resolved, read the code at its lines now, the commits since the comment and the replies, and add a `fix`: whether the author fixed it, with a one-line note that names the commit or line, and for `not-fixed` a short draft reply that says what is still missing. Put the ID and body of the user's pending review, if any, in `ownPendingReview`.
 
 ### 6. Open the review page
@@ -115,7 +115,7 @@ Each event from the review page is one request. Its `review` field names the PR;
 
 - Base answers to `ask` events on the code and the context you read. Write them in markdown.
 - The review page sends a `check` event when it opens and every 5 minutes after that. Handle it as the events table says: it updates reviews and comments and writes `remote`, but never changes hunks, flows or findings. Only a `refresh` event does that.
-- After a `refresh` event, also write a new `fix` for each of the user's open posted comments, as in step 5.
+- After a `refresh` event, also write a new `fix` for each open posted comment, the user's and others', as in step 5.
 - For a `post` event, post the payload exactly as it is: no extra text, no changed words, no other comments. Read `references/posting.md` for the GitHub requests. The button press is the reviewer's approval. You MUST NOT post at any other moment, and you MUST NOT ask for a second approval in the chat.
 
 Handle every event in silence: the review page shows the result, so you MUST NOT write anything in the chat for it, not even a short confirmation. The exceptions are the final `post` and `finish`: after those, step 8 asks the user about clean-up. When the user asks you something in the chat instead, answer there too.
