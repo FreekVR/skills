@@ -606,6 +606,7 @@ details.thread > summary::-webkit-details-marker { display: none; }
 .thread-loc { font: 12.5px/1.4 var(--mono); color: var(--ink-2); overflow-wrap: anywhere; }
 .thread-code { margin: 8px 0; overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; }
 .thread-code .diff-table { font-size: 12.5px; }
+.thread-code tr:last-child td.num { box-shadow: inset 3px 0 0 var(--focus); color: var(--ink); font-weight: 650; }
 .replies { list-style: none; margin: 10px 0 0; padding: 0 0 0 14px; border-left: 2px solid var(--rule); display: grid; gap: 10px; }
 .replies li { display: flex; gap: 8px; align-items: flex-start; }
 .replies .markdown > :first-child { margin-top: 2px; }
@@ -2084,7 +2085,7 @@ function renderThread(comment, mine) {
   const body = `${threadCode(comment)}
     <div class="note-body markdown">${markdownHtml(comment.body)}</div>
     ${repliesHtml(comment)}
-    ${mine ? `${fixLine(comment)}${threadActions(comment)}` : `<div class="note-actions">${copyButton(comment)}</div>`}`;
+    ${mine ? `${fixLine(comment)}${threadActions(comment)}` : `${comment.resolved ? '' : opinionLine(comment.opinion)}<div class="note-actions">${copyButton(comment)}</div>`}`;
   if (comment.resolved) return `<details class="thread resolved"><summary class="thread-head">${head}<span class="state-tag">Resolved</span></summary>${body}</details>`;
   return `<div class="thread"><div class="thread-head">${head}</div>${body}</div>`;
 }
@@ -2092,11 +2093,13 @@ function renderThread(comment, mine) {
 // GitHub's diff hunk ends at the commented line, so its last lines show the code the comment is about.
 function threadCode(comment) {
   if (!comment.diffHunk) return '';
+  const [header, ...lines] = comment.diffHunk.split('\n');
+  const [, oldStart, newStart] = header.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)/);
+  const rows = diffRows({ lines, oldStart: Number(oldStart), newStart: Number(newStart) }).filter((row) => row.kind !== 'meta').slice(-4);
   const language = languageOf(comment.path || hunkById(comment.hunkId)?.file || '');
-  const sign = { '+': 'add', '-': 'del' };
-  const rows = comment.diffHunk.split('\n').filter((line) => !line.startsWith('@@')).slice(-4)
-    .map((line) => `<tr class="${sign[line[0]] || 'ctx'}"><td class="sign">${line[0] === '-' ? '−' : line[0] === '+' ? '+' : ' '}</td><td class="code">${codeHtml(line.slice(1), language)}</td></tr>`).join('');
-  return `<div class="thread-code"><table class="diff-table"><tbody>${rows}</tbody></table></div>`;
+  const sign = { add: '+', del: '−', ctx: ' ' };
+  const body = rows.map((row) => `<tr class="${row.kind}"><td class="num">${(row.kind === 'del' || (row.kind === 'ctx' && comment.side === 'LEFT') ? row.oldNo : row.newNo) || ''}</td><td class="sign">${sign[row.kind]}</td><td class="code">${codeHtml(row.text, language)}</td></tr>`).join('');
+  return `<div class="thread-code"><table class="diff-table" aria-label="The commented line is the last one"><tbody>${body}</tbody></table></div>`;
 }
 
 function repliesHtml(comment) {
@@ -2133,7 +2136,8 @@ function copyComment(comment) {
   const at = hunk && comment.line && diffRows(hunk).some((row) => rowMatches(row, comment)) && firstStationOf(hunk.id);
   if (at) {
     go(at.line.id, at.index);
-    return openComposer({ hunkId: hunk.id, startLine: comment.startLine ?? comment.line, startSide: comment.startSide ?? comment.side, line: comment.line, side: comment.side, text, copiedFrom: comment.id });
+    // A copy starts at the lowest severity, so copying a question never raises the proposed verdict by itself.
+    return openComposer({ hunkId: hunk.id, startLine: comment.startLine ?? comment.line, startSide: comment.startSide ?? comment.side, line: comment.line, side: comment.side, text, copiedFrom: comment.id, severity: severities()[0] });
   }
   state.reviewer.summary = [state.reviewer.summary.trim(), text.trim()].filter(Boolean).join('\n\n');
   state.reviewer.copiedToSummary = [...(state.reviewer.copiedToSummary || []), comment.id];
