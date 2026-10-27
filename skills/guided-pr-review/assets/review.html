@@ -1817,6 +1817,14 @@ function diffRows(hunk) {
   for (const text of hunk.lines) {
     const sign = text[0];
     if (sign === '\\') { rows.push({ kind: 'meta', text: text.slice(2) }); continue; }
+    // A hunk joined from several (--whole) keeps the header of each part; the lines between them did not change.
+    const gap = text.startsWith('@@') && text.match(/^@@ -(\d+)(?:,\d+)? \+(\d+)/);
+    if (gap) {
+      oldLine = Number(gap[1]);
+      newLine = Number(gap[2]);
+      rows.push({ kind: 'meta', gap: true, text: `⋯ unchanged lines skipped, continues at line ${newLine}` });
+      continue;
+    }
     if (sign === '+') rows.push({ kind: 'add', newNo: newLine++, text: text.slice(1) });
     else if (sign === '-') rows.push({ kind: 'del', oldNo: oldLine++, text: text.slice(1) });
     else rows.push({ kind: 'ctx', oldNo: oldLine++, newNo: newLine++, text: text.slice(1) });
@@ -1889,7 +1897,11 @@ function lineLabel(item) {
 // A range keeps GitHub's shape: start_line/start_side for the first selected row, line/side for the last.
 function composerFor(hunk, fromIndex, toIndex) {
   const rows = diffRows(hunk);
-  const [first, last] = fromIndex <= toIndex ? [rows[fromIndex], rows[toIndex]] : [rows[toIndex], rows[fromIndex]];
+  let [from, to] = fromIndex <= toIndex ? [fromIndex, toIndex] : [toIndex, fromIndex];
+  // GitHub only accepts a range inside one part of the diff, so a range stops at a gap of skipped lines.
+  const gap = rows.slice(from, to).findLastIndex((row) => row.gap);
+  if (gap !== -1) from += gap + 1;
+  const [first, last] = [rows[from], rows[to]];
   const start = rowLocation(first);
   const end = rowLocation(last);
   return { hunkId: hunk.id, startLine: start.line, startSide: start.side, line: end.line, side: end.side };

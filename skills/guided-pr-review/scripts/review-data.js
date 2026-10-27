@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 // Usage:
 //   node review-data.js dir <owner>/<repo> <pr-number>   Create and print the review directory.
-//   node review-data.js hunks <diff-file> <review-file>  Write the hunks of a unified diff into review.json, keeping
-//                                                        the explanations of hunks that did not change.
+//   node review-data.js hunks <diff-file> <review-file> [--whole <path>]...
+//                                                        Write the hunks of a unified diff into review.json, keeping
+//                                                        the explanations of hunks that did not change. Each file
+//                                                        passed with --whole becomes one hunk.
 //   node review-data.js check <review-file>              Check that every hunk is in a flow or in "notInAnyFlow".
 'use strict';
 
@@ -22,7 +24,7 @@ function reviewDir(repository, number) {
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
-function parseDiff(text) {
+function parseDiff(text, whole = new Set()) {
   const hunks = [];
   let file = null;
   let current = null;
@@ -61,6 +63,7 @@ function parseDiff(text) {
         newStart: Number(newStart),
         newLines: newLines === undefined ? 1 : Number(newLines),
         context: context.trim(),
+        header: line,
         lines: [],
       };
       file.hasHunks = true;
@@ -70,7 +73,25 @@ function parseDiff(text) {
     }
   }
   finishFile();
-  return assignIds(hunks);
+  return assignIds(joinWhole(hunks, whole).map(({ header, ...hunk }) => hunk));
+}
+
+// A file the reviewer checks as one unit keeps one hunk. Each later hunk's header stays in the lines,
+// so the review page can number the lines after a gap.
+function joinWhole(hunks, whole) {
+  const joined = new Map();
+  return hunks.filter((hunk) => {
+    if (!whole.has(hunk.file) || !hunk.header) return true;
+    const first = joined.get(hunk.file);
+    if (!first) {
+      joined.set(hunk.file, hunk);
+      return true;
+    }
+    first.lines.push(hunk.header, ...hunk.lines);
+    first.oldLines = hunk.oldStart + hunk.oldLines - first.oldStart;
+    first.newLines = hunk.newStart + hunk.newLines - first.newStart;
+    return false;
+  });
 }
 
 
@@ -123,10 +144,12 @@ function main([command, ...args]) {
     console.log(dir);
     return 0;
   }
-  if (command === 'hunks' && args.length === 2) {
-    const [diffFile, reviewFile] = args;
+  const [diffFile, reviewFile, ...options] = args;
+  const whole = new Set();
+  while (options[0] === '--whole' && options[1]) whole.add(options.splice(0, 2)[1]);
+  if (command === 'hunks' && reviewFile && !options.length) {
     const review = fs.existsSync(reviewFile) ? JSON.parse(fs.readFileSync(reviewFile, 'utf8')) : {};
-    review.hunks = mergeHunks(parseDiff(fs.readFileSync(diffFile, 'utf8')), review.hunks || []);
+    review.hunks = mergeHunks(parseDiff(fs.readFileSync(diffFile, 'utf8'), whole), review.hunks || []);
     fs.writeFileSync(reviewFile, JSON.stringify(review) + '\n');
     review.hunks.forEach((hunk) => console.log(`${hunk.id} ${hunk.file} ${hunk.explanation ? 'kept' : 'new'} +${count(hunk, '+')} -${count(hunk, '-')}`));
     return 0;
@@ -143,7 +166,7 @@ function main([command, ...args]) {
     console.log('ok: every hunk is placed');
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> | check <review-file>');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file>');
   return 2;
 }
 

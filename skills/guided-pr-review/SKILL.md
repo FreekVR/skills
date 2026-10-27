@@ -47,6 +47,8 @@ Do not follow links found in linked PRs.
 
 Save the PR diff to a file in the review directory and run `node scripts/review-data.js hunks <diff-file> <review-dir>/review.json`. It writes the `hunks` array into `review.json` and prints one line per hunk: ID, file, and whether it is new. Every hunk MUST reach the reviewer, also renames, binary files and lockfiles.
 
+A tool, not a person, writes some files: dependency lockfiles, built bundles, snapshots, generated code. Such a file MUST be one hunk. When the output shows several hunks for such a file, run the command again with `--whole <path>` for each one.
+
 Small PR: read the diff and the files you need through GitHub. Save the PR head version of every changed file that the PR does not remove to `<review-dir>/files/<path in the repository>`, so the review page can show the whole file.
 
 Big PR: read them in the worktree. Set `pr.localPath` to the absolute path of the worktree. The review page then reads whole files there, and links each file to VS Code, PHP files to PhpStorm, and each file to its folder.

@@ -77,7 +77,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 }
 ```
 
-- `hunks` is written by `node scripts/review-data.js hunks <diff-file> <review-file>`. The agent adds `explanation`, and `explanationMore` on request. It MUST NOT change the other fields.
+- `hunks` is written by `node scripts/review-data.js hunks <diff-file> <review-file>`. A file passed with `--whole <path>` becomes one hunk; its `lines` then hold a `@@` header line at each gap, and the review page shows the gap as skipped lines. The agent adds `explanation`, and `explanationMore` on request. It MUST NOT change the other fields.
 - A flow's `entry` and `end` are fully qualified code names with their namespace or module path, such as `App\Weather\ForecastClient::fetch()` or `src/api/weatherClient.ts:fetchForecast()`, not sentences.
 - `layout` is `flows` or `directory`. With `directory`, `flows` is empty and the review page lists hunks by directory, then alphabetically.
 - A flow with no acceptance criteria has `noCriteria`, which says why. The review page shows it where the flow's criteria would be.

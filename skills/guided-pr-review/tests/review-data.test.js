@@ -40,6 +40,21 @@ test('parseDiff returns one entry per hunk with line ranges', () => {
   assert.deepStrictEqual(cache[1].lines, ["+  log('evicted');", '   return;']);
 });
 
+test('parseDiff joins the hunks of a file passed as whole into one hunk, with a header line at each gap', () => {
+  const hunks = parseDiff(DIFF, new Set(['src/cache.ts']));
+  const cache = hunks.filter((hunk) => hunk.file === 'src/cache.ts');
+  assert.strictEqual(cache.length, 1);
+  assert.deepStrictEqual(
+    [cache[0].oldStart, cache[0].oldLines, cache[0].newStart, cache[0].newLines],
+    [1, 20, 1, 21],
+  );
+  assert.deepStrictEqual(cache[0].lines, [
+    '-const TTL = 60;', '+const TTL = 60 * 1000;', ' const MAX = 10;',
+    '@@ -20 +20,2 @@ function evict() {', "+  log('evicted');", '   return;',
+  ]);
+  assert.strictEqual(hunks.filter((hunk) => hunk.file !== 'src/cache.ts').length, 2);
+});
+
 test('parseDiff keeps changes without hunks: binary files and pure renames', () => {
   const hunks = parseDiff(DIFF);
   const logo = hunks.find((hunk) => hunk.file === 'docs/logo.png');
