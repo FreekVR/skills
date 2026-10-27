@@ -383,7 +383,10 @@ code { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-
 @media (min-width: 821px) {
   .strip.compact:not(.peek) .strip-top { padding-top: 10px; }
   .strip.compact:not(.peek) :is(.line-route, .criteria, .legend-wrap, .stop-name, .stop-tags) { display: none; }
-  .strip.compact:not(.peek) .map { padding-top: 2px; padding-bottom: 0; }
+  /* The compact map scrolls with the wheel and by dragging, so it needs no scroll bar under its dots. */
+  .strip.compact:not(.peek) .map { padding-top: 6px; padding-bottom: 10px; scrollbar-width: none; }
+  .strip.compact:not(.peek) .map::-webkit-scrollbar { display: none; }
+  .strip.compact:not(.peek) .stop { padding-bottom: 0; }
 }
 .note-block.composer { background: var(--panel); }
 .diff-empty { padding: 14px 12px; color: var(--ink-2); font-size: 14px; }
@@ -1598,7 +1601,7 @@ function renderStrip() {
     return `<button class="${classes}" data-go="${escapeHtml(line.id)}" data-index="${index}" aria-label="${stationCode(line, index)} ${escapeHtml(hunk ? hunk.file : 'missing hunk')}${isSeen(stop.hunkId) ? ', seen' : ', not seen'}"${index === state.view.index ? ' aria-current="step"' : ''}>
       <span class="stop-code">${stationCode(line, index)}</span>
       <span class="stop-tick">${hunkVerdict ? VERDICT_ICONS[hunkVerdict] : ''}</span>
-      <span class="stop-name">${escapeHtml(hunk ? fileName(hunk.file) : '?')}</span>
+      <span class="stop-name" data-path="${escapeHtml(hunk ? hunk.file : '')}">${escapeHtml(hunk ? fileName(hunk.file) : '?')}</span>
       <span class="stop-tags">${tags}</span>
     </button>`;
   }).join('');
@@ -2873,22 +2876,47 @@ document.addEventListener('scroll', (event) => {
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
 
-// The header grows and shrinks between its measured heights. While it shrinks, its content stays and is clipped,
-// so nothing vanishes before the header is small.
+// The header animates between its two layouts: the height changes, the map slides from its old place to its new one,
+// and the parts that only the full header shows fade, so nothing jumps when the layout switches.
+const STRIP_PARTS = '.line-route, .criteria, .legend-wrap, .stop-name, .stop-tags';
+const STRIP_EASE = 'cubic-bezier(.22, 1, .36, 1)';
+
 function setStripClass(strip, name, on) {
   if (strip.dataset[name] === String(on) || (!strip.dataset[name] && strip.classList.contains(name) === on)) return;
   strip.dataset[name] = String(on);
+  for (const animation of strip.getAnimations({ subtree: true })) animation.cancel();
+  const collapsing = name === 'compact' ? on : !on;
+  if (reduceMotion.matches) return strip.classList.toggle(name, on);
+  if (!collapsing) return switchStripLayout(strip, name, on);
+  // The parts that leave fade out first, then the header shrinks.
+  const fades = [...strip.querySelectorAll(STRIP_PARTS)].map((part) => part.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-in', fill: 'forwards' }));
+  Promise.all(fades.map((fade) => fade.finished)).then(() => {
+    if (strip.dataset[name] !== String(on)) return;
+    switchStripLayout(strip, name, on);
+    fades.forEach((fade) => fade.cancel());
+  }, () => {});
+}
+
+function switchStripLayout(strip, name, on) {
+  const map = strip.querySelector('.map');
   const from = strip.getBoundingClientRect().height;
-  for (const animation of strip.getAnimations()) animation.cancel();
+  const mapFrom = map?.getBoundingClientRect().top;
   strip.classList.toggle(name, on);
   const to = strip.getBoundingClientRect().height;
-  if (reduceMotion.matches || from === to) return;
-  if (to < from) strip.classList.toggle(name, !on);
+  if (from === to) return;
+  const timing = { duration: to > from ? 340 : 280, easing: STRIP_EASE };
   strip.style.overflow = 'hidden';
-  const animation = strip.animate([{ height: `${from}px` }, { height: `${to}px` }], { duration: to > from ? 380 : 300, easing: 'cubic-bezier(.33, 1, .68, 1)' });
-  animation.onfinish = () => { strip.style.overflow = ''; strip.classList.toggle(name, on); };
-  animation.oncancel = () => { strip.style.overflow = ''; };
+  const resize = strip.animate([{ height: `${from}px` }, { height: `${to}px` }], timing);
+  resize.onfinish = resize.oncancel = () => { strip.style.overflow = ''; };
+  if (map) map.animate([{ transform: `translateY(${mapFrom - map.getBoundingClientRect().top}px)` }, { transform: 'none' }], timing);
+  if (to > from) for (const part of strip.querySelectorAll(STRIP_PARTS)) part.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 140, easing: 'ease-out', fill: 'backwards' });
 }
+
+// A file name cut off on the map shows its full path on hover. It is measured on hover, because a compact header hides the names.
+document.addEventListener('mouseover', (event) => {
+  const name = event.target.closest?.('.stop-name');
+  if (name && !name.title && name.scrollWidth > name.clientWidth) name.title = name.dataset.path;
+});
 
 // Resting the pointer on the compact header shows it in full; a short delay keeps a passing pointer from opening it.
 let peekTimer = null;
