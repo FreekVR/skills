@@ -175,6 +175,11 @@ code { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-
 .ac-flows { grid-column: 2; display: flex; gap: 8px; flex-wrap: wrap; }
 .ac-flows .btn { display: inline-flex; align-items: center; gap: 8px; margin-left: -8px; }
 .ac-flows .bullet { width: 20px; height: 20px; font-size: 10px; }
+.home .ac-flows { gap: 2px; }
+.home .ac-flows .btn { gap: 4px; margin-left: 0; padding: 4px; }
+.home .ac-flows .btn:first-child { margin-left: -4px; }
+.home .ac-list { border: 0; border-radius: 0; background: none; }
+.home .ac-list li { padding: 14px 0; }
 
 .map { position: relative; display: flex; overflow-x: auto; padding: 10px 28px 8px; cursor: grab; }
 /* Fades at the edges show that the line goes on; browsers without scroll-state queries leave them out. */
@@ -455,7 +460,58 @@ kbd { display: inline-grid; place-items: center; min-width: 24px; height: 24px; 
 select { border: 1px solid var(--rule-strong); border-radius: 6px; background: var(--ground); padding: 5px 8px; font-size: 13.5px; }
 
 .section { margin-top: 44px; }
-.section h3 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 0 0 8px; font-weight: 650; }
+.home-group { margin-top: 72px; padding-top: 28px; border-top: 1px solid var(--rule-strong); }
+.home-group-title { margin: 0; font-size: 21px; line-height: 1.3; letter-spacing: -0.01em; font-weight: 720; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.home-group-title .ai-tag { margin: 0; }
+.home-group > .section { margin-top: 28px; }
+.home-group > .flow-rows, .home-group > .home-stats { margin-top: 16px; }
+.pr-findings { list-style: none; margin: 0; padding: 0; }
+.pr-findings li + li { border-top: 1px solid var(--rule); }
+.pr-findings summary { display: flex; align-items: baseline; gap: 10px; padding: 10px 0; cursor: pointer; list-style: none; font-size: 14.5px; font-weight: 600; }
+.pr-findings summary::-webkit-details-marker { display: none; }
+.pr-findings summary::after { content: ""; flex-shrink: 0; width: 7px; height: 7px; margin-left: auto; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-3px) rotate(45deg); transition: transform .15s var(--ease); }
+.pr-findings details[open] summary::after { transform: rotate(-135deg); }
+.pr-findings .sev { flex-shrink: 0; }
+.pr-finding-title { min-width: 0; }
+.pr-findings .diff { margin-bottom: 14px; }
+.home-related { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 48px; }
+.tone-ok { --tone: var(--ok); }
+.tone-warn { --tone: var(--alert); }
+.tone-bad { --tone: var(--error); }
+.tone-info { --tone: var(--focus); }
+.tone-quiet { --tone: var(--ink-3); }
+.pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; font: 650 12.5px/1.4 var(--sans); white-space: nowrap; color: color-mix(in srgb, var(--tone) 72%, var(--ink)); background: color-mix(in srgb, var(--tone) 14%, var(--ground)); border: 1px solid color-mix(in srgb, var(--tone) 34%, transparent); }
+.pill svg { width: 13px; height: 13px; }
+.pill.tone-warn { color: color-mix(in srgb, var(--tone) 52%, var(--ink)); }
+.pill-go { cursor: pointer; padding: 6px 13px; font-size: 13.5px; transition: background .15s var(--ease), border-color .15s var(--ease); }
+.pill-go:hover { background: color-mix(in srgb, var(--tone) 22%, var(--ground)); border-color: color-mix(in srgb, var(--tone) 60%, transparent); }
+.pill-go:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.glance { display: flex; flex-wrap: wrap; gap: 8px; margin: 22px 0 18px; }
+.status-stack { display: grid; gap: 14px; margin-top: 18px; }
+.status-panel { scroll-margin-top: 24px; padding: 14px 18px 16px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--tone) 30%, var(--rule)); background: color-mix(in srgb, var(--tone) 6%, var(--ground)); }
+.status-panel.tone-quiet { background: transparent; }
+.status-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.status-head h4 { margin: 0; font-size: 16.5px; font-weight: 720; letter-spacing: -0.005em; text-transform: none; color: var(--ink); }
+.status-head .ai-tag { margin: 0; }
+.status-icon { width: 34px; height: 34px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; color: color-mix(in srgb, var(--tone) 80%, var(--ink)); background: color-mix(in srgb, var(--tone) 18%, var(--ground)); box-shadow: 0 0 0 4px color-mix(in srgb, var(--tone) 7%, transparent); }
+.status-icon svg { width: 18px; height: 18px; }
+.home-fold > summary svg { width: 15px; height: 15px; color: var(--ink-3); }
+.status-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.status-body { margin: 10px 0 0 44px; }
+.status-text { margin: 0 0 6px; font-size: 14.5px; line-height: 1.6; color: var(--ink-2); max-width: 72ch; }
+.status-panel .ac-list, .status-panel .pr-findings { margin-top: 4px; }
+.home-review { scroll-margin-top: 24px; }
+.home-review .home-group-title .pill { font-size: 13px; }
+.review-panel { margin-top: 16px; padding: 18px 20px; }
+.review-panel .home-stats { margin-top: 0; }
+.home-fold > summary { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; list-style: none; font-size: 14px; font-weight: 650; color: var(--ink); }
+.home-fold > summary::-webkit-details-marker { display: none; }
+.home-fold > summary::after { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .15s var(--ease); }
+.home-fold[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+.home-related-fold { margin-top: 18px; }
+.home-related .section { margin-top: 24px; }
+.home-related .home-list { font-size: 13.5px; color: var(--ink-2); }
+.section :is(h3, h4) { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); margin: 0 0 8px; font-weight: 650; }
 .ask-fab { position: fixed; right: 24px; bottom: 24px; z-index: 5; width: 56px; height: 56px; display: grid; place-items: center; border: 0; border-radius: 50%; padding: 0; background: var(--ink); color: var(--ground); box-shadow: 0 8px 24px rgba(0,0,0,.28); }
 .ask-fab svg { width: 26px; height: 26px; }
 .ask-fab:hover { filter: brightness(1.12); }
@@ -504,14 +560,14 @@ select { border: 1px solid var(--rule-strong); border-radius: 6px; background: v
 .ai-context > .ai-tag { margin-bottom: 4px; }
 .ai-context .why:first-of-type { margin-top: 6px; }
 .ai-context .explain { margin-top: 14px; }
-.flow-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
-.flow-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 26px 1fr auto; gap: 12px; align-items: start; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 8px; background: color-mix(in srgb, var(--ground) 70%, transparent); }
-.flow-row:hover { border-color: var(--line); }
+.flow-rows { list-style: none; margin: 0; padding: 0; }
+.flow-rows li + li { border-top: 1px solid var(--rule); }
+.flow-row { all: unset; box-sizing: border-box; cursor: pointer; width: 100%; display: grid; grid-template-columns: 26px 1fr auto; gap: 12px; align-items: start; padding: 12px 10px; margin: 0 -10px; border-radius: 6px; }
+.flow-row:hover { background: color-mix(in srgb, var(--line) 8%, transparent); }
 .flow-row:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .flow-row-main { display: grid; gap: 4px; min-width: 0; }
 .flow-row-main b { font-size: 15px; }
 .flow-row-text { font-size: 13.5px; color: var(--ink-2); line-height: 1.55; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; }
-.flow-row-ac { font-size: 12.5px; color: var(--ink-3); }
 .flow-row-side { display: flex; align-items: center; gap: 8px; padding-top: 2px; }
 .home { max-width: 1080px; padding: 40px 44px 120px; }
 .home-ref { margin: 0; font: 600 13px/1.4 var(--mono); }
@@ -519,8 +575,7 @@ select { border: 1px solid var(--rule-strong); border-radius: 6px; background: v
 .home-author { display: flex; align-items: center; gap: 10px; margin: 0 0 22px; color: var(--ink-2); font-size: 14px; }
 .home-summary { font-size: 16px; line-height: 1.65; max-width: 70ch; }
 .home-summary > :first-child { margin-top: 0; }
-.home-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
-.home-stats div { border: 1px solid var(--rule); border-radius: 8px; padding: 12px 14px; background: color-mix(in srgb, var(--ground) 70%, transparent); }
+.home-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 32px; margin: 0 0 20px; }
 .home-stats dt { font-size: 12px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .05em; }
 .home-stats dd { margin: 4px 0 0; font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .home-stats dd svg { width: 15px; height: 15px; }
@@ -577,7 +632,7 @@ summary.check-head::after { color: var(--ink-3); }
 .skip-link { position: fixed; left: 12px; top: -48px; z-index: 20; padding: 8px 14px; border-radius: 6px; background: var(--ink); color: var(--ground); font-weight: 650; text-decoration: none; }
 .skip-link:focus { top: 12px; }
 /* Hidden text sits inside a positioned scroll area (.main, .rail-scroll), so it never stretches the page. */
-.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+:is(.sr, .home .ac-flow-name) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 .post-row { display: flex; gap: 10px; margin-top: 18px; align-items: center; flex-wrap: wrap; }
 .posts { margin-top: 26px; }
 .posted-card { --submit-c: var(--ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; padding: 20px 22px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--submit-c) 40%, transparent); background: color-mix(in srgb, var(--submit-c) 10%, var(--ground)); }
@@ -662,6 +717,11 @@ details.thread > summary::-webkit-details-marker { display: none; }
   .rail-scroll { overflow: visible; }
   .main { overflow: visible; overflow-x: clip; }
   .station, .terminus, .home { padding: 24px 16px 56px; }
+  .status-body { margin-left: 0; }
+  /* Touch targets of at least 44px; links inside running text are exempt (WCAG 2.5.8). */
+  .home :is(.btn, .pill-go, .sev-select, .home-fold > summary) { min-height: 44px; }
+  .home .ac-flows .btn { min-width: 44px; justify-content: center; }
+  .status-pills { margin-left: 0; }
   .home-stats { grid-template-columns: 1fr; }
   .verdicts { grid-template-columns: 1fr; }
   .strip-top { flex-wrap: wrap; padding: 14px 16px 0; }
@@ -925,7 +985,7 @@ function isSeen(hunkId) { return state.seen.has(hunkId); }
 function allHunkIds() { return state.review.hunks.map((hunk) => hunk.id); }
 function unseenHunks() { return state.review.hunks.filter((hunk) => !isSeen(hunk.id)); }
 
-function plural(count, word) { return `${count} ${count === 1 ? word : `${word}s`}`; }
+function plural(count, word, many = `${word}s`) { return `${count} ${count === 1 ? word : many}`; }
 
 function stationCode(line, index) { return `${line.letter}${index + 1}`; }
 function linesOf(hunkId) { return (state.stations.get(hunkId) || []).map((station) => station.line); }
@@ -942,11 +1002,13 @@ function criterionById(id) {
 
 function severities() { return state.review.conventions.severities || ['nit', 'minor', 'medium', 'major']; }
 function severityRank(severity) { return Math.max(0, severities().indexOf(severity)); }
-function severityClass(severity) {
+// The conventions may list any number of severities; the page has four colour levels.
+function severityLevel(severity) {
   const count = severities().length;
-  const rank = severityRank(severity);
-  return `sev-${Math.min(3, Math.round((rank / Math.max(1, count - 1)) * 3))}`;
+  return Math.min(3, Math.round((severityRank(severity) / Math.max(1, count - 1)) * 3));
 }
+
+function severityClass(severity) { return `sev-${severityLevel(severity)}`; }
 
 function verdictOf(hunkId) { return state.reviewer.hunkVerdicts[hunkId]; }
 
@@ -2197,19 +2259,112 @@ function askFab(hunk, turning = false) {
     ${open ? ICONS.close : ICONS.ask}${asked.length && !open ? `<span class="ask-count">${asked.length}</span>` : ''}</button>`;
 }
 
+function flowFindingsPill(line) {
+  const hunks = new Set(line.stops.map((stop) => stop.hunkId));
+  const open = state.review.findings.filter((finding) => hunks.has(finding.hunkId) && decisionOf(finding) === 'open');
+  return open.length ? pill(severityTone(worstOf(open).severity), plural(open.length, 'finding')) : '';
+}
+
 function renderFlowsOverview() {
   const rows = lines().map((line) => {
     const seen = line.stops.filter((stop) => isSeen(stop.hunkId)).length;
-    const criteria = line.acceptanceCriteria.map((id) => `<span class="criterion-key">${inlineMarkup(id)}</span>`).join(' ');
     return `<li>
       <button class="flow-row" data-line="${escapeHtml(line.id)}" style="--line: var(${line.color})">
         ${bullet(line, line.id === '__none' || line.id === '__files')}
-        <span class="flow-row-main"><b>${flowIcon(line)}${escapeHtml(line.name)}</b>${line.explanation ? `<span class="flow-row-text" title="${escapeHtml(line.explanation)}">${inlineMarkup(line.explanation)}</span>` : ''}${criteria ? `<span class="flow-row-ac">Covers ${criteria}</span>` : ''}</span>
-        <span class="flow-row-side">${flowVerdictBadge(line)}<span class="rail-count">${seen}/${line.stops.length} seen</span></span>
+        <span class="flow-row-main"><b>${flowIcon(line)}${escapeHtml(line.name)}</b>${line.explanation ? `<span class="flow-row-text" title="${escapeHtml(line.explanation)}">${inlineMarkup(line.explanation)}</span>` : ''}</span>
+        <span class="flow-row-side">${flowFindingsPill(line)}${flowVerdictBadge(line)}<span class="rail-count">${seen}/${line.stops.length} seen</span></span>
       </button>
     </li>`;
   }).join('');
-  return `<div class="section"><h3>Flows ${aiTag('grouped and explained by AI')}</h3><ul class="flow-rows">${rows}</ul></div>`;
+  return `<div class="home-group"><h3 class="home-group-title">Flows ${aiTag('grouped and explained by AI')}</h3><ul class="flow-rows">${rows}</ul></div>`;
+}
+
+const SEVERITY_TONES = ['info', 'info', 'warn', 'bad'];
+function severityTone(severity) { return SEVERITY_TONES[severityLevel(severity)]; }
+function strokeIcon(paths, { circle = false } = {}) {
+  const stroke = 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
+  return `<svg viewBox="0 0 16 16" aria-hidden="true">${circle ? `<circle cx="8" cy="8" r="6.25" ${stroke}/>` : ''}${paths.map((d) => `<path d="${d}" ${stroke}/>`).join('')}</svg>`;
+}
+
+const STATUS_ICONS = {
+  ok: strokeIcon(['M5.25 8.2l1.9 1.9 3.6-3.8'], { circle: true }),
+  bad: strokeIcon(['M5.75 5.75l4.5 4.5M10.25 5.75l-4.5 4.5'], { circle: true }),
+  warn: strokeIcon(['M8 2.25l6.25 11H1.75z', 'M8 6.5v3M8 11.4h.01']),
+  finding: strokeIcon(['M8 4.75v3.75M8 11.1h.01'], { circle: true }),
+  none: strokeIcon(['M5.25 8h5.5'], { circle: true }),
+  coverage: strokeIcon(['M6 1.75h4M6.75 1.75v4.5L2.6 12.9a1 1 0 0 0 .85 1.35h9.1a1 1 0 0 0 .85-1.35L9.25 6.25v-4.5M4.5 10h7']),
+  notRead: strokeIcon(['M1.75 8S4 3.75 8 3.75 14.25 8 14.25 8 12 12.25 8 12.25 1.75 8 1.75 8z', 'M9.9 8a1.9 1.9 0 1 1-3.8 0 1.9 1.9 0 0 1 3.8 0z', 'M2.5 13.5l11-11']),
+  progress: strokeIcon(['M8 14.25s4.75-4.2 4.75-7.75a4.75 4.75 0 0 0-9.5 0C3.25 10.05 8 14.25 8 14.25z', 'M9.75 6.5a1.75 1.75 0 1 1-3.5 0 1.75 1.75 0 0 1 3.5 0z']),
+  link: strokeIcon(['M6.75 9.25a2.75 2.75 0 0 0 3.9 0l2.1-2.1a2.75 2.75 0 0 0-3.9-3.9l-.6.6M9.25 6.75a2.75 2.75 0 0 0-3.9 0l-2.1 2.1a2.75 2.75 0 0 0 3.9 3.9l.6-.6']),
+};
+
+function pill(tone, text) { return `<span class="pill tone-${tone}">${text}</span>`; }
+
+function statusPanel({ id, tone, icon, title, tag = '', pills = '', body = '' }) {
+  return `<section class="status-panel tone-${tone}" id="${id}">
+    <header class="status-head"><span class="status-icon" aria-hidden="true">${icon}</span><h4>${title}</h4>${tag}${pills ? `<span class="status-pills">${pills}</span>` : ''}</header>
+    ${body ? `<div class="status-body">${body}</div>` : ''}
+  </section>`;
+}
+
+function criteriaStatus() {
+  const criteria = ticketCriteria();
+  const notMet = criteria.filter((criterion) => criterion.verdict === 'not-met').length;
+  const open = criteria.filter((criterion) => !['met', 'not-met'].includes(criterion.verdict)).length;
+  if (!criteria.length) return { tone: 'quiet', icon: STATUS_ICONS.none, label: 'No acceptance criteria' };
+  if (notMet) return { tone: 'bad', icon: STATUS_ICONS.bad, label: `${notMet} of ${plural(criteria.length, 'criterion', 'criteria')} not met` };
+  if (open) return { tone: 'warn', icon: STATUS_ICONS.warn, label: `${plural(open, 'criterion', 'criteria')} unclear or not checked` };
+  return { tone: 'ok', icon: STATUS_ICONS.ok, label: `All ${plural(criteria.length, 'criterion', 'criteria')} met` };
+}
+
+// Findings on hunks that are no longer in the PR do not count.
+function liveFindings() { return state.review.findings.filter((finding) => finding.hunkId === null || hunkById(finding.hunkId)); }
+
+function worstOf(findings) { return findings.reduce((worst, finding) => (severityRank(finding.severity) > severityRank(worst.severity) ? finding : worst)); }
+
+function findingsStatus() {
+  const open = liveFindings().filter((finding) => decisionOf(finding) === 'open');
+  if (!liveFindings().length) return { tone: 'ok', icon: STATUS_ICONS.ok, label: 'No AI findings', open };
+  if (!open.length) return { tone: 'ok', icon: STATUS_ICONS.ok, label: 'All AI findings decided', open };
+  return { tone: severityTone(worstOf(open).severity), icon: STATUS_ICONS.finding, label: plural(open.length, 'open AI finding'), open };
+}
+
+function renderCriteriaPanel() {
+  const criteria = ticketCriteria();
+  const status = criteriaStatus();
+  if (!criteria.length) {
+    const reason = state.review.context.tickets?.length ? 'The linked tickets list no acceptance criteria, and the agent could not take any from their descriptions.' : 'No ticket is linked, so there are no acceptance criteria to check.';
+    return statusPanel({ id: 'home-criteria', tone: 'quiet', icon: status.icon, title: 'Acceptance criteria', body: `<p class="status-text">${reason}</p>` });
+  }
+  // Criteria that are not met stay in view; met ones fold away.
+  const met = criteria.filter((criterion) => criterion.verdict === 'met');
+  const rest = criteria.filter((criterion) => criterion.verdict !== 'met');
+  const metFold = met.length ? `<details class="home-fold"${state.ui.openExplain.has('criteria-met') ? ' open' : ''} data-explain-for="criteria-met"><summary>${rest.length ? `Show the ${plural(met.length, 'met criterion', 'met criteria')}` : `Show the ${plural(met.length, 'criterion', 'criteria')}`}</summary><ul class="ac-list">${criteriaRows(met)}</ul></details>` : '';
+  return statusPanel({ id: 'home-criteria', tone: status.tone, icon: status.icon, title: 'Acceptance criteria', tag: aiTag('checked by AI'),
+    pills: pill(status.tone, status.label),
+    body: `${rest.length ? `<ul class="ac-list">${criteriaRows(rest)}</ul>` : ''}${metFold}` });
+}
+
+function renderFindingsPanel() {
+  const status = findingsStatus();
+  if (!liveFindings().length) return '';
+  const whole = liveFindings().filter((finding) => finding.hunkId === null);
+  const onHunks = liveFindings().length - whole.length;
+  const bySeverity = [...severities()].reverse().map((severity) => [severity, status.open.filter((finding) => finding.severity === severity).length]).filter(([, count]) => count);
+  return statusPanel({ id: 'home-findings', tone: status.tone, icon: status.icon, title: 'What the AI found', tag: aiTag('AI findings'),
+    pills: `${status.open.length ? bySeverity.map(([severity, count]) => pill(severityTone(severity), `${count} ${escapeHtml(severity)}`)).join('') : pill('ok', status.label)}
+      ${pill('quiet', `${whole.length} on the whole PR`)}${pill('quiet', `${onHunks} in the flows`)}`,
+    body: whole.length ? `<ul class="pr-findings">${whole.map(prFindingRow).join('')}</ul>` : '' });
+}
+
+// A whole-PR finding folds to one line, so long findings do not push the flows down.
+function prFindingRow(finding) {
+  const decision = decisionOf(finding);
+  const key = `finding:${finding.id}`;
+  return `<li><details${state.ui.openExplain.has(key) ? ' open' : ''} data-explain-for="${escapeHtml(key)}">
+    <summary><span class="sev ${severityClass(finding.severity)}">${escapeHtml(finding.severity)}</span><span class="pr-finding-title">${inlineMarkup(finding.title)}</span>${decision !== 'open' ? `<span class="state-tag ${decision}">${decision === 'accepted' ? 'Accepted' : 'Dismissed'}</span>` : ''}</summary>
+    <div class="diff">${renderNote({ type: 'finding', item: finding })}</div>
+  </details></li>`;
 }
 
 function renderHome() {
@@ -2225,19 +2380,52 @@ function renderHome() {
   const tickets = (context.tickets || []).map((ticket) => `<li>${referenceAnchor(ticket.key, ticket.url, `${ticket.key}: ${ticket.title}`)} ${escapeHtml(ticket.title)}</li>`).join('');
   const linked = (context.linkedPrs || []).map((pr) => `<li>${githubLink(`${pr.repo}#${pr.number}`, pr.repo, pr.number)} <span class="muted">${escapeHtml(pr.state.toLowerCase())}</span><br>${inlineMarkup(pr.summary || pr.title)}</li>`).join('');
   const general = openReviewComments().filter((comment) => !comment.hunkId || !hunkById(comment.hunkId));
+  const skipped = (context.skipped || []).map((text) => `<li>${inlineMarkup(text)}</li>`).join('');
+  const relatedCounts = [
+    (context.tickets || []).length && plural(context.tickets.length, 'ticket'),
+    (context.linkedPrs || []).length && plural(context.linkedPrs.length, 'linked pull request'),
+  ].filter(Boolean);
+  const criteria = criteriaStatus();
+  const findings = findingsStatus();
+  const glance = [
+    ['home-criteria', criteria.tone, criteria.icon, criteria.label],
+    liveFindings().length && ['home-findings', findings.tone, findings.icon, findings.label],
+    general.length && ['home-comments', 'warn', VERDICT_ICONS.comment, `${plural(general.length, 'open comment')} outside the diff`],
+    skipped && ['home-skipped', 'warn', STATUS_ICONS.notRead, `${context.skipped.length} not read by the AI`],
+    ['home-progress', seen === total ? 'ok' : 'info', STATUS_ICONS.progress, `${seen} of ${plural(total, 'hunk')} seen`],
+  ].filter(Boolean);
+  const proposalTone = { APPROVE: 'ok', REQUEST_CHANGES: 'bad', COMMENT: 'info' }[proposal?.id] || 'quiet';
   return `<section class="home">
     <p class="home-ref"><a href="${escapeHtml(review.pr.url)}" target="_blank" rel="noopener">${escapeHtml(review.pr.owner)}/${escapeHtml(review.pr.repo)}#${review.pr.number}</a></p>
     <h2 class="home-title">${inlineMarkup(review.pr.title)}</h2>
     <p class="home-author">${avatar(review.pr.author)}<span>by <b>${escapeHtml(review.pr.author)}</b></span></p>
     ${context.summary ? `<div class="home-summary">${aiTag('AI summary')}${markdownHtml(context.summary)}</div>` : ''}
+    <div class="glance" role="group" aria-label="What to look at first">${glance.map(([target, tone, icon, text]) => `<button class="pill pill-go tone-${tone}" data-scroll-to="${target}">${icon}${text}</button>`).join('')}</div>
     ${review.pr.body ? `<details class="explain-more"${state.ui.openExplain.has('pr-body') ? ' open' : ''} data-explain-for="pr-body"><summary>PR description</summary><div class="explain-more-body">${markdownHtml(review.pr.body)}</div></details>` : ''}
 
-    <div class="section home-review"><h3>Your review so far</h3>
+    <div class="home-group"><h3 class="home-group-title">Before you start</h3>
+      <div class="status-stack">
+        ${renderCriteriaPanel()}
+        ${renderFindingsPanel()}
+        ${general.length ? statusPanel({ id: 'home-comments', tone: 'warn', icon: VERDICT_ICONS.comment, title: 'Comments outside the diff', pills: pill('warn', `${general.length} open`), body: `<div class="diff">${general.map((comment) => renderNote({ type: 'comment', item: comment })).join('')}</div>` }) : ''}
+        ${context.coverage ? statusPanel({ id: 'home-coverage', tone: 'info', icon: STATUS_ICONS.coverage, title: 'Test coverage', tag: aiTag('AI summary'), body: `<p class="status-text">${inlineMarkup(context.coverage.summary)} <span class="muted">Source: ${inlineMarkup(context.coverage.source)}</span></p>` }) : ''}
+        ${skipped ? statusPanel({ id: 'home-skipped', tone: 'warn', icon: STATUS_ICONS.notRead, title: 'Not read by the AI', pills: pill('warn', plural(context.skipped.length, 'item')), body: `<ul class="home-list">${skipped}</ul>` }) : ''}
+      </div>
+      ${tickets || linked ? `<details class="home-fold home-related-fold"${state.ui.openExplain.has('related') ? ' open' : ''} data-explain-for="related"><summary>${STATUS_ICONS.link}${relatedCounts.join(' · ')}</summary><div class="home-related">
+        ${tickets ? `<div class="section"><h4>Tickets</h4><ul class="home-list">${tickets}</ul></div>` : ''}
+        ${linked ? `<div class="section"><h4>Linked pull requests ${aiTag('AI summaries')}</h4><ul class="home-list">${linked}</ul></div>` : ''}
+      </div></details>` : ''}
+    </div>
+
+    ${renderFlowsOverview()}
+
+    <div class="home-group home-review" id="home-progress"><h3 class="home-group-title"><span class="status-icon tone-${proposalTone}" aria-hidden="true">${STATUS_ICONS.progress}</span>Your review so far
+      ${pill(proposalTone, proposal ? `${VERDICT_ICONS[proposal.icon]}Proposed: ${proposal.label}` : `No proposal yet: ${undecidedLabel()} to decide`)}</h3>
+      <div class="status-panel tone-${proposalTone} review-panel">
       <dl class="home-stats">
         <div><dt>Hunks seen</dt><dd>${seen} of ${total}</dd></div>
         <div><dt>Your verdicts per hunk</dt><dd class="counts"><span class="tag-approved">${count('approved')} approved ·</span><span class="tag-changes">${count('changes')} changes requested ·</span><span>${count('comment')} commented</span></dd></div>
-        <div><dt>Remarks to post</dt><dd>${items.length} · ${onGitHub} on GitHub, ${items.length - onGitHub} local only</dd></div>
-        <div><dt>Proposed verdict</dt><dd>${proposal ? `${VERDICT_ICONS[proposal.icon]}${proposal.label}` : `None yet: ${undecidedLabel()} to decide`}</dd></div>
+        <div><dt>Remarks to post</dt><dd>${items.length ? `${items.length} · ${onGitHub} on GitHub, ${items.length - onGitHub} local only` : 'None'}</dd></div>
       </dl>
       <div class="post-row">
         ${seen < total
@@ -2246,14 +2434,8 @@ function renderHome() {
           : `<button class="btn btn-go" data-action="terminus">Submit review…</button>
         <button class="btn btn-quiet" data-action="first">Go to the first hunk</button>`}
       </div>
+      </div>
     </div>
-
-    ${renderFlowsOverview()}
-    ${general.length ? `<div class="section"><h3>Comments outside the diff</h3><div class="diff">${general.map((comment) => renderNote({ type: 'comment', item: comment })).join('')}</div></div>` : ''}
-    ${tickets ? `<div class="section"><h3>Tickets</h3><ul class="home-list">${tickets}</ul></div>` : ''}
-    ${linked ? `<div class="section"><h3>Linked pull requests ${aiTag('AI summaries')}</h3><ul class="home-list">${linked}</ul></div>` : ''}
-    ${context.coverage ? `<div class="section"><h3>Test coverage ${aiTag('AI summary')}</h3><p class="lede">${inlineMarkup(context.coverage.summary)} <span class="muted">Source: ${inlineMarkup(context.coverage.source)}</span></p></div>` : ''}
-    ${(context.skipped || []).length ? `<div class="section"><h3>Not read</h3><ul class="home-list">${context.skipped.map((text) => `<li>${inlineMarkup(text)}</li>`).join('')}</ul></div>` : ''}
   </section>`;
 }
 
@@ -2369,12 +2551,13 @@ function criterionLine(id, criterion) {
 
 const AC_VERDICTS = { met: 'Met', 'not-met': 'Not met', unclear: 'Unclear' };
 
-function criteriaCheck() {
-  const criteria = (state.review.context.tickets || []).flatMap((ticket) => ticket.acceptanceCriteria || []);
-  if (!criteria.length) return { done: true, counts: 'none in the linked tickets', body: '' };
-  const rows = criteria.map((criterion) => {
+function ticketCriteria() { return (state.review.context.tickets || []).flatMap((ticket) => ticket.acceptanceCriteria || []); }
+
+// One row per criterion: the agent's verdict, its note, and the flows that cover it.
+function criteriaRows(criteria) {
+  return criteria.map((criterion) => {
     const flows = state.lines.filter((line) => line.acceptanceCriteria.includes(criterion.id));
-    const links = flows.map((line) => `<button class="btn btn-quiet" data-line="${escapeHtml(line.id)}">${bullet(line)} ${flowIcon(line)}${escapeHtml(line.name)}</button>`).join('');
+    const links = flows.map((line) => `<button class="btn btn-quiet" data-line="${escapeHtml(line.id)}" title="${escapeHtml(line.name)}">${bullet(line)} ${flowIcon(line)}<span class="ac-flow-name">${escapeHtml(line.name)}</span></button>`).join('');
     return `<li>
       <span class="ac-verdict ${criterion.verdict || ''}">${AC_VERDICTS[criterion.verdict] || 'Not checked'}</span>
       <span class="ac-text">${criterionLine(criterion.id, criterion)}</span>
@@ -2382,6 +2565,12 @@ function criteriaCheck() {
       ${links ? `<span class="ac-flows">${links}</span>` : '<span class="ac-note">No flow covers this criterion.</span>'}
     </li>`;
   }).join('');
+}
+
+function criteriaCheck() {
+  const criteria = ticketCriteria();
+  if (!criteria.length) return { done: true, counts: 'none in the linked tickets', body: '' };
+  const rows = criteriaRows(criteria);
   const counts = Object.entries(AC_VERDICTS).map(([id, label]) => [criteria.filter((criterion) => criterion.verdict === id).length, label.toLowerCase()]).filter(([count]) => count).map(([count, label]) => `${count} ${label}`);
   return {
     done: criteria.every((criterion) => criterion.verdict === 'met'),
@@ -2598,6 +2787,9 @@ document.addEventListener('click', (event) => {
     return render();
   }
   if (data.go) return go(data.go, Number(data.index));
+  if (data.scrollTo) {
+    return document.getElementById(data.scrollTo)?.scrollIntoView({ behavior: reduceMotion.matches ? 'auto' : 'smooth', block: 'start' });
+  }
   if (data.line) {
     const line = lineById(data.line);
     // Back to the hunk the reviewer last had open in this flow; a flow not opened yet starts at its first unseen hunk.
