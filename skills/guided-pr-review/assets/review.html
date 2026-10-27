@@ -150,6 +150,8 @@ code { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-
 :is(.criteria, .legend-wrap)[open] summary::before { transform: rotate(45deg); }
 .criteria summary::before { color: var(--line); }
 .legend-wrap summary::before { width: 5px; height: 5px; }
+.no-criteria { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.no-criteria p { margin: 0; font-size: 14px; color: var(--ink-2); }
 .criteria-title { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--line); font-weight: 750; }
 .criteria-keys { display: flex; flex-wrap: wrap; gap: 6px 14px; }
 .criteria-key { display: inline-flex; align-items: center; gap: 6px; font: 600 12.5px/1.2 var(--mono); color: var(--ink-2); }
@@ -901,6 +903,7 @@ function buildLines(review) {
     end: flow.end,
     explanation: flow.explanation,
     acceptanceCriteria: flow.acceptanceCriteria || [],
+    noCriteria: flow.noCriteria || '',
     icon: flow.icon,
     color: LINE_COLORS[index % LINE_COLORS.length],
     shape: SHAPE_ORDER[Math.floor(index / LINE_COLORS.length) % SHAPE_ORDER.length],
@@ -1609,7 +1612,7 @@ function renderStrip() {
         ${themeToggle()}
       </div>
     </div>
-    ${criteria ? `<details class="criteria"${(state.ui.criteriaOpen ?? state.view.index === 0) ? ' open' : ''} data-criteria><summary><span class="criteria-title">This flow should</span>${criteriaHaveVerdicts(line) ? aiTag('checked by AI') : ''}<span class="criteria-keys">${criteriaKeys}</span></summary><ul>${criteria}</ul></details>` : ''}
+    ${criteria ? `<details class="criteria"${(state.ui.criteriaOpen ?? state.view.index === 0) ? ' open' : ''} data-criteria><summary><span class="criteria-title">This flow should</span>${criteriaHaveVerdicts(line) ? aiTag('checked by AI') : ''}<span class="criteria-keys">${criteriaKeys}</span></summary><ul>${criteria}</ul></details>` : line.noCriteria ? `<div class="criteria no-criteria"><span class="criteria-title">This flow should</span><p>No acceptance criteria to check. ${inlineMarkup(line.noCriteria)}</p></div>` : ''}
     <nav class="map" aria-label="Hunks in ${escapeHtml(line.name)}">
       <span class="map-hint start" aria-hidden="true"></span>
       <div class="map-track">

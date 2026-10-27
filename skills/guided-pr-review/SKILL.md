@@ -59,7 +59,7 @@ Find how the changed code fits together, using change untangling and ordering re
 - Order the steps bottom-up by default (bottom-up program comprehension): for example the request to a backend first, then the model that holds the data, the repository that works with it, and last the UI or public API that shows it.
 - Each step says in one line why it comes at that place.
 - Each flow has an `icon`: the name of a Lucide icon (https://lucide.dev/icons) that shows what the flow does, for example `database` or `globe`. Give each flow a different icon.
-- A flow MAY name the acceptance criteria of the linked tickets that it resolves.
+- A flow MUST name the acceptance criteria of the linked tickets that it resolves. A flow that resolves none MUST get `noCriteria`: one line that says why, for example that no linked ticket lists criteria, or that the criteria belong to other flows.
 - A hunk MAY be in several flows. A hunk that is in no flow goes in `notInAnyFlow`.
 - Decide from the code how best to present this PR. When code paths do not apply, set `layout` to `directory` and leave `flows` empty. The review page then lists files by directory, then alphabetically.
 
@@ -81,7 +81,7 @@ First let the user choose. Look through the skills available to you for ones tha
 Attach each finding to the hunk and line it is about, or set `hunkId` to null for a finding about the whole PR. When an open ticket in `context.relatedTickets` already covers a finding, name that ticket's key in the finding. Write each finding `body` as the comment text that would be posted, without the severity label and without the disclosure; the review page adds both.
 
 - Use the review skills that are available to you. Skills of the target project take precedence.
-- Verify that the PR meets the acceptance criteria of the linked tickets. Give each criterion a `verdict` and a one-line `note`. When a ticket lists no acceptance criteria, take them from its description and set `source` to `description`.
+- Verify that the PR meets the acceptance criteria of the linked tickets. Give each criterion a `verdict` and a one-line `note`. When a ticket lists no acceptance criteria, take them from its description and set `source` to `description`. When you found no criteria to check for a flow, you MUST keep or write its `noCriteria`.
 - Verify that the PR makes no changes beyond what the tickets ask for. If it does, the PR description must say why.
 - Verify that the changes follow the project's conventions and coding standards.
 - Verify test coverage, only when the project has a test suite:

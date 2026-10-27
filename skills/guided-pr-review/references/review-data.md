@@ -44,7 +44,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   ],
   "flows": [
     { "id": "forecast-read", "name": "Show the forecast", "icon": "cloud-sun", "entry": "src/api/weatherClient.ts:fetchForecast()", "end": "src/components/ForecastCard.tsx:<ForecastCard>",
-      "explanation": "<short>", "acceptanceCriteria": ["WX-42#1"],
+      "explanation": "<short>", "acceptanceCriteria": ["WX-42#1"], "noCriteria": "<only when acceptanceCriteria is empty: one line, why no criterion applies>",
       "steps": [ { "hunkId": "3f2a9c1d0b7e", "why": "The cache stores what the client fetched." } ] }
   ],
   "notInAnyFlow": [],
@@ -79,6 +79,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - `hunks` is written by `node scripts/review-data.js hunks <diff-file> <review-file>`. The agent adds `explanation`, and `explanationMore` on request. It MUST NOT change the other fields.
 - A flow's `entry` and `end` are fully qualified code names with their namespace or module path, such as `App\Weather\ForecastClient::fetch()` or `src/api/weatherClient.ts:fetchForecast()`, not sentences.
 - `layout` is `flows` or `directory`. With `directory`, `flows` is empty and the review page lists hunks by directory, then alphabetically.
+- A flow with no acceptance criteria has `noCriteria`, which says why. The review page shows it where the flow's criteria would be.
 - An acceptance criterion has `source` `ticket` when the ticket lists it, or `description` when the agent took it from the description because the ticket lists none. Do not repeat that in `text`. `verdict` is `met`, `not-met` or `unclear`, with a one-line `note`.
 - `relatedTickets` holds open tickets that concern the same code, found by searching the tracker. Each one has `key`, `url` and `title`, and no criteria. The review page links their keys like the linked tickets; a related ticket's project prefix also makes other keys with that prefix linkable. They do not count as acceptance criteria.
 - `tickets` holds Jira tickets (`key` like `WX-42`) and GitHub issues (`key` like `example-org/sample-api#12`), each with `url` and `title`. The review page links every reference it can resolve in any text, with the title as tooltip.
