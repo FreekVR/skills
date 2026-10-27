@@ -1268,7 +1268,7 @@ function renderUpdates() {
   const banners = [];
   if (remote.state === 'merged' || remote.state === 'closed') {
     const finishing = isFinishing();
-    banners.push(`<div class="update" data-banner="state-${remote.state}"><p><strong>This PR is ${remote.state}.</strong> ${finishing ? 'The agent asks in the chat whether to clean up.' : 'A review has little effect now.'}</p>${finishing ? '' : '<button class="btn" data-action="finish">Finish the review</button>'}</div>`);
+    banners.push(`<div class="update" data-banner="state-${remote.state}"><p><strong>This PR is ${remote.state}.</strong> ${finishing ? 'The agent asks in the chat whether to delete the review data.' : 'A review has little effect now.'}</p>${finishing ? '' : '<button class="btn" data-action="finish">Finish the review</button>'}</div>`);
   }
   if (remote.headSha && remote.headSha !== state.review.pr.headSha) {
     const updating = state.ui.updatingTo === remote.headSha;
@@ -2488,14 +2488,16 @@ function postedCard(sent) {
 
 function renderPostedTerminus(sent) {
   const finishing = isFinishing();
+  // On a merged or closed PR the banner above says what Finish does instead.
+  const open = !['merged', 'closed'].includes(state.review.remote?.state);
   return `<section class="terminus">
     ${postedCard(sent)}
     <div class="posted-actions">
-      ${finishing ? '<p class="lede">The agent asks in the chat whether to clean up.</p>' : '<button class="btn btn-ink" data-action="finish">Finish the review</button>'}
+      ${!open ? '' : finishing ? '<p class="lede">The agent keeps this review. Run the skill again on this PR for the next round.</p>' : '<button class="btn btn-ink" data-action="finish">Finish for now</button>'}
       <button class="btn" data-action="reviews">See it in Existing reviews</button>
       <button class="btn btn-quiet" data-action="new-round">Start a new review round</button>
     </div>
-    <p class="lede">Waiting for the author. New commits start the next round, where you check whether your comments are fixed.</p>
+    ${open ? '<p class="lede">Waiting for the author. New commits start the next round, where you check whether your comments are fixed. Finish for now keeps this review, so that round starts from here.</p>' : ''}
   </section>`;
 }
 

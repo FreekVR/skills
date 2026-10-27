@@ -121,11 +121,12 @@ Each event from the review page is one request. Its `review` field names the PR;
 - After a `refresh` event, also write a new `fix` for each open posted comment, the user's and others', as in step 5.
 - For a `post` event, post the payload exactly as it is: no extra text, no changed words, no other comments. Read `references/posting.md` for the GitHub requests. The button press is the reviewer's approval. You MUST NOT post at any other moment, and you MUST NOT ask for a second approval in the chat.
 
-Handle every event in silence: the review page shows the result, so you MUST NOT write anything in the chat for it, not even a short confirmation. The exceptions are the final `post` and `finish`: after those, step 8 asks the user about clean-up. When the user asks you something in the chat instead, answer there too.
+Handle every event in silence: the review page shows the result, so you MUST NOT write anything in the chat for it, not even a short confirmation. The exceptions are the final `post` and `finish`: after those, do step 8. When the user asks you something in the chat instead, answer there too.
 
-### 8. Clean up
+### 8. Finish
 
-After the final review is posted, ask the user before you delete the review directory and, for a big PR, the worktree.
+- While the PR is open, you MUST keep the review directory and, for a big PR, the worktree. You MUST NOT offer to delete them. After a final `post`, keep the local server running. After `finish`, stop the local server and tell the user in one line that the review is kept and that this skill resumes it for the PR.
+- When the PR is merged or closed, ask the user before you delete the review directory and the worktree.
 
 ## Resume
 
