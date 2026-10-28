@@ -101,3 +101,20 @@ test('opens a folder only for a changed file of a local clone, and only from the
   assert.strictEqual((await open({}, { path: 'src/cache.ts' })).status, 403);
   assert.strictEqual((await open({ 'X-Guided-Review': '1' }, { path: 'src/cache.ts' })).status, 404);
 });
+
+test('lists the reviews in the state directory and marks the one this server shows', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-state-'));
+  const before = process.env.XDG_STATE_HOME;
+  t.after(() => { if (before === undefined) delete process.env.XDG_STATE_HOME; else process.env.XDG_STATE_HOME = before; });
+  process.env.XDG_STATE_HOME = root;
+  const dirs = ['acme/shop/7', 'acme/shop/8'].map((name) => path.join(root, 'guided-pr-review', name));
+  for (const dir of dirs) {
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { title: path.basename(dir) } }));
+  }
+  const server = http.createServer(createHandler(dirs[1], () => {}));
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  t.after(() => server.close());
+  const reviews = await (await fetch(`http://127.0.0.1:${server.address().port}/reviews`)).json();
+  assert.deepStrictEqual(reviews.map((review) => [review.number, review.current]), [[7, false], [8, true]]);
+});

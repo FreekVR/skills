@@ -1,12 +1,14 @@
 # Review data
 
-The review page and the agent share three files in the review directory. Each file has one writer.
+The review page, the local server and the agent share these files in the review directory. Each file has one writer.
 
 | File | Writer | Reader | Content |
 | --- | --- | --- | --- |
 | `review.json` | agent | review page | The PR, context, flows, hunks, AI findings, answers, post results |
 | `reviewer.json` | review page | agent | What the reviewer has seen, decided and written |
 | `events.jsonl` | review page | agent | One JSON object per line: questions, "explain more" requests, post requests |
+| `session.json` | agent, through `review-data.js session` | local server | The agent session that runs the review |
+| `server.json` | local server | local server | The URL and process ID of the review page |
 
 Only the writer in the table MAY write a file. The review page reloads `review.json` every few seconds, so the agent's changes show up without a page reload.
 
@@ -123,6 +125,14 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 ```
 
 `knownHunks` lets the review page mark hunks that are new since the last session. `imported` lists the own remarks and pending review body it already loaded, so it loads each one once. `position` is where the reviewer was, so a reload opens the same hunk. `knownComments` lists the `reviewComments` the reviewer already knows about; the review page announces the others as new. `flowPositions` holds the hunk the reviewer last had open in each flow, so opening a flow again returns there. `theme` is the colour theme the reviewer picked: `system`, `light` or `dark`. `severities` holds the severity the reviewer set on a finding, where it differs from the AI's. `hunkVerdicts` holds the reviewer's own verdict per hunk (`approved`, `changes` or `comment`); it stays in the page and only shapes the proposed verdict. `threadCalls` holds the reviewer's call on each of their open posted comments: `resolve` or `open`. `threadReplies` holds the reply to post in a thread left open; it starts as the agent's draft. A remark with `copiedFrom` started as a copy of another reviewer's comment on the same lines; `copiedToSummary` lists the comments copied into the summary because their lines are not in the diff. `sent` lists the events the review page sent, so it can show their answers and post results; each `post` entry also lists the IDs and texts it contained, so the page can show what is on GitHub and what is still local. A `post` entry also holds `at`, the time it was sent, `headSha`, the head commit at that time, and `payload`, what it sent. `summaryFrom` is the `summarize` event whose answer the reviewer used or turned down, so the page offers each draft once; `summaryAiSuggested` is true while the summary started from that draft, and the review body then gets the disclosure. When GitHub accepted a final review, the page shows that it is posted instead of the form, until the reviewer starts a new round or `pr.headSha` changes; `reopenedAfter` marks the start of the new round.
+
+## session.json and server.json
+
+```json
+{ "sessionId": "<Claude Code session ID, or null>", "cwd": "<directory the session runs from>", "worktree": "<worktree path, or null for a small PR>" }
+```
+
+`node scripts/review-data.js session <review-dir> [--worktree <path>]` writes `session.json`. `sessionId` comes from `CLAUDE_CODE_SESSION_ID`. The local server writes `server.json`, `{ "url": "http://127.0.0.1:52011/", "pid": 4242 }`, when it starts; a review counts as running while that process exists. The review page lists every review directory in a switch in its header, with a link to each review page that runs and, for the others, the command that resumes their session.
 
 ## events.jsonl
 

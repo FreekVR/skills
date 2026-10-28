@@ -8,6 +8,7 @@ const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
 const { execFile } = require('child_process');
+const { listReviews } = require('./review-data.js');
 
 const TEMPLATE = path.join(__dirname, '..', 'assets', 'review.html');
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
@@ -69,6 +70,10 @@ function createHandler(reviewDir, log) {
       if (route === 'GET /') {
         return sendFile(response, TEMPLATE, 'text/html; charset=utf-8');
       }
+      if (route === 'GET /reviews') {
+        const reviews = listReviews().map(({ dir, ...review }) => ({ ...review, current: path.resolve(dir) === path.resolve(reviewDir) }));
+        return send(response, 200, 'application/json', JSON.stringify(reviews));
+      }
       if (route === 'GET /review.json') {
         return sendFile(response, reviewFile, 'application/json');
       }
@@ -118,7 +123,10 @@ function main(argv) {
   }
   const server = http.createServer(createHandler(reviewDir, console.log));
   server.listen(0, '127.0.0.1', () => {
-    console.log(`READY http://127.0.0.1:${server.address().port}/`);
+    const url = `http://127.0.0.1:${server.address().port}/`;
+    // The review pages of other reviews link to this one; listReviews skips it once this process is gone.
+    writeAtomic(path.join(reviewDir, 'server.json'), JSON.stringify({ url, pid: process.pid }) + '\n');
+    console.log(`READY ${url}`);
   });
 }
 

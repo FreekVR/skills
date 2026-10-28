@@ -113,7 +113,7 @@ code { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-
 * { scrollbar-color: var(--rule-strong) transparent; scrollbar-width: thin; }
 
 .app { display: grid; grid-template-columns: 340px minmax(0, 1fr); grid-template-rows: auto 1fr; height: 100vh; }
-.strip { grid-column: 1 / -1; border-bottom: 1px solid var(--rule); background: var(--ground); position: relative; z-index: 2; }
+.strip { grid-column: 1 / -1; border-bottom: 1px solid var(--rule); background: var(--ground); position: relative; z-index: 5; }
 .rail { border-right: 1px solid var(--rule); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
 .rail-top { padding: 14px 8px 6px; border-bottom: 1px solid var(--rule); }
 .rail-progress { margin: 6px 8px 0; font-size: 12px; color: var(--ink-3); }
@@ -146,6 +146,18 @@ code { font-family: var(--mono); font-size: 13px; font-variant-numeric: tabular-
 .line-name h1 { font-size: 20px; line-height: 1.25; margin: 0; font-weight: 700; letter-spacing: -0.015em; }
 .line-route { margin: 4px 0 0; color: var(--ink-3); font-size: 13px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+.switcher { position: relative; }
+.switcher > summary { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--rule-strong); border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; list-style: none; }
+.switcher > summary::-webkit-details-marker { display: none; }
+.switcher-panel { position: absolute; right: 0; top: calc(100% + 6px); z-index: 20; width: min(420px, calc(100vw - 32px)); margin: 0; padding: 6px; list-style: none; background: var(--ground); border: 1px solid var(--rule-strong); border-radius: 10px; box-shadow: 0 18px 48px rgba(0,0,0,.22), 0 2px 8px rgba(0,0,0,.08); }
+.switcher-panel :is(li, a) { display: grid; gap: 2px; }
+.switcher-panel li { padding: 8px 10px; border-radius: 6px; font-size: 13px; line-height: 1.45; }
+.switcher-panel li[aria-current] { background: color-mix(in srgb, var(--ink) 7%, var(--ground)); }
+.switcher-panel a { color: inherit; text-decoration: none; }
+.switcher-panel li:has(> a):hover { background: color-mix(in srgb, var(--ink) 7%, var(--ground)); }
+.switcher-panel .switcher-ref { font-weight: 650; }
+.switcher-panel .switcher-title, .switcher-panel p { margin: 0; color: var(--ink-3); }
+.resume-command { display: block; margin-top: 4px; padding: 6px 8px; border-radius: 6px; background: var(--panel); font-size: 12px; overflow-wrap: anywhere; user-select: all; }
 .criteria { margin: 12px 28px 2px; padding: 8px 14px; max-width: 110ch; border-radius: 10px; border: 1px solid color-mix(in srgb, var(--line) 55%, transparent); background: color-mix(in srgb, var(--line) var(--card-tint), var(--ground)); }
 .criteria summary { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; cursor: pointer; list-style: none; }
 .criteria summary::-webkit-details-marker { display: none; }
@@ -515,8 +527,8 @@ select { border: 1px solid var(--rule-strong); border-radius: 6px; background: v
 .review-panel .home-stats { margin-top: 0; }
 .home-fold > summary { display: inline-flex; align-items: center; gap: 8px; padding: 8px 0; cursor: pointer; list-style: none; font-size: 14px; font-weight: 650; color: var(--ink); }
 .home-fold > summary::-webkit-details-marker { display: none; }
-.home-fold > summary::after { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .15s var(--ease); }
-.home-fold[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
+:is(.home-fold, .switcher) > summary::after { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); transition: transform .15s var(--ease); }
+:is(.home-fold, .switcher)[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
 .home-related-fold { margin-top: 18px; }
 .home-related .section { margin-top: 24px; }
 .home-related .home-list { font-size: 13.5px; color: var(--ink-2); }
@@ -719,6 +731,7 @@ details.thread > summary::-webkit-details-marker { display: none; }
   .update { flex-wrap: wrap; }
   .shortcuts-button { display: none; }
   .actions { flex-wrap: wrap; flex-shrink: 1; min-width: 0; }
+  .switcher-panel { left: 0; right: auto; }
   .ac-list li { grid-template-columns: 1fr; }
   .ac-note, .ac-flows { grid-column: 1; }
   .ac-verdict { justify-self: start; }
@@ -883,6 +896,7 @@ const VERDICT_ICONS = {
 const httpTransport = {
   async loadReview() { return fetchJson('review.json'); },
   async loadReviewer() { return fetchJson('reviewer.json'); },
+  async loadReviews() { return fetchJson('reviews'); },
   async saveReviewer(state) {
     const response = await fetch('reviewer.json', { method: 'PUT', body: JSON.stringify(state) });
     if (!response.ok) throw new Error(`Saving failed: ${response.status} ${await response.text()}`);
@@ -1157,6 +1171,39 @@ function statusBadge(id, body) {
 
 // The count sits on the button that sends those remarks to GitHub.
 // After the final review is posted there is nothing left to put in a draft.
+function reviewRef(review) { return `${review.owner}/${review.repo}#${review.number}`; }
+
+// The quotes keep a directory with spaces in one piece; a quote in the path is closed, escaped and opened again.
+function shellQuote(text) { return `'${text.replaceAll("'", `'\\''`)}'`; }
+
+// How to bring back the agent session of a review whose page does not run.
+function resumeHelp(review, lead) {
+  const session = review.session;
+  if (!session?.sessionId) return `<p>${lead}Ask your agent to resume the guided review of ${escapeHtml(reviewRef(review))}.</p>`;
+  return `<p>${lead}To resume its agent session, run in a terminal:</p><code class="resume-command">cd ${escapeHtml(shellQuote(session.cwd))} &amp;&amp; claude --resume ${escapeHtml(session.sessionId)}</code>`;
+}
+
+function reviewSwitch() {
+  const reviews = state.reviews || [];
+  if (reviews.length < 2) return '';
+  const items = reviews.map((review) => {
+    const name = `<span class="switcher-ref">${escapeHtml(reviewRef(review))}${review.state === 'open' ? '' : ` · ${escapeHtml(review.state)}`}</span><span class="switcher-title">${escapeHtml(review.title)}</span>`;
+    if (review.current) return `<li aria-current="page">${name}</li>`;
+    if (review.url) return `<li><a href="${escapeHtml(review.url)}">${name}</a></li>`;
+    return `<li>${name}${resumeHelp(review, 'Not running. ')}</li>`;
+  }).join('');
+  return `<details class="switcher" data-switcher${state.ui.switcherOpen ? ' open' : ''}><summary aria-label="Switch to another review">${plural(reviews.length, 'review')}</summary><ul class="switcher-panel">${items}</ul></details>`;
+}
+
+async function loadReviews() {
+  if (!transport.loadReviews) return;
+  try {
+    state.reviews = await transport.loadReviews();
+  } catch {
+    // Without the list the page works as before, only without the switch.
+  }
+}
+
 function draftButton() {
   if (postedReview()) return '';
   const count = localCount();
@@ -1266,6 +1313,11 @@ function newComments() {
 function renderUpdates() {
   const remote = state.review.remote || {};
   const banners = [];
+  if (state.ui.offline) {
+    const { owner, repo, number } = state.review.pr;
+    const current = (state.reviews || []).find((review) => review.current) || { owner, repo, number };
+    banners.push(`<div class="update" data-banner="offline"><div><p><strong>This review is not running.</strong> The page cannot save your work or reach the agent.</p>${resumeHelp(current, '')}</div></div>`);
+  }
   if (remote.state === 'merged' || remote.state === 'closed') {
     const finishing = isFinishing();
     banners.push(`<div class="update" data-banner="state-${remote.state}"><p><strong>This PR is ${remote.state}.</strong> ${finishing ? 'The agent asks in the chat whether to delete the review data.' : 'A review has little effect now.'}</p>${finishing ? '' : '<button class="btn" data-action="finish">Finish the review</button>'}</div>`);
@@ -1650,13 +1702,13 @@ function renderStrip() {
   if (state.view.kind === 'home') {
     return `<header class="strip"><div class="strip-top solo">
       <div class="line-name"><h1 tabindex="-1">Overview</h1></div>
-      <div class="actions">${draftButton()}${themeToggle()}</div>
+      <div class="actions">${reviewSwitch()}${draftButton()}${themeToggle()}</div>
     </div></header>`;
   }
   if (state.view.kind === 'terminus' || state.view.kind === 'reviews') {
     return `<header class="strip"><div class="strip-top solo">
       <div class="line-name"><h1 tabindex="-1">${viewTitle()}</h1></div>
-      <div class="actions">${draftButton()}${themeToggle()}</div>
+      <div class="actions">${reviewSwitch()}${draftButton()}${themeToggle()}</div>
     </div></header>`;
   }
   const line = lineById(state.view.line);
@@ -1688,6 +1740,7 @@ function renderStrip() {
       <div class="line-name">${bullet(line)}<div class="line-title"><h1 tabindex="-1">${flowIcon(line)}${escapeHtml(line.name)}</h1>
         <p class="line-route">${seenCount} of ${plural(line.stops.length, 'hunk')} seen</p></div></div>
       <div class="actions">
+        ${reviewSwitch()}
         ${draftButton()}
         ${themeToggle()}
       </div>
@@ -3191,6 +3244,14 @@ document.addEventListener('toggle', (event) => {
   const hunkId = event.target.dataset?.explainFor;
   if ('legend' in event.target.dataset) { state.ui.legendOpen = event.target.open; return; }
   if ('criteria' in event.target.dataset) { state.ui.criteriaOpen = event.target.open; return; }
+  if ('switcher' in event.target.dataset) {
+    // A redraw creates the element open again, which fires toggle without a change.
+    if (event.target.open === Boolean(state.ui.switcherOpen)) return;
+    state.ui.switcherOpen = event.target.open;
+    // Another review may have started or stopped since the list was read.
+    if (event.target.open) loadReviews().then(render);
+    return;
+  }
   if (event.target.dataset?.termSection) { state.ui.terminusOpen = { ...state.ui.terminusOpen, [event.target.dataset.termSection]: event.target.open }; return; }
   if (!hunkId) return;
   if (event.target.open) state.ui.openExplain.add(hunkId); else state.ui.openExplain.delete(hunkId);
@@ -3242,7 +3303,11 @@ function applySummaryDraft() {
 
 async function poll() {
   try {
-    const review = await transport.loadReview();
+    // Only this request tells whether the server still answers; fetch then rejects with a TypeError.
+    const review = await transport.loadReview().catch((error) => {
+      if (error instanceof TypeError) error.serverGone = true;
+      throw error;
+    });
     const json = JSON.stringify(review);
     if (json !== state.reviewJson) {
       setReview(review, json);
@@ -3252,8 +3317,10 @@ async function poll() {
       applySummaryDraft();
       render();
     }
+    if (state.ui.offline) { state.ui.offline = false; render(); }
   } catch (error) {
-    toast(`Cannot reach the agent: ${error.message}`, true);
+    if (!error.serverGone) toast(`Cannot reach the agent: ${error.message}`, true);
+    else if (!state.ui.offline) { state.ui.offline = true; render(); }
   }
   setTimeout(poll, POLL_MS);
 }
@@ -3279,6 +3346,8 @@ async function boot() {
     checkGitHub();
     if (!restorePosition()) state.view = { kind: 'home' };
     render();
+    // The switch is optional, so the page does not wait for the list.
+    loadReviews().then(render);
   } catch (error) {
     const app = document.getElementById('app');
     app.className = 'boot error';

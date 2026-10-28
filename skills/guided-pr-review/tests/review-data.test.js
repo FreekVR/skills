@@ -3,8 +3,10 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
 const path = require('path');
-const { reviewDir, parseDiff, mergeHunks, checkFlows } = require('../scripts/review-data.js');
+const { reviewDir, parseDiff, mergeHunks, checkFlows, writeSession, listReviews } = require('../scripts/review-data.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
 index 1111111..2222222 100644
@@ -118,5 +120,52 @@ test('mergeHunks keeps explanations of unchanged hunks only', () => {
   assert.deepStrictEqual(merged, [
     { id: 'a', lines: [], explanation: 'old a', explanationMore: 'more a' },
     { id: 'b', lines: [] },
+  ]);
+});
+
+test('writeSession records the agent session, the directory it runs from and the worktree', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-'));
+  const before = process.env.CLAUDE_CODE_SESSION_ID;
+  t.after(() => { if (before === undefined) delete process.env.CLAUDE_CODE_SESSION_ID; else process.env.CLAUDE_CODE_SESSION_ID = before; });
+  process.env.CLAUDE_CODE_SESSION_ID = 'abc-123';
+  writeSession(dir, '/clones/shop-pr-7');
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'session.json'), 'utf8')), { sessionId: 'abc-123', cwd: process.cwd(), worktree: '/clones/shop-pr-7' });
+  delete process.env.CLAUDE_CODE_SESSION_ID;
+  assert.deepStrictEqual(writeSession(dir), { sessionId: null, cwd: process.cwd(), worktree: null });
+});
+
+test('listReviews lists each review directory with a review.json, and a URL only for a server that runs', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-root-'));
+  const write = (dir, file, content) => {
+    fs.mkdirSync(path.join(root, dir), { recursive: true });
+    fs.writeFileSync(path.join(root, dir, file), JSON.stringify(content));
+  };
+  write('acme/shop/7', 'review.json', { pr: { title: 'Add a cache' }, remote: { state: 'merged' } });
+  write('acme/shop/7', 'session.json', { sessionId: 's1', cwd: '/work', worktree: null });
+  write('acme/shop/7', 'server.json', { url: 'http://127.0.0.1:1/', pid: process.pid });
+  write('acme/shop/8', 'review.json', { pr: { title: 'Fix the cache' } });
+  write('acme/shop/8', 'session.json', { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' });
+  write('acme/shop/8', 'server.json', { url: 'http://127.0.0.1:2/', pid: 2 ** 22 + 1 });
+  write('acme/shop/9', 'reviewer.json', {});
+  write('acme/api/1', 'review.json', { pr: { title: 'Old review' } });
+  assert.deepStrictEqual(listReviews(root).map(({ dir, ...review }) => review), [
+    { owner: 'acme', repo: 'api', number: 1, title: 'Old review', state: 'open', session: null, url: null },
+    { owner: 'acme', repo: 'shop', number: 7, title: 'Add a cache', state: 'merged', session: { sessionId: 's1', cwd: '/work', worktree: null }, url: 'http://127.0.0.1:1/' },
+    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' }, url: null },
+  ]);
+});
+
+test('listReviews leaves out a review whose review.json is broken, and reads a broken session.json as missing', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-root-'));
+  const write = (dir, file, content) => {
+    fs.mkdirSync(path.join(root, dir), { recursive: true });
+    fs.writeFileSync(path.join(root, dir, file), content);
+  };
+  write('acme/shop/7', 'review.json', '{"pr":');
+  write('acme/shop/8', 'review.json', JSON.stringify({ pr: { title: 'Fix the cache' } }));
+  write('acme/shop/8', 'session.json', '{"sessionId":');
+  write('acme/shop/8', 'server.json', '');
+  assert.deepStrictEqual(listReviews(root).map(({ dir, ...review }) => review), [
+    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: null, url: null },
   ]);
 });
