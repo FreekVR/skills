@@ -123,6 +123,8 @@ Each event from the review page is one request. Its `review` field names the PR;
 
 Handle every event in silence: the review page shows the result, so you MUST NOT write anything in the chat for it, not even a short confirmation. The exceptions are the final `post` and `finish`: after those, do step 8. When the user asks you something in the chat instead, answer there too.
 
+You MUST write the result of each event to `review.json` before you write anything in the chat. Until `finish`, you MUST NOT use a tool that waits for the user's answer, such as a question with choices. Ask in plain chat text, so you keep handling events.
+
 ### 8. Finish
 
 - While the PR is open, you MUST keep the review directory and, for a big PR, the worktree. You MUST NOT offer to delete them. After a final `post`, keep the local server running. After `finish`, stop the local server and tell the user in one line that the review is kept and that this skill resumes it for the PR.
@@ -137,4 +139,4 @@ A review directory with a `review.json` means the reviewer stopped earlier.
 
 ## Self-healing
 
-When the task is done and the user corrected you, or this skill gave wrong or incomplete guidance, offer to draft an issue for https://github.com/FreekVR/skills/issues describing the problem as it relates to this skill. You MAY also offer a pull request that improves the skill. You MUST show the draft and open it only after the user agrees. You MUST NOT include personal, company or repository-specific data. You MUST add the AI disclosure.
+The task is done after `finish`, or when the user stops the review in the chat. The final `post` does not end it. When the task is done and the user corrected you, or this skill gave wrong or incomplete guidance, offer to draft an issue for https://github.com/FreekVR/skills/issues describing the problem as it relates to this skill. You MAY also offer a pull request that improves the skill. You MUST show the draft and open it only after the user agrees. You MUST NOT include personal, company or repository-specific data. You MUST add the AI disclosure.
