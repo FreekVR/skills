@@ -2171,7 +2171,7 @@ function renderNote(note) {
   if (note.type === 'posted') {
     return `<div class="note-block">
       <div class="note-head">${avatar(viewerLogin())}<span class="sev ${severityClass(remark.severity)}">${escapeHtml(remark.severity)}</span><span class="who">You posted this earlier${remark.url ? ` · <a href="${escapeHtml(remark.url)}" target="_blank" rel="noopener">open on GitHub</a>` : ''}. It is not posted again.</span></div>
-      ${remark.replies?.length ? conversationHtml(remark) : `<p class="note-body">${inlineMarkup(remark.body)}</p>`}${fixLine(remark)}${threadActions(remark)}
+      ${remark.replies?.length ? conversationHtml(remark) : `<p class="note-body">${inlineMarkup(remark.body)}</p>`}${remark.resolved ? '' : fixLine(remark) + opinionLine(remark.opinion)}${threadActions(remark)}
     </div>`;
   }
   const editing = state.ui.editing === remark.id;
@@ -2180,7 +2180,7 @@ function renderNote(note) {
     <div class="note-head">${avatar(viewerLogin())}<span class="sev ${severityClass(remark.severity)}">${escapeHtml(remark.severity)}</span><span class="who">${own ? 'Your pending remark from GitHub' : 'Your remark'}${remark.line ? ` · ${lineLabel(remark)}` : ''}</span>${statusBadge(remark.id, remark.body)}</div>
     ${editing ? `<div class="composer"><textarea id="edit-${remark.id}" data-edit="${remark.id}" aria-label="Edit your remark">${escapeHtml(state.ui.drafts[`edit:${remark.id}`] ?? remark.body)}</textarea>
         <div class="composer-row"><label>Severity <select id="edit-severity-${remark.id}">${options}</select></label><button class="btn btn-ink" data-save-remark="${remark.id}">Save remark</button><button class="btn btn-quiet" data-cancel-edit="${remark.id}">Cancel</button></div></div>`
-      : `<p class="note-body">${inlineMarkup(remark.body)}</p>
+      : `<p class="note-body">${inlineMarkup(remark.body)}</p>${own?.body === remark.body ? opinionLine(own.opinion) : ''}
     <div class="note-actions"><button class="btn btn-quiet" data-start-edit="${remark.id}">Edit</button><button class="btn btn-quiet danger-text" data-delete-remark="${remark.id}">Delete</button></div>`}
   </div>`;
 }
@@ -2233,7 +2233,7 @@ function renderThread(comment, mine) {
     ${at ? stationButton(at.line, at.index, 'Show in flow', { title: 'Open this hunk in its flow' }) : ''}`;
   const body = `${threadCode(comment)}
     ${conversationHtml(comment)}
-    ${mine ? `${fixLine(comment)}${threadActions(comment)}` : `${comment.resolved ? '' : fixLine(comment) + opinionLine(comment.opinion)}<div class="note-actions">${copyButton(comment)}</div>`}`;
+    ${mine ? `${comment.resolved ? '' : fixLine(comment) + opinionLine(comment.opinion)}${threadActions(comment)}` : `${comment.resolved ? '' : fixLine(comment) + opinionLine(comment.opinion)}<div class="note-actions">${copyButton(comment)}</div>`}`;
   if (comment.resolved) return `<details class="thread resolved"><summary class="thread-head">${head}<span class="state-tag">Resolved</span></summary>${body}</details>`;
   return `<div class="thread"><div class="thread-head">${head}</div>${body}</div>`;
 }

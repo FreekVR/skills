@@ -100,7 +100,7 @@ Always verify the existing review comments from step 1, whatever the user chose 
 
 - Reviews: add every submitted review, by the user and by others, to `reviews`, with its body verbatim. You MUST leave out a `COMMENTED` review that has no body and no comments of its own.
 - Comments by others: add each one to `reviewComments` with its body and replies exactly as their authors wrote them. You MUST NOT restate, shorten or correct them. For an open one, add an `opinion`: whether the comment is right (agree, disagree or not sure), and why, in one line. The opinion does not say whether the author fixed it. When commits came after the comment, also add a `fix` as for the user's own remarks, without `reply`.
-- The user's own remarks, posted or pending: add each to `ownRemarks`. For each posted one that is not resolved, read the code at its lines now, the commits since the comment and the replies, and add a `fix`: whether the author fixed it, with a one-line note that names the commit or line, and for `not-fixed` a short draft reply that says what is still missing. Put the ID and body of the user's pending review, if any, in `ownPendingReview`.
+- The user's own remarks, posted or pending: add each to `ownRemarks`. For each posted one that is not resolved, read the code at its lines now, the commits since the comment and the replies, and add a `fix`: whether the author fixed it, with a one-line note that names the commit or line, and for `not-fixed` a short draft reply that says what is still missing. For each pending one and each posted one that is not resolved, also add an `opinion` as for comments by others. Put the ID and body of the user's pending review, if any, in `ownPendingReview`.
 
 ### 6. Open the review page
 

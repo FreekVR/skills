@@ -70,6 +70,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
       "body": "<the user's comment, without severity label>", "severity": "minor", "url": "<link, posted only>",
       "diffHunk": "<the comment's diff_hunk from GitHub>", "resolved": false, "outdated": false, "canResolve": true,
       "replies": [ { "author": "sample-author", "body": "<text>", "at": "<ISO time>" } ],
+      "opinion": { "stance": "agree", "text": "<one line: why the comment is right or wrong>" },
       "fix": { "verdict": "not-fixed", "note": "<one line: what changed, with the commit or line>", "reply": "<draft reply that says what is still missing; not-fixed only>" } }
   ],
   "ownPendingReview": { "id": 987654, "body": "<the pending review body, or empty>" },
@@ -92,7 +93,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - `pr.body` is the PR description, verbatim; the home page shows it as a collapsible block.
 - `pr.localPath` is set for a big PR only. The local server then serves whole files from the worktree, and the review page links each file to VS Code and to its folder, and a PHP file also to PhpStorm. Without it, the server serves whole files from `files/` in the review directory. The server serves only files that a hunk changes.
 - `ownRemarks` are the user's own review comments. The review page loads the `pending` ones and the `ownPendingReview` body into the reviewer's remarks and summary once, so they are posted again with the review. `posted` ones are not posted again. `severity` is the label the comment starts with, or the lowest severity when it has none.
-- `opinion` on a comment by someone else says whether the comment is right, not whether it is fixed. The review page shows `fix` above it, so the reviewer reads the current state first.
+- `opinion` on a comment says whether the comment is right, not whether it is fixed. Comments by others and the user's own comments both get one. The review page shows `fix` above it, so the reviewer reads the current state first. On a pending remark that the reviewer edited, the review page hides the opinion.
 - `fix` is the agent's recommendation for a posted comment: `fixed`, `not-fixed` or `unclear`, with a one-line `note`. For `not-fixed`, `reply` is a short draft that says what is still missing. A posted comment that is not `resolved` needs the reviewer's call: resolve it or leave it open. `canResolve` is GitHub's `viewerCanResolve`; `outdated` is GitHub's `isOutdated`.
 - `remote` is what the agent found on GitHub at the last `check`. `state` is `open`, `closed` or `merged`. When `remote.headSha` differs from `pr.headSha`, the review page offers to load the new commits.
 - A finding with `hunkId: null` is about the whole PR, for example a missing acceptance criterion. It goes in the review body.
