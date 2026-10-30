@@ -31,10 +31,10 @@ async function showThem() {
 </script>
 
 <template>
-  <section class="max-w-[1080px] px-11 pt-9 pb-24 max-[820px]:px-4">
+  <section class="page-column pt-9 pb-24">
     <TerminusPosted v-if="view.posted" :sent="view.posted" :finishing="view.finishing" :pr-open="view.prOpen" />
     <template v-else>
-      <p v-if="draft" class="mt-0 mb-3.5 flex items-center gap-2 rounded-lg border border-default px-3 py-2 text-[13.5px] text-toned">
+      <p v-if="draft" class="mt-0 mb-3.5 flex items-center gap-2 rounded-lg border border-default px-3 py-2 text-ui text-toned">
         <VerdictIcon verdict="comment" class="size-3.5" />
         <span>Draft on GitHub{{ draft.at ? `, updated ${timeLabel(draft.at)}` : '' }}.<template v-if="draft.url">
           {{ ' ' }}<a :href="draft.url" target="_blank" rel="noopener" class="text-info underline underline-offset-3">View</a>
@@ -52,7 +52,7 @@ async function showThem() {
       </p>
 
       <div class="mt-10">
-        <h2 class="m-0 mb-1.5 text-lg tracking-[-0.01em]">
+        <h2 class="m-0 mb-1.5 text-lead tracking-[-0.01em]">
           Before you post
         </h2>
         <ol role="list" class="m-0 list-none border-t border-default p-0">
@@ -81,16 +81,16 @@ async function showThem() {
           </TerminusCheckItem>
           <TerminusCheckItem :number="3" :done="view.unseen.length === 0" section="coverage" title="Hunks and flows you have seen" :counts="coverageCounts" :open="view.outdated.length > 0">
             <template v-if="view.unseen.length">
-              <div v-for="{ line, open } in view.unseenByFlow" :key="line.id" class="mt-[18px] first:mt-0">
+              <div v-for="{ line, open } in view.unseenByFlow" :key="line.id" class="mt-4.5 first:mt-0">
                 <p class="m-0 mb-1.5 flex flex-wrap items-center gap-2">
                   <FlowBullet :line="line" :hollow="line.id.startsWith('__')" />
                   <UIcon v-if="/^[a-z0-9-]+$/.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="size-[1.05em]" :style="{ color: `var(--color-${line.color})` }" aria-hidden="true" />
                   <b>{{ line.name }}</b>
-                  <span class="text-[13.5px] text-toned">{{ open.length }} of {{ line.stops.length }} not seen</span>
+                  <span class="text-ui text-toned">{{ open.length }} of {{ line.stops.length }} not seen</span>
                 </p>
                 <ul role="list" class="m-0 list-none columns-[2_300px] gap-x-6 p-0">
                   <li v-for="{ stop, index } in open" :key="index">
-                    <UButton color="neutral" variant="ghost" class="-ml-2 text-left font-mono text-[12.5px] wrap-anywhere text-toned" @click="go(line.id, index)">
+                    <UButton color="neutral" variant="ghost" class="-ml-2 text-left font-mono text-label wrap-anywhere text-toned" @click="go(line.id, index)">
                       {{ stationCode(line, index) }} {{ hunkById(stop.hunkId)?.file || '' }}
                     </UButton>
                   </li>
@@ -122,7 +122,7 @@ async function showThem() {
       </div>
 
       <div class="mt-10">
-        <h2 class="m-0 mb-1.5 text-lg tracking-[-0.01em]">
+        <h2 class="m-0 mb-1.5 text-lead tracking-[-0.01em]">
           Your review
         </h2>
         <ol role="list" class="m-0 list-none border-t border-default p-0">
@@ -144,7 +144,7 @@ async function showThem() {
           </TerminusCheckItem>
           <TerminusCheckItem :number="2" :done="verdicts.done" section="hunk-verdicts" title="Your verdicts per hunk">
             <template #counts>
-              <span class="font-semibold text-success">{{ verdicts.approved }} approved</span> · <span class="font-semibold text-error">{{ verdicts.changes.length }} changes requested</span> · {{ verdicts.comments }} commented · {{ verdicts.without.length }} without
+              <span class="font-semibold whitespace-nowrap text-success">{{ verdicts.approved }} approved</span> · <span class="font-semibold whitespace-nowrap text-error">{{ verdicts.changes.length }} changes requested</span> · <span class="whitespace-nowrap">{{ verdicts.comments }} commented</span> · <span class="whitespace-nowrap">{{ verdicts.without.length }} without</span>
             </template>
             <p :class="LEDE">
               These are local only. The page proposes a verdict once every hunk has one.
@@ -166,7 +166,7 @@ async function showThem() {
               <ul role="list" class="m-0 list-none p-0">
                 <li v-for="hunk in verdicts.changes" :key="hunk.id">
                   <TerminusHunkLink :hunk="hunk">
-                    <VerdictIcon verdict="changes" class="mr-1.5 size-[15px] text-error" />
+                    <VerdictIcon verdict="changes" class="mr-1.5 size-4 text-error" />
                   </TerminusHunkLink>
                 </li>
               </ul>
@@ -176,23 +176,23 @@ async function showThem() {
             <TerminusPreview :post="view.post" />
           </TerminusCheckItem>
           <TerminusCheckItem :number="4" title="Verdict and post">
-            <div class="grid grid-cols-3 gap-2.5 max-[820px]:grid-cols-1" role="group" aria-label="Verdict">
+            <div class="grid grid-cols-3 gap-2.5 max-md:grid-cols-1" role="group" aria-label="Verdict">
               <button
                 v-for="option in VERDICTS"
                 :key="option.id"
                 type="button"
-                class="verdict cursor-pointer rounded-lg border border-accented bg-default px-3.5 py-3 text-left hover:border-(--ui-text-dimmed) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info aria-pressed:border-(--ui-text) aria-pressed:shadow-[inset_0_0_0_1px_var(--ui-text)]"
+                class="verdict flex cursor-pointer flex-col justify-start rounded-lg border border-accented bg-default px-3.5 py-3 text-left hover:border-(--ui-text-dimmed) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info aria-pressed:border-(--ui-text) aria-pressed:shadow-[inset_0_0_0_1px_var(--ui-text)]"
                 :class="{ muted: view.proposal && option.id !== view.proposal }"
                 :aria-pressed="view.verdict === option.id"
                 @click="setVerdict(option.id)"
               >
-                <strong class="block text-[14.5px]">
-                  <VerdictIcon :verdict="option.icon" class="mr-1 size-[15px] align-[-3px]" :class="VERDICT_ICON_COLORS[option.id]" />{{ option.label }}<span
+                <strong class="block text-body">
+                  <VerdictIcon :verdict="option.icon" class="mr-1 size-4 align-[-3px]" :class="VERDICT_ICON_COLORS[option.id]" />{{ option.label }}<span
                     v-if="option.id === view.proposal"
-                    class="ml-1.5 inline-block rounded-sm border border-(--ui-text) px-[5px] py-0.5 align-[2px] font-mono text-[11px] leading-none font-semibold text-default"
+                    class="ml-1.5 inline-block rounded-sm border border-(--ui-text) px-1.5 py-0.5 align-[2px] font-mono text-tag leading-none font-semibold text-default"
                   >proposed</span>
                 </strong>
-                <span class="mt-0.5 block text-[12.5px] text-dimmed">{{ option.hint }}</span>
+                <span class="mt-0.5 block text-label text-dimmed">{{ option.hint }}</span>
               </button>
             </div>
             <UAlert
@@ -201,7 +201,7 @@ async function showThem() {
               variant="outline"
               orientation="horizontal"
               class="mt-3.5 py-2.5"
-              :ui="{ description: 'mt-0 text-sm text-default' }"
+              :ui="{ description: 'mt-0 text-ui text-default' }"
             >
               <template #description>
                 {{ view.unseenWarning }}
@@ -210,7 +210,7 @@ async function showThem() {
                 </UButton>
               </template>
             </UAlert>
-            <p class="mt-5 mb-0 text-sm text-toned">
+            <p class="mt-5 mb-0 text-ui text-toned">
               Posts {{ view.posts }}.<template v-if="view.openFindings.length">
                 {{ ` ${plural(view.openFindings.length, 'AI finding')} ${view.openFindings.length === 1 ? 'is' : 'are'} still open and not posted.` }}
               </template>
@@ -218,7 +218,7 @@ async function showThem() {
             <div class="mt-4.5 flex flex-wrap items-center gap-2.5">
               <UButton v-if="view.finalVerdict" :color="BUTTON_COLORS[view.finalVerdict.button]" class="font-semibold" @click="post('final')">
                 <template #leading>
-                  <VerdictIcon :verdict="view.finalVerdict.icon" class="size-[15px]" />
+                  <VerdictIcon :verdict="view.finalVerdict.icon" class="size-4" />
                 </template>
                 {{ ownReview ? 'Post new review' : 'Post review' }}: {{ view.finalVerdict.label.toLowerCase() }}
               </UButton>
@@ -232,8 +232,8 @@ async function showThem() {
                 </UBadge>
               </UButton>
             </div>
-            <div v-if="posts.length" class="mt-[26px]">
-              <h3 class="m-0 mb-2 text-[15.5px] font-semibold">
+            <div v-if="posts.length" class="mt-6.5">
+              <h3 class="m-0 mb-2 text-body font-semibold">
                 Sent to GitHub
               </h3>
               <TerminusPostResult v-for="sent in posts" :key="sent.id" :result="postResult(sent)" />

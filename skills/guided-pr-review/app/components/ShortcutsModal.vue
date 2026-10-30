@@ -8,7 +8,7 @@ const open = computed({ get: () => Boolean(state.ui.shortcutsOpen), set: (value:
       <dl class="m-0 grid gap-2">
         <div v-for="shortcut in SHORTCUTS" :key="shortcut.key" class="grid grid-cols-[40px_1fr] items-center">
           <dt><UKbd :value="shortcut.key" class="lowercase" /></dt>
-          <dd class="m-0 text-sm text-toned">{{ shortcut.label }}</dd>
+          <dd class="m-0 text-ui text-toned">{{ shortcut.label }}</dd>
         </div>
       </dl>
     </template>

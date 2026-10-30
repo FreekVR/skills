@@ -17,7 +17,7 @@ function title(verdict: string, label: string) {
 </script>
 
 <template>
-  <span v-if="posted" class="inline-flex items-center gap-1.5 text-[13px] text-muted">
+  <span v-if="posted" class="inline-flex items-center gap-1.5 text-label text-muted">
     <template v-if="mine"><VerdictIcon :verdict="mine" class="size-3.5" />{{ POSTED_HUNK_VERDICTS[mine] }}</template>
     <template v-else>No verdict on this hunk</template>
     · review posted

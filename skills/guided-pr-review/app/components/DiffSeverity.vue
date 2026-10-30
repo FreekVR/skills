@@ -16,5 +16,5 @@ const level = computed(() => severityLevel(props.severity))
 </script>
 
 <template>
-  <span class="rounded border px-1.5 py-[3px] font-mono text-[11.5px] leading-none font-semibold lowercase" :class="SEVERITY_CLASSES[level]">{{ severity }}</span>
+  <span class="rounded border px-1.5 py-1 font-mono text-meta leading-none font-semibold lowercase" :class="SEVERITY_CLASSES[level]">{{ severity }}</span>
 </template>

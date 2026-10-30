@@ -9,17 +9,17 @@ const card = computed(() => postedCard(props.sent))
 <template>
   <div>
     <div
-      class="flex flex-wrap items-center gap-x-[18px] gap-y-3.5 rounded-xl border border-(color:--submit-c)/40 bg-(color:--submit-c)/10 px-[22px] py-5"
+      class="flex flex-wrap items-center gap-x-4.5 gap-y-3.5 rounded-xl border border-(color:--submit-c)/40 bg-(color:--submit-c)/10 px-5.5 py-5"
       :style="{ '--submit-c': COLORS[card.option.icon] || COLORS.comment }"
     >
       <span class="grid size-11 shrink-0 place-items-center rounded-full bg-(--submit-c) text-inverted" aria-hidden="true">
         <VerdictIcon :verdict="card.option.icon" class="size-5" />
       </span>
       <div class="min-w-0 flex-[1_1_220px]">
-        <h2 class="m-0 text-[22px] tracking-[-0.015em]">
+        <h2 class="m-0 text-title tracking-[-0.015em]">
           {{ card.option.done }}
         </h2>
-        <p class="mt-0.5 mb-0 text-sm text-toned">
+        <p class="mt-0.5 mb-0 text-ui text-toned">
           Posted to GitHub{{ card.at ? ` at ${timeLabel(card.at)}` : '' }} · {{ card.counts }}
         </p>
       </div>

@@ -7,7 +7,7 @@ const parts = computed(() => inlineMarkup(props.text))
 
 <template>
   <template v-for="(part, index) in parts" :key="index">
-    <code v-if="part.type === 'code'" class="font-mono text-[13px]">{{ part.text }}</code>
+    <code v-if="part.type === 'code'" class="font-mono text-label">{{ part.text }}</code>
     <a v-else-if="part.type === 'link'" :href="part.url" target="_blank" rel="noopener" :title="part.title" class="text-info underline-offset-3">{{ part.text }}</a>
     <template v-else>{{ part.text }}</template>
   </template>

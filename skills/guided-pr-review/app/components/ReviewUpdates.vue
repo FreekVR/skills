@@ -4,7 +4,7 @@ const banners = computed(() => updates())
 </script>
 
 <template>
-  <div class="sticky top-0 z-4 max-w-[1080px] px-11 max-[820px]:px-4" :class="banners.length ? 'pt-3 max-[820px]:pt-2' : 'pt-0'" aria-live="polite">
+  <div class="sticky top-0 z-4 page-column" :class="banners.length ? 'pt-3 max-md:pt-2' : 'pt-0'" aria-live="polite">
     <TransitionGroup tag="div" class="grid gap-2" enter-active-class="banner-arrive">
       <UAlert
         v-for="banner in banners"
@@ -13,8 +13,8 @@ const banners = computed(() => updates())
         variant="outline"
         orientation="horizontal"
         :role="banner.kind === 'offline' ? 'alert' : undefined"
-        class="border border-(--ui-text-muted) bg-elevated text-sm shadow-[0_4px_16px_rgba(0,0,0,.12)] ring-0"
-        :ui="{ description: 'mt-0 text-default text-sm leading-normal', actions: 'shrink-0' }"
+        class="border border-(--ui-text-muted) bg-elevated text-ui shadow-[0_4px_16px_rgba(0,0,0,.12)] ring-0"
+        :ui="{ description: 'mt-0 text-default text-ui leading-normal', actions: 'shrink-0' }"
       >
         <template #description>
           <template v-if="banner.kind === 'offline'">

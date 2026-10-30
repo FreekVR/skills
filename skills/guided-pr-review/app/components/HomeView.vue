@@ -26,43 +26,43 @@ function scrollTo(target: string) {
   document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
-const groupTitle = 'm-0 flex flex-wrap items-center gap-2.5 text-[21px] leading-[1.3] font-bold tracking-[-.01em]'
+const groupTitle = 'm-0 flex flex-wrap items-center gap-2.5 text-title font-bold tracking-[-.01em]'
 const group = 'mt-18 border-t border-accented pt-7'
-const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-sm font-semibold text-default [&::-webkit-details-marker]:hidden'
+const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-ui font-semibold text-default [&::-webkit-details-marker]:hidden'
 </script>
 
 <template>
-  <section class="max-w-[1080px] min-w-0 px-11 pt-10 pb-30 wrap-anywhere max-md:px-4">
-    <p class="m-0 font-mono text-[13px] leading-[1.4] font-semibold">
+  <section class="page-column min-w-0 pt-10 pb-30 wrap-anywhere">
+    <p class="m-0 font-mono text-label font-semibold">
       <a :href="review.pr.url" target="_blank" rel="noopener" class="text-info">{{ review.pr.owner }}/{{ review.pr.repo }}#{{ review.pr.number }}</a>
     </p>
-    <h2 class="mt-1.5 mb-2.5 text-[26px] leading-[1.25] font-bold tracking-[-.02em]">
+    <h2 class="mt-1.5 mb-2.5 text-display font-bold tracking-[-.02em]">
       <MarkupText :text="review.pr.title" />
     </h2>
-    <p class="mt-0 mb-[22px] flex items-center gap-2.5 text-sm text-toned">
-      <UAvatar :src="avatar(review.pr.author)" alt="" size="xs" />
+    <p class="mt-0 mb-5.5 flex items-center gap-2.5 text-ui text-toned">
+      <UAvatar :src="avatar(review.pr.author)" alt="" size="xs" class="shrink-0 has-[[data-slot=fallback]]:hidden" />
       <span>by <b>{{ review.pr.author }}</b></span>
     </p>
-    <div v-if="context.summary" class="max-w-[70ch] text-base leading-[1.65]">
+    <div v-if="context.summary" class="max-w-[70ch] text-body">
       <AiTag label="AI summary" class="mb-2" />
       <SafeMarkdown :value="context.summary" />
     </div>
 
-    <div class="mt-[22px] mb-[18px] flex flex-wrap gap-2" role="group" aria-label="What to look at first">
+    <div class="mt-5.5 mb-4.5 flex flex-wrap gap-2" role="group" aria-label="What to look at first">
       <UButton
         v-for="pill in data.glance"
         :key="pill.target"
         :color="GLANCE_COLORS[pill.tone]"
         variant="subtle"
-        class="rounded-full px-[13px] py-1.5 text-[13.5px] font-semibold"
+        class="rounded-full px-3.5 py-1.5 text-ui font-semibold"
         @click="scrollTo(pill.target)"
       >
         <HomeStatusIcon :tone="pill.tone" :icon="pill.icon" bare />{{ pill.text }}
       </UButton>
     </div>
 
-    <details v-if="review.pr.body" class="group mt-1 rounded-lg border border-default bg-elevated/60 text-[14.5px]" :open="state.ui.openExplain.has('pr-body')" @toggle="toggle('pr-body', $event)">
-      <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-[13px] font-semibold text-default [&::-webkit-details-marker]:hidden">
+    <details v-if="review.pr.body" class="group mt-1 rounded-lg border border-default bg-elevated/60 text-body" :open="state.ui.openExplain.has('pr-body')" @toggle="toggle('pr-body', $event)">
+      <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-label font-semibold text-default [&::-webkit-details-marker]:hidden">
         PR description
         <UIcon name="i-lucide-chevron-down" class="ml-auto size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
@@ -75,9 +75,9 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
       <h3 :class="groupTitle">
         Before you start
       </h3>
-      <div class="mt-[18px] grid gap-3.5">
+      <div class="mt-4.5 grid gap-3.5">
         <HomePanel v-if="criteria.reason" id="home-criteria" tone="quiet" :icon="criteria.status.icon" title="Acceptance criteria">
-          <p class="m-0 mb-1.5 max-w-[72ch] text-[14.5px] leading-[1.6] text-toned">
+          <p class="m-0 mb-1.5 max-w-[72ch] text-body text-toned">
             {{ criteria.reason }}
           </p>
         </HomePanel>
@@ -138,7 +138,7 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
           <template #tag>
             <AiTag label="AI summary" />
           </template>
-          <p class="m-0 mb-1.5 max-w-[72ch] text-[14.5px] leading-[1.6] text-toned">
+          <p class="m-0 mb-1.5 max-w-[72ch] text-body text-toned">
             <MarkupText :text="context.coverage.summary" /> <span class="text-muted">Source: <MarkupText :text="context.coverage.source" /></span>
           </p>
         </HomePanel>
@@ -149,7 +149,7 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
               {{ plural(data.skipped.length, 'item') }}
             </HomePill>
           </template>
-          <ul class="m-0 grid list-disc gap-1 pl-5 text-[14.5px] leading-[1.6] text-toned">
+          <ul class="m-0 grid list-disc gap-1 pl-5 text-body text-toned">
             <li v-for="(text, index) in data.skipped" :key="index">
               <MarkupText :text="text" />
             </li>
@@ -157,27 +157,27 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
         </HomePanel>
       </div>
 
-      <details v-if="data.relatedCounts.length" class="mt-[18px]" :open="state.ui.openExplain.has('related')" @toggle="toggle('related', $event)">
+      <details v-if="data.relatedCounts.length" class="mt-4.5" :open="state.ui.openExplain.has('related')" @toggle="toggle('related', $event)">
         <summary :class="fold">
-          <UIcon name="i-lucide-link" class="size-[15px] text-dimmed" aria-hidden="true" />{{ data.relatedCounts.join(' · ') }}
+          <UIcon name="i-lucide-link" class="size-4 text-dimmed" aria-hidden="true" />{{ data.relatedCounts.join(' · ') }}
           <UIcon name="i-lucide-chevron-down" class="size-4 text-dimmed" aria-hidden="true" />
         </summary>
         <div class="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-x-12">
           <div v-if="context.tickets?.length" class="mt-6">
-            <h4 class="m-0 text-sm font-semibold">
+            <h4 class="m-0 text-ui font-semibold">
               Tickets
             </h4>
-            <ul class="mt-2 mb-0 grid list-disc gap-1 pl-5 text-[13.5px] text-toned">
+            <ul class="mt-2 mb-0 grid list-disc gap-1 pl-5 text-ui text-toned">
               <li v-for="ticket in context.tickets" :key="ticket.key">
                 <a :href="ticket.url" target="_blank" rel="noopener" :title="`${ticket.key}: ${ticket.title}`" class="text-info">{{ ticket.key }}</a> {{ ticket.title }}
               </li>
             </ul>
           </div>
           <div v-if="context.linkedPrs?.length" class="mt-6">
-            <h4 class="m-0 flex flex-wrap items-center gap-2 text-sm font-semibold">
+            <h4 class="m-0 flex flex-wrap items-center gap-2 text-ui font-semibold">
               Linked pull requests <AiTag label="AI summaries" />
             </h4>
-            <ul class="mt-2 mb-0 grid list-disc gap-1 pl-5 text-[13.5px] text-toned">
+            <ul class="mt-2 mb-0 grid list-disc gap-1 pl-5 text-ui text-toned">
               <li v-for="pr in context.linkedPrs" :key="`${pr.repo}#${pr.number}`">
                 <MarkupText :text="`${pr.repo}#${pr.number}`" /> <span class="text-muted">{{ pr.state.toLowerCase() }}</span><br>
                 <MarkupText :text="pr.summary || pr.title" />
@@ -195,24 +195,24 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
       <ul role="list" class="m-0 mt-4 list-none p-0">
         <li v-for="{ line, seen, findings: pill, verdict } in flows" :key="line.id" class="border-t border-default first:border-t-0">
           <button
-            class="-mx-2.5 grid w-[calc(100%+20px)] cursor-pointer grid-cols-[26px_1fr_auto] items-start gap-3 rounded-md px-2.5 py-3 text-left hover:bg-(--line)/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info"
+            class="grid w-full cursor-pointer grid-cols-[26px_1fr_auto] items-start gap-3 rounded-md px-2.5 py-3 text-left hover:bg-(--line)/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info"
             :style="{ '--line': `var(--color-${line.color})` }"
             @click="openFlow(line.id)"
           >
             <FlowBullet :line="line" :hollow="line.id === '__none' || line.id === '__files'" />
             <span class="grid min-w-0 gap-1">
-              <b class="text-[15px]">
+              <b class="text-body">
                 <UIcon v-if="/^[a-z0-9-]+$/.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="mr-[.4em] size-[1.05em] align-[-.15em]" :style="{ color: `var(--color-${line.color})` }" aria-hidden="true" />{{ line.name }}
               </b>
-              <span v-if="line.explanation" class="line-clamp-2 text-[13.5px] leading-[1.55] text-toned" :title="line.explanation"><MarkupText :text="line.explanation" /></span>
+              <span v-if="line.explanation" class="line-clamp-2 text-ui text-toned" :title="line.explanation"><MarkupText :text="line.explanation" /></span>
             </span>
             <span class="flex items-center gap-2 pt-0.5">
               <HomePill v-if="pill" :tone="pill.tone">{{ pill.text }}</HomePill>
-              <span v-if="verdict" class="mt-px grid size-[22px] place-items-center rounded-full text-inverted" :class="FLOW_VERDICT_COLORS[verdict]" :title="FLOW_VERDICT_LABELS[verdict]">
+              <span v-if="verdict" class="mt-px grid size-5.5 place-items-center rounded-full text-inverted" :class="FLOW_VERDICT_COLORS[verdict]" :title="FLOW_VERDICT_LABELS[verdict]">
                 <VerdictIcon :verdict="verdict" class="size-3" />
                 <span class="sr-only">{{ FLOW_VERDICT_LABELS[verdict] }}</span>
               </span>
-              <span class="pt-1.5 font-mono text-xs leading-none text-muted">{{ seen }}/{{ line.stops.length }} seen</span>
+              <span class="pt-1.5 font-mono text-meta leading-none text-muted">{{ seen }}/{{ line.stops.length }} seen</span>
             </span>
           </button>
         </li>
@@ -224,7 +224,7 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
         <HomeStatusIcon :tone="data.proposalTone" icon="progress" small />Your review so far
         <HomePill :tone="data.proposalTone">
           <template v-if="data.proposal">
-            <VerdictIcon :verdict="data.proposal.icon" class="size-[13px]" />Proposed: {{ data.proposal.label }}
+            <VerdictIcon :verdict="data.proposal.icon" class="size-3.5" />Proposed: {{ data.proposal.label }}
           </template>
           <template v-else>
             No proposal yet: {{ undecidedLabel() }} to decide
@@ -232,30 +232,30 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
         </HomePill>
       </h3>
       <HomePanel :tone="data.proposalTone" icon="progress" class="mt-4">
-        <dl class="m-0 mb-5 grid grid-cols-2 gap-x-8 gap-y-4 max-sm:grid-cols-1">
+        <dl class="m-0 mb-5 grid grid-cols-2 gap-x-8 gap-y-4 max-md:grid-cols-1">
           <div>
-            <dt class="text-xs tracking-[.05em] text-dimmed uppercase">
+            <dt class="text-meta tracking-[.05em] text-dimmed uppercase">
               Hunks seen
             </dt>
-            <dd class="m-0 mt-1 text-[15px] font-semibold">
+            <dd class="m-0 mt-1 text-body font-semibold">
               {{ data.seen }} of {{ data.total }}
             </dd>
           </div>
           <div>
-            <dt class="text-xs tracking-[.05em] text-dimmed uppercase">
+            <dt class="text-meta tracking-[.05em] text-dimmed uppercase">
               Your verdicts per hunk
             </dt>
-            <dd class="m-0 mt-1 flex flex-wrap gap-x-1.5 gap-y-0.5 text-[15px] font-semibold">
+            <dd class="m-0 mt-1 flex flex-wrap gap-x-1.5 gap-y-0.5 text-body font-semibold">
               <span class="whitespace-nowrap text-success">{{ data.verdictCounts.approved }} approved ·</span>
               <span class="whitespace-nowrap text-error">{{ data.verdictCounts.changes }} changes requested ·</span>
               <span class="whitespace-nowrap">{{ data.verdictCounts.comment }} commented</span>
             </dd>
           </div>
           <div>
-            <dt class="text-xs tracking-[.05em] text-dimmed uppercase">
+            <dt class="text-meta tracking-[.05em] text-dimmed uppercase">
               Remarks to post
             </dt>
-            <dd class="m-0 mt-1 text-[15px] font-semibold">
+            <dd class="m-0 mt-1 text-body font-semibold">
               {{ data.items.length ? `${data.items.length} · ${data.onGitHub} on GitHub, ${data.items.length - data.onGitHub} local only` : 'None' }}
             </dd>
           </div>

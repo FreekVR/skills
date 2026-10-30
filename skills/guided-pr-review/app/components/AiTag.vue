@@ -4,7 +4,7 @@ withDefaults(defineProps<{ label?: string }>(), { label: 'AI' })
 </script>
 
 <template>
-  <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-sparkles" class="mr-1.5 rounded-full align-[1px] font-semibold whitespace-nowrap text-toned" title="Written by the AI agent">
+  <UBadge color="neutral" variant="outline" size="sm" icon="i-lucide-sparkles" class="mr-1.5 rounded-full align-[1px] text-tag font-semibold whitespace-nowrap text-toned" title="Written by the AI agent">
     {{ label }}
   </UBadge>
 </template>

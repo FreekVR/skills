@@ -50,14 +50,14 @@ const content = {
       :title="label"
     >
       <span v-if="waiting" class="absolute top-0.5 left-0.5 size-3 motion-safe:animate-pulse rounded-full border-2 border-(--ui-bg) bg-warning" aria-hidden="true" />
-      <UIcon :name="open ? 'i-lucide-x' : 'i-lucide-message-square-text'" class="size-[26px] transition-transform duration-300" :class="open && 'rotate-90'" aria-hidden="true" />
-      <span v-if="questions.length && !open" class="absolute -top-0.5 -right-0.5 grid h-[22px] min-w-[22px] place-items-center rounded-full border-2 border-(--ui-text) bg-default px-1.5 text-[11px] leading-none font-bold text-default">{{ questions.length }}</span>
+      <UIcon :name="open ? 'i-lucide-x' : 'i-lucide-message-square-text'" class="size-6.5 transition-transform duration-300" :class="open && 'rotate-90'" aria-hidden="true" />
+      <span v-if="questions.length && !open" class="absolute -top-0.5 -right-0.5 grid h-[22px] min-w-[22px] place-items-center rounded-full border-2 border-(--ui-text) bg-default px-1.5 text-tag leading-none font-bold text-default">{{ questions.length }}</span>
     </button>
 
     <template #content>
-      <section class="max-h-[min(60vh,560px)] overflow-y-auto px-[18px] pt-4 pb-[18px]" aria-label="Ask the agent about this hunk">
+      <section class="max-h-[min(60vh,560px)] overflow-y-auto px-4.5 pt-4 pb-4.5" aria-label="Ask the agent about this hunk">
         <div class="mb-3 flex items-center justify-between gap-3">
-          <h3 class="m-0 text-sm font-bold">Ask about {{ fileName(hunk.file) }}</h3>
+          <h3 class="m-0 text-ui font-bold">Ask about {{ fileName(hunk.file) }}</h3>
         </div>
         <div v-for="{ asked, answer } in questions" :key="asked.id" class="mb-3.5 rounded-lg border border-default px-4 py-3.5">
           <p class="mt-0 mb-1 font-semibold">{{ asked.question }}</p>
@@ -69,7 +69,7 @@ const content = {
               <UButton color="neutral" variant="ghost" class="text-toned" @click="turnIntoRemark(asked.id)">Turn into a remark</UButton>
             </div>
           </template>
-          <span v-else class="inline-flex items-center gap-2 text-[13px] text-muted">
+          <span v-else class="inline-flex items-center gap-2 text-label text-muted">
             <span class="size-2 motion-safe:animate-pulse rounded-full bg-warning" aria-hidden="true" />Waiting for the agent…
           </span>
         </div>

@@ -12,16 +12,16 @@ function onToggle(event: Event) {
 </script>
 
 <template>
-  <details class="mt-3 rounded-[10px] border border-default bg-default" :open="card.open" @toggle="onToggle">
+  <details class="mt-3 rounded-card border border-default bg-default" :open="card.open" @toggle="onToggle">
     <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-2 px-4 py-3">
       <UAvatar :src="avatar(review.author)" alt="" size="xs" loading="lazy" class="shrink-0 ring-1 ring-default" />
       <b>{{ card.mine ? 'You' : `@${review.author}` }}</b>
-      <span v-if="current" class="text-xs font-semibold">current</span>
-      <span class="inline-flex items-center gap-1.25 text-[13.5px] font-semibold" :class="STATE_COLORS[card.kind.icon]">
+      <span v-if="current" class="text-meta font-semibold">current</span>
+      <span class="inline-flex items-center gap-1.25 text-ui font-semibold" :class="STATE_COLORS[card.kind.icon]">
         <VerdictIcon :verdict="card.kind.icon" class="size-3.5" />{{ card.kind.label }}
       </span>
-      <span v-if="review.submittedAt" class="text-[13px] text-dimmed">{{ timeLabel(review.submittedAt) }}</span>
-      <span class="ml-auto text-[13.5px] text-toned">{{ plural(card.comments.length, 'comment') }}{{ card.toCheck ? ` · ${card.toCheck} to check` : '' }}</span>
+      <span v-if="review.submittedAt" class="text-label text-dimmed">{{ timeLabel(review.submittedAt) }}</span>
+      <span class="ml-auto text-ui text-toned">{{ plural(card.comments.length, 'comment') }}{{ card.toCheck ? ` · ${card.toCheck} to check` : '' }}</span>
     </summary>
     <div class="border-t border-default px-4 pb-4">
       <div v-if="review.body" class="mt-3">

@@ -118,20 +118,20 @@ useEventListener(document, 'scroll', (event: Event) => {
     :class="{ compact: line && state.ui.compactMap }"
     :style="line ? { '--line': `var(--color-${line.color})` } : undefined"
   >
-    <div class="strip-top flex items-center gap-5 px-7 pt-[18px] max-[820px]:flex-wrap max-[820px]:px-4" :class="{ 'pb-3': !line }">
-      <div class="flex min-w-0 flex-1 items-start gap-3 max-[820px]:basis-full">
+    <div class="strip-top flex items-center gap-5 px-gutter pt-4.5 max-md:flex-wrap" :class="{ 'pb-3': !line }">
+      <div class="flex min-w-0 flex-1 items-start gap-3 max-md:basis-full">
         <FlowBullet v-if="line" :line="line" />
         <div class="min-w-0">
-          <h1 tabindex="-1" class="m-0 text-xl outline-none leading-tight font-bold tracking-[-0.015em]">
+          <h1 tabindex="-1" class="m-0 text-title outline-none leading-tight font-bold tracking-[-0.015em]">
             <UIcon v-if="line && /^[a-z0-9-]+$/.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="mr-[.4em] size-[1.05em] align-[-.15em] text-(--line)" aria-hidden="true" />{{ line ? line.name : viewTitle() }}
           </h1>
-          <p v-if="line" class="compact-hide m-0 mt-1 truncate text-[13px] text-muted max-[820px]:hidden">
+          <p v-if="line" class="compact-hide m-0 mt-1 truncate text-label text-muted max-md:hidden">
             {{ seenCount }} of {{ plural(line.stops.length, 'hunk') }} seen
           </p>
         </div>
       </div>
 
-      <div class="flex shrink-0 items-center gap-2 max-[820px]:min-w-0 max-[820px]:shrink max-[820px]:flex-wrap">
+      <div class="flex shrink-0 items-center gap-2 max-md:min-w-0 max-md:shrink max-md:flex-wrap">
         <UPopover v-if="reviews.length > 1" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
           <UButton color="neutral" variant="outline" class="font-semibold" :label="plural(reviews.length, 'review')" :aria-label="`${plural(reviews.length, 'review')}: switch to another review`" trailing-icon="i-lucide-chevron-down" />
           <template #content>
@@ -139,7 +139,7 @@ useEventListener(document, 'scroll', (event: Event) => {
               <li
                 v-for="review in reviews"
                 :key="reviewRef(review)"
-                class="rounded-md text-[13px] leading-[1.45]"
+                class="rounded-md text-label"
                 :class="isCurrentReview(review) ? 'bg-elevated px-2.5 py-2' : 'has-[>a:hover]:bg-elevated'"
                 :aria-current="isCurrentReview(review) ? 'page' : undefined"
               >
@@ -191,29 +191,29 @@ useEventListener(document, 'scroll', (event: Event) => {
         </div>
 
         <UTooltip text="Keyboard shortcuts" :kbds="['?']">
-          <UButton icon="i-lucide-keyboard" color="neutral" variant="ghost" size="sm" square class="text-muted max-[820px]:hidden" aria-label="Keyboard shortcuts" @click="showShortcuts()" />
+          <UButton icon="i-lucide-keyboard" color="neutral" variant="ghost" size="sm" square class="text-muted max-md:hidden" aria-label="Keyboard shortcuts" @click="showShortcuts()" />
         </UTooltip>
       </div>
     </div>
 
     <template v-if="line">
-      <details v-if="criteria.length" class="criteria compact-hide mx-7 mt-3 mb-0.5 max-w-[110ch] rounded-[10px] border px-3.5 py-2 max-[820px]:mx-4" :open="criteriaOpen" @toggle="onCriteriaToggle">
+      <details v-if="criteria.length" class="criteria compact-hide mx-gutter mt-3 mb-0.5 max-w-[110ch] rounded-card border px-3.5 py-2" :open="criteriaOpen" @toggle="onCriteriaToggle">
         <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span class="text-xs font-extrabold tracking-[.08em] text-(--line) uppercase">This flow should</span>
+          <span class="text-meta font-extrabold tracking-[.08em] text-(--line) uppercase">This flow should</span>
           <AiTag v-if="criteriaHaveVerdicts(line)" label="checked by AI" />
           <span class="criteria-keys flex flex-wrap gap-x-3.5 gap-y-1.5">
-            <span v-for="{ id, criterion } in criteria" :key="id" class="inline-flex items-center gap-1.5 font-mono text-[12.5px] font-semibold text-toned">
+            <span v-for="{ id, criterion } in criteria" :key="id" class="inline-flex items-center gap-1.5 font-mono text-label font-semibold text-toned">
               {{ id }}
               <UBadge v-if="criterion.verdict" :color="AC_COLORS[criterion.verdict]" variant="solid" size="sm" class="font-sans font-bold">{{ AC_VERDICTS[criterion.verdict] }}</UBadge>
             </span>
           </span>
         </summary>
         <ul role="list" class="mt-2.5 mb-1.5 grid list-none gap-2.5 p-0">
-          <li v-for="{ id, criterion } in criteria" :key="id" class="text-[17px] leading-[1.45] font-semibold">
-            <span class="mr-2.5 font-mono text-[13px]"><MarkupText :text="id" /></span><MarkupText :text="criterion.text" />
+          <li v-for="{ id, criterion } in criteria" :key="id" class="text-lead font-semibold">
+            <span class="mr-2.5 font-mono text-label"><MarkupText :text="id" /></span><MarkupText :text="criterion.text" />
             <span
               v-if="criterionSource(criterion)"
-              class="ml-2 inline-block rounded-full border border-accented px-[7px] py-[3px] align-[2px] text-[11px] leading-none font-semibold whitespace-nowrap text-toned"
+              class="ml-2 inline-block rounded-full border border-accented px-2 py-1 align-[2px] text-tag leading-none font-semibold whitespace-nowrap text-toned"
               :class="{ italic: criterionSource(criterion).kind === 'description' }"
               :title="criterionSource(criterion).title || undefined"
             >{{ criterionSource(criterion).label }}</span>
@@ -223,21 +223,21 @@ useEventListener(document, 'scroll', (event: Event) => {
           </li>
         </ul>
       </details>
-      <div v-else-if="line.noCriteria" class="criteria compact-hide mx-7 mt-3 mb-0.5 flex max-w-[110ch] flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[10px] border px-3.5 py-2 max-[820px]:mx-4">
-        <span class="text-xs font-extrabold tracking-[.08em] text-(--line) uppercase">This flow should</span>
-        <p class="m-0 text-sm text-toned">No acceptance criteria to check. <MarkupText :text="line.noCriteria" /></p>
+      <div v-else-if="line.noCriteria" class="criteria compact-hide mx-gutter mt-3 mb-0.5 flex max-w-[110ch] flex-wrap items-baseline gap-x-3 gap-y-1 rounded-card border px-3.5 py-2">
+        <span class="text-meta font-extrabold tracking-[.08em] text-(--line) uppercase">This flow should</span>
+        <p class="m-0 text-ui text-toned">No acceptance criteria to check. <MarkupText :text="line.noCriteria" /></p>
       </div>
 
       <nav
         ref="map"
-        class="map relative flex cursor-grab overflow-x-auto px-7 pt-2.5 pb-2"
+        class="map relative flex cursor-grab overflow-x-auto px-gutter pt-2.5 pb-2"
         :class="{ 'cursor-grabbing select-none': drag?.moved }"
         :aria-label="`Hunks in ${line.name}`"
         @wheel="onWheel"
         @pointerdown="onPointerDown"
       >
         <span class="map-hint start" aria-hidden="true" />
-        <div :key="line.id" class="relative flex w-max">
+        <div :key="line.id" class="relative flex w-max max-md:mr-gutter">
           <div class="absolute top-[34px] right-[66px] left-[66px] h-1.5 rounded-[3px] bg-[color-mix(in_srgb,var(--line)_45%,var(--ui-bg))]" />
           <div class="absolute top-[34px] left-[66px] h-1.5 rounded-[3px] bg-(--line) transition-[width] duration-[380ms] ease-review motion-reduce:transition-none" :style="{ width: `${index * STOP_WIDTH}px` }" />
           <button
@@ -248,16 +248,16 @@ useEventListener(document, 'scroll', (event: Event) => {
             :aria-current="stop.at === index ? 'step' : undefined"
             @click="drag?.moved || go(line.id, stop.at)"
           >
-            <span class="block h-7 pt-1 font-mono text-[11px] leading-none font-semibold tracking-[.02em] text-muted">{{ stop.code }}</span>
+            <span class="block h-7 pt-1 font-mono text-tag leading-none font-semibold tracking-[.02em] text-muted">{{ stop.code }}</span>
             <span class="relative mx-auto block rounded-full border-3" :class="tickClass(stop)">
-              <VerdictIcon v-if="stop.verdict" :verdict="stop.verdict" :class="stop.verdict === 'approved' ? 'size-2.5' : 'size-[13px]'" />
+              <VerdictIcon v-if="stop.verdict" :verdict="stop.verdict" :class="stop.verdict === 'approved' ? 'size-2.5' : 'size-3.5'" />
             </span>
             <span
-              class="compact-hide mt-1.5 block truncate px-1 text-xs leading-tight group-hover:text-default group-hover:underline group-hover:underline-offset-3"
+              class="compact-hide mt-1.5 block truncate px-1 text-meta leading-tight group-hover:text-default group-hover:underline group-hover:underline-offset-3"
               :class="stop.at === index ? 'font-semibold text-default' : 'text-muted'"
               :data-path="stop.file"
             >{{ stop.name }}</span>
-            <span class="compact-hide mt-0.5 block h-[22px] truncate px-1 text-[11px] leading-[22px] text-toned">
+            <span class="compact-hide mt-0.5 block h-[22px] truncate px-1 text-tag leading-[22px] text-toned">
               <span v-if="stop.fresh" class="font-semibold text-default">changed</span>
               <template v-if="stop.fresh && stop.others.length"> · </template>
               <template v-if="stop.others.length">also in <FlowBullet v-for="other in stop.others" :key="other.id" :line="other" mini /></template>
@@ -272,17 +272,17 @@ useEventListener(document, 'scroll', (event: Event) => {
         <span class="map-hint end" aria-hidden="true" />
       </nav>
 
-      <details class="legend-wrap compact-hide px-7 pb-2.5 max-[820px]:px-4" :open="state.ui.legendOpen" @toggle="state.ui.legendOpen = ($event.target as HTMLDetailsElement).open">
-        <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 text-[11.5px] text-muted hover:text-toned">
+      <details class="legend-wrap compact-hide px-gutter pb-2.5" :open="state.ui.legendOpen" @toggle="state.ui.legendOpen = ($event.target as HTMLDetailsElement).open">
+        <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 text-meta text-muted hover:text-toned">
           Legend
         </summary>
-        <p class="m-0 flex flex-wrap items-center gap-4 pt-2 text-xs text-muted">
+        <p class="m-0 flex flex-wrap items-center gap-4 pt-2 text-meta text-muted">
           <span><span class="legend-dot mr-1.5 inline-block size-3.5 rounded-full border-2 border-(--ui-text) align-[-3px]" />current hunk</span>
           <span><span class="legend-dot mr-1.5 inline-block size-2.5 rounded-full border-2 border-(--line) align-[-1px]" />not read</span>
           <span><span class="legend-dot mr-1.5 inline-block size-2.5 rounded-full border-2 border-primary bg-primary align-[-1px]" />read</span>
           <span v-for="(label, verdict) in { approved: 'you approved', changes: 'you request changes', comment: 'you comment' }" :key="verdict">
             <span class="legend-dot mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 align-[-4px] text-inverted" :class="VERDICT_TICKS[verdict]">
-              <VerdictIcon :verdict="verdict" :class="verdict === 'approved' ? 'size-2' : 'size-[11px]'" />
+              <VerdictIcon :verdict="verdict" :class="verdict === 'approved' ? 'size-2' : 'size-3'" />
             </span>{{ label }}
           </span>
           <span>also in <FlowBullet :line="{ name: 'Flow B', letter: 'B', color: 'line-b' }" mini />: the hunk is part of flow B too</span>
@@ -316,9 +316,9 @@ details[open] > summary::before { transform: rotate(45deg); }
 .map-hint { position: sticky; flex: 0 0 0; align-self: stretch; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .2s var(--ease-review); }
 .map-hint.start { left: 0; }
 .map-hint.end { right: 0; }
-.map-hint::before { content: ""; position: absolute; top: 0; bottom: 0; width: 56px; }
-.map-hint.start::before { left: -28px; background: linear-gradient(to right, var(--ui-bg), transparent); }
-.map-hint.end::before { right: -28px; background: linear-gradient(to left, var(--ui-bg), transparent); }
+.map-hint::before { content: ""; position: absolute; top: 0; bottom: 0; width: calc(2 * var(--spacing-gutter)); }
+.map-hint.start::before { left: calc(-1 * var(--spacing-gutter)); background: linear-gradient(to right, var(--ui-bg), transparent); }
+.map-hint.end::before { right: calc(-1 * var(--spacing-gutter)); background: linear-gradient(to left, var(--ui-bg), transparent); }
 @supports (container-type: scroll-state) {
   .map { container-type: scroll-state; }
   @container scroll-state(scrollable: left) { .map-hint.start { opacity: 1; } }
@@ -329,7 +329,12 @@ details[open] > summary::before { transform: rotate(45deg); }
 @keyframes stamp { from { opacity: 0; transform: scale(.35); } }
 @media (prefers-reduced-motion: reduce) { .stamp { animation: none; } }
 
-@media (min-width: 821px) {
+/* On a phone the map scrolls by touch, so it needs no scroll bar. */
+@media (width < 48rem) {
+  .map { scrollbar-width: none; }
+  .map::-webkit-scrollbar { display: none; }
+}
+@media (width >= 48rem) {
   .compact .strip-top { padding-top: 10px; }
   .compact .compact-hide { display: none; }
   /* The compact map scrolls with the wheel and by dragging, so it needs no scroll bar under its dots. */

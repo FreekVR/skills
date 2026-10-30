@@ -10,22 +10,22 @@ const comments = computed(() => props.post.comments.map((comment) => ({
 
 <template>
   <div class="mt-2.5 divide-y divide-default rounded-lg border border-default">
-    <div class="px-[18px] py-3.5">
-      <div class="font-mono text-xs leading-[1.4] text-dimmed">
+    <div class="px-4.5 py-3.5">
+      <div class="font-mono text-meta text-dimmed">
         Review body
       </div>
-      <div v-if="post.body" class="preview-text mt-1 text-sm leading-[1.6]">
+      <div v-if="post.body" class="preview-text mt-1 text-ui">
         <SafeMarkdown :value="post.body" />
       </div>
-      <p v-else class="mt-1 mb-0 text-sm text-dimmed">
+      <p v-else class="mt-1 mb-0 text-ui text-dimmed">
         Empty
       </p>
     </div>
-    <div v-for="(comment, index) in comments" :key="index" class="px-[18px] py-3.5">
-      <div class="font-mono text-xs leading-[1.4] text-dimmed">
+    <div v-for="(comment, index) in comments" :key="index" class="px-4.5 py-3.5">
+      <div class="font-mono text-meta text-dimmed">
         {{ comment.place }}
       </div>
-      <div class="preview-text mt-1 text-sm leading-[1.6]">
+      <div class="preview-text mt-1 text-ui">
         <SafeMarkdown :value="comment.body" />
       </div>
     </div>

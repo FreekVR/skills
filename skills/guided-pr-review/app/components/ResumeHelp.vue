@@ -12,7 +12,7 @@ defineProps<{ help: { ref: string, command: string | null }, lead?: string }>()
       <p class="m-0">
         {{ lead }}To resume its agent session, run in a terminal:
       </p>
-      <code class="mt-1 block rounded-md bg-elevated px-2 py-1.5 font-mono text-xs select-all wrap-anywhere">{{ help.command }}</code>
+      <code class="mt-1 block rounded-md bg-elevated px-2 py-1.5 font-mono text-meta select-all wrap-anywhere">{{ help.command }}</code>
     </template>
   </div>
 </template>

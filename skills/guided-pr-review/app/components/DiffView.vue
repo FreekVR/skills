@@ -63,8 +63,8 @@ useEventListener(document, 'pointerup', () => {
 
 <template>
   <section class="mt-7 overflow-hidden rounded-lg border border-default" aria-label="Diff">
-    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-default bg-elevated px-3 py-2 font-mono text-[12.5px] leading-[1.4] text-muted">
-      <span class="min-w-0 flex-auto [overflow-wrap:anywhere]">{{ hunk.file }}</span>
+    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-default bg-elevated px-3 py-2 font-mono text-label text-muted">
+      <span class="min-w-0 flex-auto wrap-anywhere">{{ hunk.file }}</span>
       <StationFileTools :hunk="hunk" whole />
       <span v-if="rows.length" class="whitespace-nowrap" :title="diff.ranges">
         <span class="font-semibold text-success" aria-hidden="true">+{{ diff.added }}</span>
@@ -73,11 +73,11 @@ useEventListener(document, 'pointerup', () => {
       </span>
     </div>
 
-    <p v-if="diff.empty" class="m-0 px-3 py-3.5 text-sm text-toned">{{ diff.empty }}</p>
+    <p v-if="diff.empty" class="m-0 px-3 py-3.5 text-ui text-toned">{{ diff.empty }}</p>
     <DiffNote v-for="note in diff.loose" :key="`${note.type}:${note.item.id}`" :note="note" />
 
     <div v-if="!diff.empty" class="station-diff overflow-x-auto [container-type:inline-size]" tabindex="0" role="region" :aria-label="`Diff of ${hunk.file}`">
-      <table class="w-full border-collapse font-mono text-[13px] leading-[1.7] tabular-nums">
+      <table class="w-full border-collapse font-mono text-label leading-[1.7] tabular-nums">
         <tbody>
           <template v-for="(row, index) in rows" :key="index">
             <tr v-if="row.kind === 'meta'">

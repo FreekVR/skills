@@ -15,8 +15,8 @@ const copied = computed(() => isCopied(props.comment))
 <template>
   <component :is="comment.resolved ? 'details' : 'div'" class="thread mt-3.5 rounded-lg border border-default bg-elevated" :class="comment.resolved ? 'px-3.5 py-2' : 'px-3.5 py-3'">
     <component :is="comment.resolved ? 'summary' : 'div'" class="flex list-none flex-wrap items-center gap-x-2.5 gap-y-1.5" :class="{ 'cursor-pointer': comment.resolved }">
-      <span class="font-mono text-[12.5px] leading-[1.4] wrap-anywhere text-toned">{{ threadPlace(comment) }}</span>
-      <span v-if="comment.outdated" class="text-[13px] text-dimmed">outdated</span>
+      <span class="font-mono text-label wrap-anywhere text-toned">{{ threadPlace(comment) }}</span>
+      <span v-if="comment.outdated" class="text-label text-dimmed">outdated</span>
       <UButton
         v-if="at"
         color="neutral"
@@ -28,7 +28,7 @@ const copied = computed(() => isCopied(props.comment))
       >
         Show in flow
       </UButton>
-      <span v-if="comment.resolved" class="text-xs font-semibold">Resolved</span>
+      <span v-if="comment.resolved" class="text-meta font-semibold">Resolved</span>
     </component>
     <ThreadCode :comment="comment" />
     <CommentConversation :comment="comment" />
@@ -38,7 +38,7 @@ const copied = computed(() => isCopied(props.comment))
     </template>
     <ThreadActions v-if="mine" :own="comment" />
     <div v-else class="mt-2 flex flex-wrap items-center gap-1.5">
-      <span v-if="copied" class="text-xs text-dimmed">Copied to your review</span>
+      <span v-if="copied" class="text-meta text-dimmed">Copied to your review</span>
       <UButton v-else color="neutral" variant="ghost" size="sm" class="text-toned" @click="copyComment(comment)">
         Copy to my review
       </UButton>

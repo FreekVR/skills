@@ -6,7 +6,7 @@ const COLORS: Record<string, 'success' | 'warning' | 'error' | 'info' | 'neutral
 </script>
 
 <template>
-  <UBadge :color="COLORS[tone] || 'neutral'" variant="subtle" class="rounded-full px-2.5 text-[12.5px] font-semibold whitespace-nowrap">
+  <UBadge :color="COLORS[tone] || 'neutral'" variant="subtle" class="rounded-full px-2.5 text-label font-semibold whitespace-nowrap">
     <slot />
   </UBadge>
 </template>

@@ -18,12 +18,12 @@ function toggle(event: Event) {
 <template>
   <li class="border-t border-default first:border-t-0">
     <details class="group" :open="state.ui.openExplain.has(key)" @toggle="toggle">
-      <summary class="flex cursor-pointer list-none items-baseline gap-2.5 py-2.5 text-[14.5px] font-semibold [&::-webkit-details-marker]:hidden">
+      <summary class="flex cursor-pointer list-none items-baseline gap-2.5 py-2.5 text-body font-semibold [&::-webkit-details-marker]:hidden">
         <UBadge color="neutral" :variant="SEVERITY_VARIANTS[severityLevel(finding.severity)]" size="sm" class="shrink-0 font-mono lowercase">
           {{ finding.severity }}
         </UBadge>
         <span class="min-w-0"><MarkupText :text="finding.title" /></span>
-        <span v-if="decision !== 'open'" class="text-xs font-semibold" :class="decision === 'accepted' ? 'text-success' : 'text-dimmed'">{{ decision === 'accepted' ? 'Accepted' : 'Dismissed' }}</span>
+        <span v-if="decision !== 'open'" class="text-meta font-semibold" :class="decision === 'accepted' ? 'text-success' : 'text-dimmed'">{{ decision === 'accepted' ? 'Accepted' : 'Dismissed' }}</span>
         <UIcon name="i-lucide-chevron-down" class="ml-auto size-4 shrink-0 self-center transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
       <NoteCard type="finding" :item="finding" class="mb-3.5" />

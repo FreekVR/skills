@@ -16,7 +16,7 @@ const buttons = computed(() => BUTTONS.filter((button) => button.call !== 'resol
 </script>
 
 <template>
-  <p v-if="actions?.resolved" class="mt-2.5 mb-0 text-xs text-muted">
+  <p v-if="actions?.resolved" class="mt-2.5 mb-0 text-meta text-muted">
     Resolved on GitHub.
   </p>
   <template v-else-if="actions">
@@ -36,7 +36,7 @@ const buttons = computed(() => BUTTONS.filter((button) => button.call !== 'resol
     </div>
     <div v-if="actions.call === 'open'" class="mt-2">
       <UTextarea v-model="reply" aria-label="Reply in this thread" placeholder="Optional: what is still missing?" :rows="3" autoresize class="w-full" />
-      <p class="mt-1 mb-0 text-xs text-muted">
+      <p class="mt-1 mb-0 text-meta text-muted">
         Posted as a reply in the thread when you post the review. Leave it empty for no reply.{{ actions.replyFromAi ? ' The text starts as the AI draft.' : '' }}
       </p>
     </div>

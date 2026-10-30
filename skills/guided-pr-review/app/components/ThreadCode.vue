@@ -21,7 +21,7 @@ const rows = computed(() => {
 
 <template>
   <div v-if="rows.length" class="my-2 overflow-x-auto rounded-md border border-default">
-    <table class="w-full border-collapse font-mono text-[12.5px] leading-[1.7] tabular-nums" aria-label="The commented line is the last one">
+    <table class="w-full border-collapse font-mono text-label leading-[1.7] tabular-nums" aria-label="The commented line is the last one">
       <tbody>
         <tr v-for="(row, index) in rows" :key="index" :class="ROW_COLORS[row.kind]">
           <td

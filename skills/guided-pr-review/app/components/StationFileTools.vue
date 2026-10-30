@@ -6,7 +6,7 @@ const props = defineProps<{ hunk: { id: string, file: string, status?: string, b
 const ICONS: Record<string, string> = { vscode: 'i-lucide-code', phpstorm: 'i-lucide-code', folder: 'i-lucide-folder' }
 const tools = computed(() => editorTools(props.hunk) as { kind: string, label: string, title: string, url?: string, file?: string }[])
 const showWhole = computed(() => props.whole && fileKept(props.hunk))
-const buttonClass = 'font-sans text-xs font-normal text-toned hover:text-default'
+const buttonClass = 'font-sans text-meta font-normal text-toned hover:text-default'
 </script>
 
 <template>

@@ -25,8 +25,8 @@ const ICON_TONES: Record<string, string> = {
 </script>
 
 <template>
-  <UIcon v-if="bare" :name="ICONS[icon] || ICONS.none" class="size-[15px]" aria-hidden="true" />
-  <span v-else class="grid shrink-0 place-items-center rounded-full ring-4" :class="[ICON_TONES[tone], small ? 'size-7' : 'size-[34px]']" aria-hidden="true">
-    <UIcon :name="ICONS[icon] || ICONS.none" :class="small ? 'size-4' : 'size-[18px]'" />
+  <UIcon v-if="bare" :name="ICONS[icon] || ICONS.none" class="size-4" aria-hidden="true" />
+  <span v-else class="grid shrink-0 place-items-center rounded-full ring-4" :class="[ICON_TONES[tone], small ? 'size-7' : 'size-8.5']" aria-hidden="true">
+    <UIcon :name="ICONS[icon] || ICONS.none" :class="small ? 'size-4' : 'size-4.5'" />
   </span>
 </template>

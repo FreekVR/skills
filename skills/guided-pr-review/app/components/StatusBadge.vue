@@ -11,7 +11,7 @@ const badge = computed(() => statusBadge(props.id, props.body))
     :color="COLORS[badge.status] || 'neutral'"
     variant="outline"
     size="sm"
-    class="rounded-full px-2 py-1 text-[11px] leading-none font-semibold tracking-[.02em] whitespace-nowrap"
+    class="rounded-full px-2 py-1 text-tag leading-none font-semibold tracking-[.02em] whitespace-nowrap"
     :class="badge.status === 'local' && 'border border-dashed border-(--ui-text-muted) text-toned ring-0'"
     :title="badge.hint || undefined"
   >

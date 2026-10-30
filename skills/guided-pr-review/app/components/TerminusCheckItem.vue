@@ -15,20 +15,22 @@ function onToggle(event: Event) {
 <template>
   <li class="border-b border-default">
     <component :is="section ? 'details' : 'div'" :id="section ? `term-${section}` : undefined" :open="section ? isOpen : undefined" class="scroll-mt-20" @toggle="onToggle">
-      <component :is="section ? 'summary' : 'div'" class="flex list-none flex-wrap items-center gap-3 py-4" :class="{ 'cursor-pointer': section }">
+      <component :is="section ? 'summary' : 'div'" class="flex list-none items-start gap-3 py-4" :class="{ 'cursor-pointer': section }">
         <span
-          class="inline-grid size-[26px] shrink-0 place-items-center rounded-full border-[1.5px] text-[12.5px] leading-none font-bold"
+          class="inline-grid size-6.5 shrink-0 place-items-center rounded-full border-[1.5px] text-label leading-none font-bold"
           :class="done ? 'border-success bg-success text-inverted' : 'border-accented text-toned'"
         >
           <template v-if="done"><VerdictIcon verdict="approved" class="size-3" /><span class="sr-only">Done:</span></template>
           <template v-else>{{ number }}</template>
         </span>
-        <component :is="section ? 'span' : 'h3'" class="m-0 text-[15.5px] font-semibold text-default">
-          {{ title }}<slot name="title" />
+        <component :is="section ? 'span' : 'div'" class="flex min-h-6.5 min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          <component :is="section ? 'span' : 'h3'" class="m-0 text-body font-semibold text-default">
+            {{ title }}<slot name="title" />
+          </component>
+          <span v-if="counts || slots.counts" class="text-ui text-toned"><slot name="counts"><template v-for="(part, index) in counts.split(' · ')" :key="index"><template v-if="index"> · </template><span class="whitespace-nowrap">{{ part }}</span></template></slot></span>
         </component>
-        <span v-if="counts || slots.counts" class="text-[13.5px] text-toned"><slot name="counts">{{ counts }}</slot></span>
       </component>
-      <div v-if="slots.default" class="pb-6 pl-[38px]">
+      <div v-if="slots.default" class="pb-6 pl-9.5">
         <slot />
       </div>
     </component>

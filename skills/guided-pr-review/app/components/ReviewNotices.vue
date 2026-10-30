@@ -18,7 +18,7 @@ watch(() => notices.map((notice: { id: number }) => notice.id), (ids: number[]) 
       close: { 'aria-label': 'Close this message' },
       ui: {
         root: notice.isError ? 'bg-error ring-0' : 'bg-(--ui-text) ring-0',
-        title: (notice.isError ? 'text-inverted' : 'text-(--ui-bg)') + ' font-normal text-[13.5px] leading-[1.45]',
+        title: (notice.isError ? 'text-inverted' : 'text-(--ui-bg)') + ' font-normal text-ui',
         close: notice.isError ? 'text-inverted' : 'text-(--ui-bg)',
       },
       'onUpdate:open': (open: boolean) => { if (!open) dismissNotice(notice.id) },

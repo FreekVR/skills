@@ -39,9 +39,9 @@ function scrollToFocus() {
     :close="{ title: 'Close (Esc)' }"
     :ui="{
       content: 'w-[min(1200px,calc(100vw-32px))] max-w-none h-[min(860px,calc(100dvh-32px))] rounded-xl ring-accented shadow-[0_16px_48px_rgba(0,0,0,.35)]',
-      header: 'flex-wrap gap-x-3 gap-y-2 bg-elevated py-3 pr-3.5 pl-[18px] min-h-0',
+      header: 'flex-wrap gap-x-3 gap-y-2 bg-elevated py-3 pr-3.5 pl-4.5 min-h-0',
       wrapper: 'min-w-0 flex-auto',
-      title: 'font-mono text-[13.5px] leading-[1.4] font-semibold [overflow-wrap:anywhere]',
+      title: 'font-mono text-ui font-semibold wrap-anywhere',
       description: 'sr-only',
       close: 'static',
       body: 'p-0 sm:p-0 overflow-auto overscroll-contain',
@@ -49,11 +49,11 @@ function scrollToFocus() {
     @after:enter="scrollToFocus"
   >
     <template #actions>
-      <StationFileTools v-if="hunk" :hunk="hunk" class="max-sm:order-1 max-sm:basis-full" />
+      <StationFileTools v-if="hunk" :hunk="hunk" class="max-md:order-1 max-md:basis-full" />
     </template>
     <template #body>
       <div ref="body" class="station-diff" tabindex="0">
-        <table class="w-full border-collapse font-mono text-[13px] leading-[1.7] tabular-nums">
+        <table class="w-full border-collapse font-mono text-label leading-[1.7] tabular-nums">
           <tbody>
             <tr v-for="(row, index) in file?.rows || []" :key="index" :class="[row.kind, row.number === file?.focusLine && 'focus']" :data-line="row.number || undefined">
               <td class="num">{{ row.number || '' }}</td>

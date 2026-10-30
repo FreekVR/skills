@@ -14,7 +14,7 @@ const stroke = computed(() => (props.mini ? 3 : props.hollow ? 2.5 : 3.5))
 <template>
   <span
     class="relative inline-grid shrink-0 place-items-center font-bold leading-none text-default"
-    :class="mini ? 'ml-[3px] size-[18px] align-middle text-[9.5px]' : 'size-6 text-[11px]'"
+    :class="mini ? 'ml-1 size-4.5 align-middle text-tag' : 'size-6 text-tag'"
     :style="{ '--line': `var(--color-${line.color})` }"
     :title="line.name"
     aria-hidden="true"

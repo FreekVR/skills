@@ -18,7 +18,7 @@ const buttons = computed(() => props.footer.verdicts.map((verdict) => {
 
 <template>
   <div class="mt-4.5 border-t border-default pt-3.5">
-    <h3 class="m-0 mb-1 text-[15.5px] font-semibold">
+    <h3 class="m-0 mb-1 text-body font-semibold">
       Update your review
     </h3>
     <template v-if="footer.form">
@@ -49,7 +49,7 @@ const buttons = computed(() => props.footer.verdicts.map((verdict) => {
             @click="postUpdate(button.verdict)"
           >
             <template #leading>
-              <VerdictIcon :verdict="button.icon" class="size-[15px]" />
+              <VerdictIcon :verdict="button.icon" class="size-4" />
             </template>
             {{ button.label }}
           </UButton>

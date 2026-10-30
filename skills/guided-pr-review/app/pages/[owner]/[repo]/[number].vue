@@ -36,9 +36,9 @@ useEventListener('keydown', (event: KeyboardEvent) => {
   </div>
   <div v-else-if="state.review && state.reviewer" class="grid h-dvh grid-cols-[340px_minmax(0,1fr)] grid-rows-[auto_1fr] max-md:h-auto max-md:grid-cols-1">
     <a href="#main" class="sr-only focus:not-sr-only">Skip to the content</a>
-    <ReviewStrip class="col-span-full" />
-    <ReviewRail />
-    <main id="main" ref="main" tabindex="-1" class="relative overflow-y-auto">
+    <ReviewStrip class="md:col-start-2 md:row-start-1" />
+    <ReviewRail class="md:col-start-1 md:row-span-2 md:row-start-1" />
+    <main id="main" ref="main" tabindex="-1" class="relative overflow-x-clip overflow-y-auto md:col-start-2 md:row-start-2">
       <ReviewUpdates />
       <HomeView v-if="state.view.kind === 'home'" />
       <TerminusView v-else-if="state.view.kind === 'terminus'" />

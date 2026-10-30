@@ -23,6 +23,39 @@
   --color-unplaced: #8a8270;
 }
 
+/* The type scale. Use these names instead of arbitrary font sizes; app.config.ts tells Nuxt UI they are font sizes. */
+@theme {
+  --text-tag: 11px;
+  --text-tag--line-height: 1.35;
+  --text-meta: 12px;
+  --text-meta--line-height: 1.4;
+  --text-label: 13px;
+  --text-label--line-height: 1.5;
+  --text-ui: 14px;
+  --text-ui--line-height: 1.5;
+  --text-body: 15px;
+  --text-body--line-height: 1.6;
+  --text-lead: 17px;
+  --text-lead--line-height: 1.45;
+  --text-title: 20px;
+  --text-title--line-height: 1.3;
+  --text-display: 26px;
+  --text-display--line-height: 1.25;
+  /* The page gutter: the left and right space of the header and of the main content. */
+  --spacing-gutter: 2.75rem;
+  --radius-card: 10px;
+}
+
+@media (width < 48rem) {
+  :root { --spacing-gutter: 1rem; }
+}
+
+/* The column of a view in main: its width and the page gutter. */
+@utility page-column {
+  max-width: 1080px;
+  padding-inline: var(--spacing-gutter);
+}
+
 :root {
   color-scheme: light dark;
   --ui-bg: #f7f4ec;

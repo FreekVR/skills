@@ -12,10 +12,10 @@ const PANEL_TONES: Record<string, string> = {
 </script>
 
 <template>
-  <section :id="id" class="scroll-mt-6 rounded-xl border px-[18px] pt-3.5 pb-4" :class="PANEL_TONES[tone]">
+  <section :id="id" class="scroll-mt-6 rounded-xl border px-4.5 pt-3.5 pb-4" :class="PANEL_TONES[tone]">
     <header v-if="title" class="flex flex-wrap items-center gap-x-2.5 gap-y-2">
       <HomeStatusIcon :tone="tone" :icon="icon" />
-      <h4 class="m-0 text-[16.5px] font-bold tracking-[-.005em] text-default">
+      <h4 class="m-0 text-lead font-bold tracking-[-.005em] text-default">
         {{ title }}
       </h4>
       <slot name="tag" />
@@ -23,7 +23,7 @@ const PANEL_TONES: Record<string, string> = {
         <slot name="pills" />
       </span>
     </header>
-    <div v-if="$slots.default" :class="title ? 'mt-2.5 ml-11 max-sm:ml-0' : ''">
+    <div v-if="$slots.default" :class="title ? 'mt-2.5 ml-11 max-md:ml-0' : ''">
       <slot />
     </div>
   </section>
