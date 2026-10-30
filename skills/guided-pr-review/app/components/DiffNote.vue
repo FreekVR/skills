@@ -38,8 +38,8 @@ const BLOCK = 'relative border-y border-default px-5 pt-4 pb-4.5 font-sans white
     <div v-else class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0">
       <SafeMarkdown :value="item.body" />
     </div>
-    <FixLine :item="item" />
     <OpinionLine :opinion="item.opinion" />
+    <FixLine :item="item" />
     <div class="mt-2 flex flex-wrap items-center gap-1.5">
       <span v-if="isCopied(item)" class="text-meta text-muted">Copied to your review</span>
       <UButton v-else color="neutral" variant="ghost" size="sm" class="text-toned" @click="copyComment(item)">Copy to my review</UButton>
@@ -56,8 +56,8 @@ const BLOCK = 'relative border-y border-default px-5 pt-4 pb-4.5 font-sans white
     <CommentConversation v-if="item.replies?.length" :comment="item" />
     <p v-else class="mt-2 mb-0 max-w-[72ch] text-ui whitespace-pre-wrap"><MarkupText :text="item.body" /></p>
     <template v-if="!item.resolved">
+      <OpinionLine :opinion="item.opinion" own />
       <FixLine :item="item" />
-      <OpinionLine :opinion="item.opinion" />
     </template>
     <ThreadActions :own="item" />
   </div>

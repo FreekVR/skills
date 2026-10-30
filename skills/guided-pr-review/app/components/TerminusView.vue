@@ -58,7 +58,7 @@ async function showThem() {
         <ol role="list" class="m-0 list-none border-t border-default p-0">
           <TerminusCheckItem :number="1" :done="criteria.done" section="criteria" title="Acceptance criteria" :counts="criteria.counts">
             <template #title>
-              <AiTag label="checked by AI" class="ml-2" />
+              <AiTag label="checked by AI" />
             </template>
             <template v-if="criteria.criteria.length">
               <p :class="LEDE">
@@ -75,6 +75,9 @@ async function showThem() {
             :counts="view.general.length ? `${view.general.length}${view.openGeneral ? ` · ${view.openGeneral} open` : ' · all decided'}` : 'nothing'"
             :open="view.openGeneral > 0"
           >
+            <template #title>
+              <AiTag label="AI findings" />
+            </template>
             <template v-if="view.general.length">
               <NoteCard v-for="finding in view.general" :key="finding.id" type="finding" :item="finding" />
             </template>
@@ -84,7 +87,7 @@ async function showThem() {
               <div v-for="{ line, open } in view.unseenByFlow" :key="line.id" class="mt-4.5 first:mt-0">
                 <p class="m-0 mb-1.5 flex flex-wrap items-center gap-2">
                   <FlowBullet :line="line" :hollow="line.id.startsWith('__')" />
-                  <UIcon v-if="/^[a-z0-9-]+$/.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="size-[1.05em]" :style="{ color: `var(--color-${line.color})` }" aria-hidden="true" />
+                  <FlowIcon :icon="line.icon" class="size-[1.05em]" :style="{ color: `var(--color-${line.color})` }" />
                   <b>{{ line.name }}</b>
                   <span class="text-ui text-toned">{{ open.length }} of {{ line.stops.length }} not seen</span>
                 </p>
@@ -108,6 +111,9 @@ async function showThem() {
             </template>
           </TerminusCheckItem>
           <TerminusCheckItem v-if="notPosted" :number="4" section="not-posted" title="AI findings on hunks you are not posting" :counts="notPosted.counts">
+            <template #title>
+              <AiTag label="AI findings" />
+            </template>
             <p :class="LEDE">
               You did not accept these, so they are not in the review. Accept one here to post it.
             </p>
@@ -128,7 +134,7 @@ async function showThem() {
         <ol role="list" class="m-0 list-none border-t border-default p-0">
           <TerminusCheckItem :number="1" title="Summary">
             <template #title>
-              <StatusBadge v-if="summary" id="summary" :body="summary" class="ml-2" />
+              <StatusBadge v-if="summary" id="summary" :body="summary" />
             </template>
             <UTextarea
               id="summary"

@@ -9,14 +9,17 @@ const VERDICT_COLORS: Record<string, 'success' | 'error' | 'warning'> = { 'met':
 <template>
   <ul role="list" class="m-0 list-none divide-y divide-default p-0" :class="framed ? 'rounded-lg border border-default' : 'mt-1'">
     <li v-for="criterion in criteria" :key="criterion.id" class="grid grid-cols-[112px_1fr] gap-x-4 gap-y-1.5 py-3.5 max-md:grid-cols-1" :class="framed && 'px-4.5'">
-      <UBadge
-        :color="VERDICT_COLORS[criterion.verdict || ''] || 'neutral'"
-        variant="solid"
-        class="justify-center self-start rounded-md px-2 py-1.5 text-meta font-bold"
-        :class="!VERDICT_COLORS[criterion.verdict || ''] && 'bg-(--ui-text-muted) text-inverted'"
-      >
-        {{ AC_VERDICTS[criterion.verdict || ''] || 'Not checked' }}
-      </UBadge>
+      <!-- One line of the criterion text high, so the badge sits centred on its first line. -->
+      <span class="flex h-lh items-center self-start text-body">
+        <UBadge
+          :color="VERDICT_COLORS[criterion.verdict || ''] || 'neutral'"
+          variant="solid"
+          class="w-full justify-center rounded-md px-2 py-1.5 text-meta font-bold"
+          :class="!VERDICT_COLORS[criterion.verdict || ''] && 'bg-(--ui-text-muted) text-inverted'"
+        >
+          {{ AC_VERDICTS[criterion.verdict || ''] || 'Not checked' }}
+        </UBadge>
+      </span>
       <span class="text-body">
         <span class="mr-2.5 font-mono text-label leading-none font-semibold"><MarkupText :text="criterion.id" /></span><MarkupText :text="criterion.text" />
         <span
@@ -38,7 +41,7 @@ const VERDICT_COLORS: Record<string, 'success' | 'error' | 'warning'> = { 'met':
           @click="openFlow(line.id)"
         >
           <FlowBullet :line="line" mini />
-          <UIcon v-if="/^[a-z0-9-]+$/.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="size-[1.05em]" :style="{ color: `var(--color-${line.color})` }" aria-hidden="true" />
+          <FlowIcon :icon="line.icon" class="size-[1.05em]" :style="{ color: `var(--color-${line.color})` }" />
           <span>{{ line.name }}</span>
         </UButton>
       </span>

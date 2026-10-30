@@ -79,6 +79,12 @@ export function openOwnThreads() { return postedOwnRemarks().filter((own) => own
 export function threadCall(own) { return state.reviewer.threadCalls?.[own.threadId] }
 export function threadsWithoutCall() { return openOwnThreads().filter((own) => !threadCall(own)) }
 
+// A comment needs the reviewer's look once commits came after it (the agent then wrote a fix check)
+// or someone else replied last; until then there is nothing new to resolve or leave open.
+export function threadsToCheck() {
+  return threadsWithoutCall().filter((own) => own.fix || (own.replies?.length && own.replies.at(-1).author !== viewerLogin()))
+}
+
 // A posted comment stands until GitHub shows it resolved or the reviewer chose to resolve it.
 export function standingOwnRemarks() { return postedOwnRemarks().filter((own) => !own.resolved && threadCall(own) !== 'resolve') }
 

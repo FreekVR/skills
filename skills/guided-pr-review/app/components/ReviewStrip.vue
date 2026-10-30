@@ -123,7 +123,7 @@ useEventListener(document, 'scroll', (event: Event) => {
         <FlowBullet v-if="line" :line="line" />
         <div class="min-w-0">
           <h1 tabindex="-1" class="m-0 text-title outline-none leading-tight font-bold tracking-[-0.015em]">
-            <UIcon v-if="line && /^[a-z0-9-]+$/.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="mr-[.4em] size-[1.05em] align-[-.15em] text-(--line)" aria-hidden="true" />{{ line ? line.name : viewTitle() }}
+            <FlowIcon :icon="line?.icon" class="mr-[.4em] size-[1.05em] align-[-.15em] text-(--line)" />{{ line ? line.name : viewTitle() }}
           </h1>
           <p v-if="line" class="compact-hide m-0 mt-1 truncate text-label text-muted max-md:hidden">
             {{ seenCount }} of {{ plural(line.stops.length, 'hunk') }} seen
@@ -253,7 +253,7 @@ useEventListener(document, 'scroll', (event: Event) => {
               <VerdictIcon v-if="stop.verdict" :verdict="stop.verdict" :class="stop.verdict === 'approved' ? 'size-2.5' : 'size-3.5'" />
             </span>
             <span
-              class="compact-hide mt-1.5 block truncate px-1 text-meta leading-tight group-hover:text-default group-hover:underline group-hover:underline-offset-3"
+              class="compact-hide mt-3 block truncate px-1 text-meta leading-tight group-hover:text-default group-hover:underline group-hover:underline-offset-3"
               :class="stop.at === index ? 'font-semibold text-default' : 'text-muted'"
               :data-path="stop.file"
             >{{ stop.name }}</span>

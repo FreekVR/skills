@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, firstStationOf, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityRank, severityTone, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { answerFor, buildPost, githubStatus, isFinishing, newComments, openOwnThreads, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsWithoutCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { answerFor, buildPost, githubStatus, isFinishing, newComments, openOwnThreads, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsWithoutCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // Each kind of change on GitHub comes with the one action that deals with it.
@@ -55,7 +55,7 @@ export function seenBefore(hunkId) {
 
 export function fixLine(own) {
   if (!own.fix || own.resolved) return null
-  return { verdict: own.fix.verdict, label: FIX_LABELS[own.fix.verdict] || 'Unclear', note: own.fix.note || '' }
+  return { verdict: own.fix.verdict, label: FIX_LABELS[own.fix.verdict] || FIX_LABELS.unclear, note: own.fix.note || '' }
 }
 
 // Resolve or leave open. The AI's recommendation is the stronger button; a thread left open can get a reply.
@@ -322,7 +322,7 @@ export function existingReviews() {
 export function reviewCard(review, current) {
   const mine = review.author === viewerLogin()
   const comments = mine ? postedOwnRemarks().filter((own) => own.reviewId === review.id) : (state.review.reviewComments || []).filter((comment) => comment.reviewId === review.id)
-  const toCheck = mine ? comments.filter((own) => own.threadId && !own.resolved && !threadCall(own)).length : 0
+  const toCheck = mine ? threadsToCheck().filter((own) => own.reviewId === review.id).length : 0
   const key = `review-${review.id}`
   return {
     kind: REVIEW_STATES[review.state] || REVIEW_STATES.COMMENTED,

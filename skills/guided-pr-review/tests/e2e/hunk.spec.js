@@ -96,7 +96,9 @@ test('shows the comment of someone else with reply, fix line and opinion', async
   const main = page.getByRole('main');
   await expect(main.getByText('Should days come from the settings?')).toBeVisible();
   await expect(main.getByText('Good idea, later.')).toBeVisible();
+  await expect(main.getByText('AI on the code: not fixed yet.')).toBeVisible();
   await expect(main.getByText('Line 11 still has the constant.')).toBeVisible();
+  await expect(main.getByText('AI on this comment: agrees.')).toBeVisible();
   await expect(main.getByText('A setting avoids a deploy for a change.')).toBeVisible();
 });
 
@@ -117,17 +119,19 @@ test.describe('your posted comment', () => {
     await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
     const main = page.getByRole('main');
     await expect(main.getByText('Is MAX still right?')).toBeVisible();
+    await expect(main.getByText('AI on the code: not fixed yet.')).toBeVisible();
     await expect(main.getByText('No commit changed line 3.')).toBeVisible();
+    await expect(main.getByText('AI on your comment: disagrees.')).toBeVisible();
     await expect(main.getByText('MAX does not depend on the TTL.')).toBeVisible();
   });
 
   test('can be resolved', async ({ page }) => {
-    await page.getByRole('button', { name: 'Resolve' }).click();
+    await page.getByRole('button', { name: 'Resolve', exact: true }).click();
     await expectPoll(() => review.reviewer().threadCalls?.['T-gh1'] === 'resolve');
   });
 
   test('can be left open', async ({ page }) => {
-    await page.getByRole('button', { name: 'Leave open' }).click();
+    await page.getByRole('button', { name: 'Leave open', exact: true }).click();
     await expectPoll(() => review.reviewer().threadCalls?.['T-gh1'] === 'open');
   });
 });
@@ -137,6 +141,7 @@ test('shows the opinion on your pending comment until you edit its text', async 
   await openHunk(page, 'Show the forecast', /^A3 src\/components\/ForecastCard\.tsx/);
   const main = page.getByRole('main');
   await expect(main.getByText('Add a docblock.')).toBeVisible();
+  await expect(main.getByText('AI on your comment: agrees.')).toBeVisible();
   await expect(main.getByText('Exported components need one.')).toBeVisible();
   await main.getByRole('button', { name: 'Edit', exact: true }).click();
   await main.getByLabel('Edit your remark').fill('Add a short docblock.');

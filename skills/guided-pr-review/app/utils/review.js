@@ -113,11 +113,11 @@ export function avatar(login) {
 
 export function viewerLogin() { return state.review.viewer?.login }
 
-// Get what the AI thinks of a comment: kind, label, verdict icon name and text.
+// Get what the AI thinks of a comment: kind, label and text.
 export function opinionLine(opinion) {
   if (!opinion || !opinion.text) return null
   const kind = OPINIONS[opinion.stance] ? opinion.stance : 'unsure'
-  return { kind, label: OPINIONS[kind].label, icon: OPINIONS[kind].icon, text: opinion.text }
+  return { kind, label: OPINIONS[kind].label, text: opinion.text }
 }
 
 export function openReviewComments() { return (state.review.reviewComments || []).filter((comment) => !comment.resolved) }

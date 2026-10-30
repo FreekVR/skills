@@ -62,6 +62,7 @@ const content = {
         <div v-for="{ asked, answer } in questions" :key="asked.id" class="mb-3.5 rounded-lg border border-default px-4 py-3.5">
           <p class="mt-0 mb-1 font-semibold">{{ asked.question }}</p>
           <template v-if="answer">
+            <AiTag label="AI answer" class="mb-1.5" />
             <div class="leading-[1.6] text-toned [&>:first-child]:mt-0 [&>:last-child]:mb-0">
               <SafeMarkdown :value="answer.answer" />
             </div>

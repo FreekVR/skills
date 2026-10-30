@@ -46,7 +46,7 @@ const struck = computed(() => decision.value === 'dismissed' && 'text-muted line
     class="relative border-y border-default px-5 pt-4 pb-4.5 font-sans whitespace-normal"
     :class="(decision === 'accepted' || !isFinding) && 'bg-[color-mix(in_srgb,var(--ui-success)_7%,var(--ui-bg))]'"
   >
-    <div class="flex flex-wrap items-baseline gap-2.5">
+    <div class="flex flex-wrap items-center gap-2.5">
       <template v-if="select">
         <span class="text-ui font-semibold" :class="struck"><MarkupText :text="item.title" /></span>
         <span class="relative inline-flex items-center">
@@ -90,7 +90,7 @@ const struck = computed(() => decision.value === 'dismissed' && 'text-muted line
     </div>
     <template v-else>
       <p class="mt-2 mb-0 max-w-[72ch] text-ui whitespace-pre-wrap" :class="struck"><MarkupText :text="text" /></p>
-      <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" />
+      <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" own />
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
         <template v-if="isFinding">
           <UButton v-if="decision !== 'accepted'" color="success" variant="outline" @click="decideFinding(item.id, 'accepted')">Accept</UButton>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // The letter of a flow in its colour and shape. `line` is an entry of state.lines.
+// Its baseline is the baseline of the letter, so in a line of text it sits centred on that text.
 const props = defineProps<{ line: { name: string, letter: string, color: string, shape?: string }, hollow?: boolean, mini?: boolean }>()
 
 // Circle and square are drawn as their own elements; these shapes are paths.
@@ -14,7 +15,7 @@ const stroke = computed(() => (props.mini ? 3 : props.hollow ? 2.5 : 3.5))
 <template>
   <span
     class="relative inline-grid shrink-0 place-items-center font-bold leading-none text-default"
-    :class="mini ? 'ml-1 size-4.5 align-middle text-tag' : 'size-6 text-tag'"
+    :class="mini ? 'ml-1 size-4.5 text-tag' : 'size-6 text-tag'"
     :style="{ '--line': `var(--color-${line.color})` }"
     :title="line.name"
     aria-hidden="true"

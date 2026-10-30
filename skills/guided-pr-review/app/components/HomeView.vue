@@ -144,6 +144,9 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
         </HomePanel>
 
         <HomePanel v-if="data.skipped.length" id="home-skipped" tone="warn" icon="notRead" title="Not read by the AI">
+          <template #tag>
+            <AiTag />
+          </template>
           <template #pills>
             <HomePill tone="warn">
               {{ plural(data.skipped.length, 'item') }}
@@ -202,17 +205,17 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
             <FlowBullet :line="line" :hollow="line.id === '__none' || line.id === '__files'" />
             <span class="grid min-w-0 gap-1">
               <b class="text-body">
-                <UIcon v-if="/^[a-z0-9-]+$/.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="mr-[.4em] size-[1.05em] align-[-.15em]" :style="{ color: `var(--color-${line.color})` }" aria-hidden="true" />{{ line.name }}
+                <FlowIcon :icon="line.icon" class="mr-[.4em] size-[1.05em] align-[-.15em]" :style="{ color: `var(--color-${line.color})` }" />{{ line.name }}
               </b>
               <span v-if="line.explanation" class="line-clamp-2 text-ui text-toned" :title="line.explanation"><MarkupText :text="line.explanation" /></span>
             </span>
-            <span class="flex items-center gap-2 pt-0.5">
+            <span class="flex h-6 items-center gap-2">
               <HomePill v-if="pill" :tone="pill.tone">{{ pill.text }}</HomePill>
-              <span v-if="verdict" class="mt-px grid size-5.5 place-items-center rounded-full text-inverted" :class="FLOW_VERDICT_COLORS[verdict]" :title="FLOW_VERDICT_LABELS[verdict]">
+              <span v-if="verdict" class="grid size-5.5 place-items-center rounded-full text-inverted" :class="FLOW_VERDICT_COLORS[verdict]" :title="FLOW_VERDICT_LABELS[verdict]">
                 <VerdictIcon :verdict="verdict" class="size-3" />
                 <span class="sr-only">{{ FLOW_VERDICT_LABELS[verdict] }}</span>
               </span>
-              <span class="pt-1.5 font-mono text-meta leading-none text-muted">{{ seen }}/{{ line.stops.length }} seen</span>
+              <span class="font-mono text-meta leading-none text-muted">{{ seen }}/{{ line.stops.length }} seen</span>
             </span>
           </button>
         </li>

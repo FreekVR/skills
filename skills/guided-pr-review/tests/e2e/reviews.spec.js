@@ -3,10 +3,24 @@ const { test, expect } = require('@playwright/test');
 const { openReview } = require('./helpers.js');
 
 
+test('counts only your open comments with new commits or a reply from someone else', async ({ page }) => {
+  await openReview(page, {
+    mutate: (data) => {
+      const [posted] = data.ownRemarks;
+      // gh-3: nothing happened since it was posted. gh-4: no new commits, but the author replied.
+      data.ownRemarks.push(
+        { ...posted, id: 'gh-3', threadId: 'T-gh3', body: 'Untouched.', fix: undefined, replies: [] },
+        { ...posted, id: 'gh-4', threadId: 'T-gh4', body: 'Answered.', fix: undefined, replies: [{ author: 'sample-author', body: 'Done.', at: '2026-10-22T09:00:00Z' }] },
+      );
+    },
+  });
+  await expect(page.getByRole('button', { name: /Existing reviews/ })).toContainText('2 to decide');
+});
+
 test('shows reviews by others and your own with threaded replies', async ({ page }) => {
   await openReview(page);
   const rail = page.getByRole('button', { name: /Existing reviews/ });
-  await expect(rail).toContainText('1 by others · 1 to check');
+  await expect(rail).toContainText('1 by others · 1 to decide');
   await rail.click();
   const main = page.getByRole('main');
   await expect(main.getByRole('heading', { name: 'Other reviewers' })).toBeVisible();
@@ -25,10 +39,10 @@ test('saves a call to resolve a thread or leave it open', async ({ page }) => {
   const review = await openReview(page);
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   const main = page.getByRole('main');
-  await main.getByRole('button', { name: 'Resolve' }).click();
+  await main.getByRole('button', { name: 'Resolve', exact: true }).click();
   await expect(main.getByRole('button', { name: 'Resolve', pressed: true })).toBeVisible();
   await review.saved((state) => state.threadCalls?.['T-gh1'] === 'resolve');
-  await main.getByRole('button', { name: 'Leave open' }).click();
+  await main.getByRole('button', { name: 'Leave open', exact: true }).click();
   await expect(main.getByRole('button', { name: 'Leave open', pressed: true })).toBeVisible();
   await review.saved((state) => state.threadCalls?.['T-gh1'] === 'open');
 });
@@ -36,7 +50,7 @@ test('saves a call to resolve a thread or leave it open', async ({ page }) => {
 test('offers a reply draft in a thread left open and saves what you write', async ({ page }) => {
   const review = await openReview(page);
   await page.getByRole('button', { name: /Existing reviews/ }).click();
-  await page.getByRole('button', { name: 'Leave open' }).click();
+  await page.getByRole('button', { name: 'Leave open', exact: true }).click();
   const reply = page.getByRole('textbox', { name: 'Reply in this thread' });
   await expect(reply).toHaveValue('MAX is still 10.');
   await reply.fill('Still needs a look.');

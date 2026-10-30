@@ -21,7 +21,7 @@ function onToggle(event: Event) {
         <VerdictIcon :verdict="card.kind.icon" class="size-3.5" />{{ card.kind.label }}
       </span>
       <span v-if="review.submittedAt" class="text-label text-dimmed">{{ timeLabel(review.submittedAt) }}</span>
-      <span class="ml-auto text-ui text-toned">{{ plural(card.comments.length, 'comment') }}{{ card.toCheck ? ` · ${card.toCheck} to check` : '' }}</span>
+      <span class="ml-auto text-ui text-toned">{{ plural(card.comments.length, 'comment') }}{{ card.toCheck ? ` · ${card.toCheck} to resolve or leave open` : '' }}</span>
     </summary>
     <div class="border-t border-default px-4 pb-4">
       <div v-if="review.body" class="mt-3">

@@ -12,10 +12,11 @@ const flows = computed(() => lines().map((line: { id: string, stops: { hunkId: s
   current: state.view.kind === 'station' && state.view.line === line.id,
 })))
 
-const reviewCounts = computed(() => [
-  othersReviewCount() ? `${othersReviewCount()} by others` : '',
-  threadsWithoutCall().length ? `${threadsWithoutCall().length} to check` : '',
-].filter(Boolean).join(' · '))
+const reviewCounts = computed(() => {
+  const others = othersReviewCount()
+  const toCheck = threadsToCheck().length
+  return [others ? `${others} by others` : '', toCheck ? `${toCheck} to decide` : ''].filter(Boolean).join(' · ')
+})
 
 const submit = computed(() => {
   const proposal = VERDICTS.find((option) => option.id === proposedVerdict())
@@ -51,7 +52,7 @@ const itemClass = (current: boolean) => ['w-full items-start gap-2 rounded-md px
           <UButton color="neutral" variant="ghost" :class="[itemClass(current), 'grid grid-cols-[26px_1fr_auto]']" :aria-current="current" @click="openFlow(line.id)">
             <FlowBullet :line="line" :hollow="line.id === '__none' || line.id === '__files'" />
             <span class="pt-1 text-ui leading-[1.35] font-normal">
-              <UIcon v-if="/^[a-z0-9-]+$/.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="mr-[.4em] size-[1.05em] align-[-.15em]" :style="{ color: `var(--color-${line.color})` }" aria-hidden="true" />{{ line.name }}
+              <FlowIcon :icon="line.icon" class="mr-[.4em] size-[1.05em] align-[-.15em]" :style="{ color: `var(--color-${line.color})` }" />{{ line.name }}
             </span>
             <span v-if="verdict" class="mt-px grid size-5.5 place-items-center rounded-full text-inverted" :class="FLOW_VERDICT_COLORS[verdict]" :title="FLOW_VERDICT_LABELS[verdict]">
               <VerdictIcon :verdict="verdict" class="size-3" />

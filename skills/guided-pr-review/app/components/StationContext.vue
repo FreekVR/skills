@@ -19,7 +19,7 @@ function onToggle(event: Event) {
       <p v-if="hunk.explanation" class="mt-0 mb-3"><MarkupText :text="hunk.explanation" /></p>
       <details v-if="hunk.explanationMore" class="explain-more group mt-1 rounded-lg border border-default bg-[color-mix(in_srgb,var(--ui-bg-elevated)_60%,transparent)] text-body" :open="open" @toggle="onToggle">
         <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-label font-semibold text-default">
-          <UIcon name="i-lucide-message-square-text" class="size-4" aria-hidden="true" />
+          <AiTag label="" />
           Longer explanation from the AI
           <UIcon name="i-lucide-chevron-down" class="ml-auto size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
         </summary>

@@ -33,8 +33,8 @@ const copied = computed(() => isCopied(props.comment))
     <ThreadCode :comment="comment" />
     <CommentConversation :comment="comment" />
     <template v-if="!comment.resolved">
+      <OpinionLine :opinion="comment.opinion" :own="mine" />
       <FixLine :item="comment" />
-      <OpinionLine :opinion="comment.opinion" />
     </template>
     <ThreadActions v-if="mine" :own="comment" />
     <div v-else class="mt-2 flex flex-wrap items-center gap-1.5">

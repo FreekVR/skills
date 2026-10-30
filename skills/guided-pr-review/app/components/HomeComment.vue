@@ -18,8 +18,8 @@ defineProps<{ comment: Comment }>()
       <div v-else class="mt-2 max-w-[72ch] text-ui">
         <SafeMarkdown :value="comment.body" />
       </div>
-      <FixLine :item="comment" />
       <OpinionLine :opinion="comment.opinion" />
+      <FixLine :item="comment" />
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
         <span v-if="isCopied(comment)" class="text-label text-muted">Copied to your review</span>
         <UButton v-else color="neutral" variant="ghost" @click="copyComment(comment)">

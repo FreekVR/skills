@@ -21,7 +21,6 @@ const others = computed(() => (hunk.value ? (linesOf(hunk.value.id) as Line[]).f
   return { line: other, index, code: stationCode(other, index) }
 }))
 
-const ICON_NAME = /^[a-z0-9-]+$/
 </script>
 
 <template>
@@ -38,8 +37,8 @@ const ICON_NAME = /^[a-z0-9-]+$/
     <section v-if="showIntro" class="mb-8 rounded-xl border border-[color-mix(in_srgb,var(--line)_45%,transparent)] bg-[color-mix(in_srgb,var(--line)_7%,var(--ui-bg))] px-5.5 pt-4.5 pb-5 dark:bg-[color-mix(in_srgb,var(--line)_12%,var(--ui-bg))]" aria-label="About this flow">
       <div class="flex flex-wrap items-center gap-2.5">
         <FlowBullet :line="line" />
-        <h2 class="m-0 text-title tracking-[-0.01em]">
-          <UIcon v-if="ICON_NAME.test(line.icon || '')" :name="`i-lucide-${line.icon}`" class="mr-[.4em] size-[1.05em] align-[-.15em] text-(--line)" aria-hidden="true" />{{ line.name }}
+        <h2 class="m-0 flex items-center gap-[.4em] text-title tracking-[-0.01em]">
+          <FlowIcon :icon="line.icon" class="size-[1.05em] shrink-0 text-(--line)" />{{ line.name }}
         </h2>
         <AiTag label="AI summary" />
       </div>
@@ -79,7 +78,7 @@ const ICON_NAME = /^[a-z0-9-]+$/
         @click="go(other.line.id, other.index)"
       >
         <FlowBullet :line="other.line" class="size-5! text-tag!" />
-        <UIcon v-if="ICON_NAME.test(other.line.icon || '')" :name="`i-lucide-${other.line.icon}`" class="size-[1.05em] text-(--line)" :style="{ '--line': `var(--color-${other.line.color})` }" aria-hidden="true" />{{ other.line.name }}
+        <FlowIcon :icon="other.line.icon" class="size-[1.05em] text-(--line)" :style="{ '--line': `var(--color-${other.line.color})` }" />{{ other.line.name }}
         <span class="font-mono text-meta leading-none font-semibold whitespace-nowrap text-muted">{{ other.code }}</span>
       </UButton>
       <span v-if="seenBefore(hunk.id)">You saw this hunk in another flow already.</span>

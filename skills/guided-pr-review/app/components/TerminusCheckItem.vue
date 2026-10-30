@@ -24,7 +24,7 @@ function onToggle(event: Event) {
           <template v-else>{{ number }}</template>
         </span>
         <component :is="section ? 'span' : 'div'" class="flex min-h-6.5 min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-          <component :is="section ? 'span' : 'h3'" class="m-0 text-body font-semibold text-default">
+          <component :is="section ? 'span' : 'h3'" class="m-0 flex flex-wrap items-center gap-2 text-body font-semibold text-default">
             {{ title }}<slot name="title" />
           </component>
           <span v-if="counts || slots.counts" class="text-ui text-toned"><slot name="counts"><template v-for="(part, index) in counts.split(' · ')" :key="index"><template v-if="index"> · </template><span class="whitespace-nowrap">{{ part }}</span></template></slot></span>

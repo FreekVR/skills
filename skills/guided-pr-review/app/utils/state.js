@@ -58,9 +58,9 @@ export const SHORTCUTS = [
 ]
 
 export const OPINIONS = {
-  agree: { label: 'The AI agrees', icon: 'approved' },
-  disagree: { label: 'The AI disagrees', icon: 'changes' },
-  unsure: { label: 'The AI is not sure', icon: 'comment' },
+  agree: { label: 'agrees' },
+  disagree: { label: 'disagrees' },
+  unsure: { label: 'not sure' },
 }
 
 export const STATUS_LABELS = { local: 'Local only', draft: 'In GitHub draft', posted: 'Posted to GitHub', changed: 'Changed since posted' }
@@ -80,7 +80,7 @@ export const REVIEW_STATES = {
   DISMISSED: { label: 'review dismissed', icon: 'comment' },
 }
 
-export const FIX_LABELS = { fixed: 'Looks fixed', 'not-fixed': 'Not fixed', unclear: 'Unclear' }
+export const FIX_LABELS = { fixed: 'fixed', 'not-fixed': 'not fixed yet', unclear: 'unclear' }
 
 export const SEVERITY_TONES = ['info', 'info', 'warn', 'bad']
 
