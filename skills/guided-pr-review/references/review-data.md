@@ -1,14 +1,13 @@
 # Review data
 
-The review page, the local server and the agent share these files in the review directory. Each file has one writer.
+The review page, the review server and the agent share these files in the review directory. Each file has one writer.
 
 | File | Writer | Reader | Content |
 | --- | --- | --- | --- |
 | `review.json` | agent | review page | The PR, context, flows, hunks, AI findings, answers, post results |
 | `reviewer.json` | review page | agent | What the reviewer has seen, decided and written |
 | `events.jsonl` | review page | agent | One JSON object per line: questions, "explain more" requests, post requests |
-| `session.json` | agent, through `review-data.js session` | local server | The agent session that runs the review |
-| `server.json` | local server | local server | The URL and process ID of the review page |
+| `session.json` | agent, through `review-data.js watch` | review server | The agent session that runs the review, and its watch process |
 
 Only the writer in the table MAY write a file. The review page reloads `review.json` every few seconds, so the agent's changes show up without a page reload.
 
@@ -91,7 +90,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - `reviewComments` are other reviewers' line comments, resolved ones too, each with the `reviewId` it belongs to. `stance` is `agree`, `disagree` or `unsure`. Open comments also show on their hunk; a comment with `hunkId: null`, or on a line outside the diff, shows on the home page. The review page never posts these comments. The reviewer can copy one into their own review as a new remark.
 - `viewer.login` is the authenticated GitHub user; the review page shows that account's avatar on the user's own remarks, and none when `viewer` is missing.
 - `pr.body` is the PR description, verbatim; the home page shows it as a collapsible block.
-- `pr.localPath` is set for a big PR only. The local server then serves whole files from the worktree, and the review page links each file to VS Code and to its folder, and a PHP file also to PhpStorm. Without it, the server serves whole files from `files/` in the review directory. The server serves only files that a hunk changes.
+- `pr.localPath` is set for a big PR only. The review server then serves whole files from the worktree, and the review page links each file to VS Code and to its folder, and a PHP file also to PhpStorm. Without it, the server serves whole files from `files/` in the review directory. The server serves only files that a hunk changes.
 - `ownRemarks` are the user's own review comments. The review page loads the `pending` ones and the `ownPendingReview` body into the reviewer's remarks and summary once, so they are posted again with the review. `posted` ones are not posted again. `severity` is the label the comment starts with, or the lowest severity when it has none.
 - `opinion` on a comment says whether the comment is right, not whether it is fixed. Comments by others and the user's own comments both get one. The review page shows `fix` above it, so the reviewer reads the current state first. On a pending remark that the reviewer edited, the review page hides the opinion.
 - `fix` is the agent's recommendation for a posted comment: `fixed`, `not-fixed` or `unclear`, with a one-line `note`. For `not-fixed`, `reply` is a short draft that says what is still missing. A posted comment that is not `resolved` needs the reviewer's call: resolve it or leave it open. `canResolve` is GitHub's `viewerCanResolve`; `outdated` is GitHub's `isOutdated`.
@@ -127,17 +126,19 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 
 `knownHunks` lets the review page mark hunks that are new since the last session. `imported` lists the own remarks and pending review body it already loaded, so it loads each one once. `position` is where the reviewer was, so a reload opens the same hunk. `knownComments` lists the `reviewComments` the reviewer already knows about; the review page announces the others as new. `flowPositions` holds the hunk the reviewer last had open in each flow, so opening a flow again returns there. `theme` is the colour theme the reviewer picked: `system`, `light` or `dark`. `severities` holds the severity the reviewer set on a finding, where it differs from the AI's. `hunkVerdicts` holds the reviewer's own verdict per hunk (`approved`, `changes` or `comment`); it stays in the page and only shapes the proposed verdict. `threadCalls` holds the reviewer's call on each of their open posted comments: `resolve` or `open`. `threadReplies` holds the reply to post in a thread left open; it starts as the agent's draft. A remark with `copiedFrom` started as a copy of another reviewer's comment on the same lines; `copiedToSummary` lists the comments copied into the summary because their lines are not in the diff. `sent` lists the events the review page sent, so it can show their answers and post results; each `post` entry also lists the IDs and texts it contained, so the page can show what is on GitHub and what is still local. A `post` entry also holds `at`, the time it was sent, `headSha`, the head commit at that time, and `payload`, what it sent. `summaryFrom` is the `summarize` event whose answer the reviewer used or turned down, so the page offers each draft once; `summaryAiSuggested` is true while the summary started from that draft, and the review body then gets the disclosure. When GitHub accepted a final review, the page shows that it is posted instead of the form, until the reviewer starts a new round or `pr.headSha` changes; `reopenedAfter` marks the start of the new round.
 
-## session.json and server.json
+## session.json
 
 ```json
-{ "sessionId": "<Claude Code session ID, or null>", "cwd": "<directory the session runs from>", "worktree": "<worktree path, or null for a small PR>" }
+{ "sessionId": "<Claude Code session ID, or null>", "cwd": "<directory the session runs from>", "worktree": "<worktree path, or null for a small PR>", "watcherPid": 4242 }
 ```
 
-`node scripts/review-data.js session <review-dir> [--worktree <path>]` writes `session.json`. `sessionId` comes from `CLAUDE_CODE_SESSION_ID`. The local server writes `server.json`, `{ "url": "http://127.0.0.1:52011/", "pid": 4242 }`, when it starts; a review counts as running while that process exists. The review page lists every review directory in a switch in its header, with a link to each review page that runs and, for the others, the command that resumes their session.
+`node scripts/review-data.js watch <review-dir> [--worktree <path>]` writes `session.json` and keeps running as the watch. `sessionId` comes from `CLAUDE_CODE_SESSION_ID`, and `watcherPid` is the watch process. While that process runs, an agent is connected to the review. The review page lists every review directory in a switch in its header. For a review without a connected agent, it shows the command that resumes its session.
+
+The review server records itself in `server.json` in the state directory itself, not in a review directory: `{ "url": "http://127.0.0.1:4317/", "pid": 4242 }`. `scripts/review-server.js` writes it when it starts the server.
 
 ## events.jsonl
 
-Every event has `id`, `at`, `type` and `review`, the pull request it belongs to as `owner/repo#number`. The review page adds `review`; the local server adds `id` and `at`. Handle an event only in the review it names.
+Every event has `id`, `at`, `type` and `review`, the pull request it belongs to as `owner/repo#number`. The review page adds `review`; the review server adds `id` and `at`. Handle an event only in the review it names.
 
 | `type` | Fields | What the agent does |
 | --- | --- | --- |

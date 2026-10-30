@@ -1,14 +1,14 @@
 ---
 name: guided-pr-review
 description: Use when a developer wants to review a GitHub pull request themselves with guidance, for example "guide me through PR 123", "walk me through this pull request", "help me review this PR step by step", "I need to review PR <url> but don't know this code", or "review the PR for ticket ABC-123 with me". Do not use when the user wants the agent to review a PR on its own and only report or post the result, to review local uncommitted changes, to answer review comments on their own PR, or for GitLab or Bitbucket.
-compatibility: Needs node, git, and read and write access to GitHub. Needs either a hosted interactive page that can send data back to the agent, or a background process whose output the agent can watch. The review page loads highlight.js, marked and DOMPurify from cdnjs, flow icons and, for older browsers, a popover polyfill from jsDelivr and avatars from github.com; without internet it shows plain text, no icons and no avatars.
+compatibility: Needs Node.js 22.21 or newer, git, read and write access to GitHub, a background process whose output the agent can watch, and a browser on the same computer. The review page loads avatars from github.com; without internet it shows none.
 metadata:
   internal: true
 ---
 
 # Guided PR review
 
-The end goal is a GitHub review of one pull request (PR), written and approved by the human reviewer. The result is an interactive review page built from `assets/review.html`. The review page shows every change in the PR, flow by flow and hunk by hunk, with AI context, explanations and suggested remarks. The reviewer decides on each remark. Everything that goes to GitHub is posted from a button in the review page, exactly as the review page shows it. The task is done when the reviewer has posted the final review from the review page, or tells you to stop.
+The end goal is a GitHub review of one pull request (PR), written and approved by the human reviewer. The result is an interactive review page, served on the user's computer by the review server in this skill. The review page shows every change in the PR, flow by flow and hunk by hunk, with AI context, explanations and suggested remarks. The reviewer decides on each remark. Everything that goes to GitHub is posted from a button in the review page, exactly as the review page shows it. The task is done when the reviewer has posted the final review from the review page, or tells you to stop.
 
 The reviewer stays in control. You prepare, explain and answer. You MUST NOT write the review for the reviewer, post anything they did not press a button for, or dump your findings in the chat instead of the review page.
 
@@ -18,15 +18,13 @@ You MUST complete these checks in order and mark each one done before you contin
 
 1. [ ] The user named a PR (URL, or number plus repository) or a Jira ticket key. If not, ask. Do not guess a PR from the current branch.
 2. [ ] This session is not already running a guided review for another PR. If it is, stop and ask the user to start this review in a new session: one session MUST run only one guided review at a time.
-3. [ ] `node` and `git` are available. If not, stop and tell the user.
+3. [ ] `node` 22.21 or newer and `git` are available. If not, stop and tell the user.
 4. [ ] You can read the PR and post reviews on GitHub, through the `gh` CLI or a GitHub tool. If not, stop and tell the user. Only GitHub is supported.
-5. [ ] You can show the review page in one of these ways. If neither works, stop and tell the user that this skill needs one of them.
-   - A hosted interactive page that can send data back to you. Read `references/hosted-page.md`.
-   - A local server: you can run `node scripts/serve.js` as a background process and act on each line it prints while the user works.
+5. [ ] You can run a background process and act on each line it prints while the user works, and the user has a browser on this computer. If not, stop and tell the user that this skill needs both.
 6. [ ] You know the one PR to review. For a Jira ticket: read its development links with a tool that can read Jira. If you have no such tool, or the ticket links no PR, stop and ask for a PR URL. If it links several PRs, list them with repository, title and state, and ask the user to pick one. Keep the others as linked PRs for the context step.
 7. [ ] You know the PR size. The PR is big when it has more than 10 changed files or more than 1000 changed lines (additions plus deletions). Otherwise it is small. If GitHub does not report the counts, count them in the diff.
 8. [ ] Big PR only: you have a local clone of the repository. If you do not know where it is, ask the user for the path. If the user's instructions or memory name a location for clones, suggest that path. If there is no clone, stop. Ask the user before you create a worktree for the PR head in that clone. You MUST NOT change the branch or the working tree of the clone itself.
-9. [ ] The review directory exists: run `node scripts/review-data.js dir <owner>/<repo> <pr-number>`. It prints the path: `$XDG_STATE_HOME/guided-pr-review/<owner>/<repo>/<pr-number>/`, or `~/.local/state/…` when `XDG_STATE_HOME` is not set. It holds the PR diff, `review.json`, `reviewer.json` and `events.jsonl`. It is deleted only when the user agrees in step 8; otherwise it stays for a later resume. If it already holds `review.json`, this is a resume: follow Resume below. If the command fails, stop and tell the user. Then run `node scripts/review-data.js session <review-dir>` from the directory this session runs in, with `--worktree <path>` for a big PR. It records this session, so the review pages of other reviews can tell the user how to come back to this one.
+9. [ ] The review directory exists: run `node scripts/review-data.js dir <owner>/<repo> <pr-number>`. It prints the path: `$XDG_STATE_HOME/guided-pr-review/<owner>/<repo>/<pr-number>/`, or `~/.local/state/…` when `XDG_STATE_HOME` is not set. It holds the PR diff, `review.json`, `reviewer.json` and `events.jsonl`. It is deleted only when the user agrees in step 8; otherwise it stays for a later resume. If it already holds `review.json`, this is a resume: follow Resume below. If the command fails, stop and tell the user.
 
 ## Steps
 
@@ -106,14 +104,14 @@ Always verify the existing review comments from step 1, whatever the user chose 
 
 Write `review.json` as described in `references/review-data.md`. In every text you write for the review page (explanations, findings, answers), refer to tickets, issues and PRs by key or number only, for example `ABC-123` or `#123`, never with their URL: the review page links them and shows their title. Then:
 
-- Local server: run `node scripts/serve.js <review-dir>` as a background process. It prints `READY <url>`. Give the user that URL.
-- Hosted page: follow `references/hosted-page.md`.
+- Run `node scripts/review-server.js`. It starts the review server, or finds the one that runs, and prints `READY <url>`. The review page of this PR is at `<url><owner>/<repo>/<pr-number>`. Give the user that URL. One review server serves every review on this computer, and it stops itself 10 minutes after the last agent stopped watching. It keeps `server.json` (its URL and process ID) and `server.log` in the state directory itself; they stay until the user deletes that directory.
+- From the directory this session runs in, run `node scripts/review-data.js watch <review-dir>` as a background process, with `--worktree <path>` for a big PR. It records this session in `session.json`, so the review page can tell the user how to come back to this session, and it prints each event from the review page as an `EVENT` line. While it runs, the review page shows that an agent is connected.
 
 Tell the user in two or three sentences what the PR does and how many flows and hunks there are. Do not list findings in the chat; they are in the review page.
 
 ### 7. Respond to the review page
 
-Each event from the review page is one request. Its `review` field names the PR; handle it only in that PR's review directory. If an event names another PR than the one this session reviews, do not handle it, and tell the user once that the review page of that PR is sending its events to this session. The local server prints it as an `EVENT` line; it is also in `events.jsonl`. Handle each event when it arrives as the events table in `references/review-data.md` says, update `review.json`, and keep watching until the final review is posted.
+Each event from the review page is one request. Its `review` field names the PR; handle it only in that PR's review directory. If an event names another PR than the one this session reviews, do not handle it, and tell the user once that the review page of that PR is sending its events to this session. The watch prints it as an `EVENT` line; it is also in `events.jsonl`. Handle each event when it arrives as the events table in `references/review-data.md` says, update `review.json`, and keep watching until the final review is posted.
 
 - Base answers to `ask` events on the code and the context you read. Write them in markdown.
 - For a `summarize` event, write the review summary from the remarks in the event only, in plain text the reviewer can edit. Follow the user's review conventions. Do not add the disclosure; the review page adds it.
@@ -127,7 +125,7 @@ You MUST write the result of each event to `review.json` before you write anythi
 
 ### 8. Finish
 
-- While the PR is open, you MUST keep the review directory and, for a big PR, the worktree. You MUST NOT offer to delete them. After a final `post`, keep the local server running. After `finish`, stop the local server and tell the user in one line that the review is kept and that this skill resumes it for the PR.
+- While the PR is open, you MUST keep the review directory and, for a big PR, the worktree. You MUST NOT offer to delete them. After a final `post`, keep the watch running. After `finish`, stop the watch and tell the user in one line that the review is kept and that this skill resumes it for the PR.
 - When the PR is merged or closed, ask the user before you delete the review directory and the worktree.
 
 ## Resume

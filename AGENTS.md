@@ -136,6 +136,7 @@ When the task is done and the user corrected you, or this skill gave wrong or in
 - Scripts MUST NOT write outside the working directory, and MUST NOT change git state unless the skill exists to do that.
 - Exception: a script MAY write state that must outlive a session to a per-user data directory: `$XDG_STATE_HOME/<skill-name>/`, or `~/.local/state/<skill-name>/` when `XDG_STATE_HOME` is not set. `SKILL.md` MUST name what is stored there and when it is deleted.
 - `SKILL.md` MUST say how to run each script.
+- Exception: a skill MAY ship a web app as source plus a committed build that runs with `node` only, for example a Nuxt `.output`. The build MAY contain third-party code. Its build tools MUST be development dependencies of the skill, and the agent MUST NOT build or install anything when the skill runs.
 
 ### Trigger tests
 
