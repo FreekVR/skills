@@ -75,6 +75,15 @@ test.describe('a finding', () => {
     await expectPoll(() => review.reviewer().severities?.f1 === 'nit');
   });
 
+  test('stays readable at every severity', async ({ page }) => {
+    const select = page.getByRole('combobox', { name: /^Severity/ });
+    for (const severity of ['medium', 'major']) {
+      await select.selectOption(severity);
+      // These levels draw light text on a dark fill; without the fill the text has the page colour.
+      await expect(select).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+    }
+  });
+
   test('can be dismissed', async ({ page }) => {
     await page.getByRole('button', { name: 'Dismiss' }).click();
     await expectPoll(() => review.reviewer().decisions?.f1 === 'dismissed');

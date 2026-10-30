@@ -1,8 +1,8 @@
 <script lang="ts">
 // One class list for each of the four levels of severityLevel(): the colour gets stronger with the severity.
 export const SEVERITY_CLASSES = [
-  'border-accented text-muted',
-  'border-(--ui-text-toned) text-default',
+  'border-accented bg-transparent text-muted',
+  'border-(--ui-text-toned) bg-transparent text-default',
   'border-(--ui-text-toned) bg-(--ui-text-toned) text-(--ui-bg)',
   'border-(--ui-text) bg-(--ui-text) text-(--ui-bg) font-extrabold',
 ]

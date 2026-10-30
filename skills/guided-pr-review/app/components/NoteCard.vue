@@ -49,7 +49,7 @@ const struck = computed(() => decision.value === 'dismissed' && 'text-muted line
         <span class="relative inline-flex items-center">
           <select
             :value="select.current"
-            class="cursor-pointer appearance-none rounded border bg-transparent py-[3px] pr-[18px] pl-1.5 font-mono text-[11.5px] leading-none font-semibold lowercase hover:border-(--ui-text)"
+            class="cursor-pointer appearance-none rounded border py-[3px] pr-[18px] pl-1.5 font-mono text-[11.5px] leading-none font-semibold lowercase hover:border-(--ui-text)"
             :class="SEVERITY_CLASSES[severityLevel(select.current)]"
             :aria-label="select.title"
             :title="select.title"

@@ -5,6 +5,7 @@ export default defineNuxtConfig({
   // The build is committed, so it carries no source maps.
   sourcemap: { server: false, client: false },
   css: ['~/assets/css/main.css'],
+  app: { head: { link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }] } },
   compatibilityDate: '2026-10-30',
   // Icons ship inside the build, so the page needs no network for them.
   icon: { serverBundle: { collections: ['lucide'] }, clientBundle: { scan: true } },

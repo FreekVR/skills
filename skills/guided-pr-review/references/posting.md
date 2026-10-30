@@ -25,4 +25,4 @@ For `kind: update`, the reviewer updates their earlier review. GitHub records it
 3. Create the review as in step 3 above, with the event's `verdict` and `body`, and no `comments`.
 4. Read the reviews and threads again, as for a `check` event, so the Existing reviews tab shows the new state.
 
-On success, add an entry to `posts` with `status: posted`, the review's `html_url` as `url` and its `id` as `reviewId`. If GitHub returns an error, do not retry with changed content. Add the error message to `posts` with `status: error`; the review page shows it to the reviewer.
+Every entry you add to `posts` MUST have the event's `id` as `eventId`; without it, the review page shows the post as still on its way. On success, add an entry to `posts` with `status: posted`, the review's `html_url` as `url` and its `id` as `reviewId`. If GitHub returns an error, do not retry with changed content. Add the error message to `posts` with `status: error`; the review page shows it to the reviewer.
