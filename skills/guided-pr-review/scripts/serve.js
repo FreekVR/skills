@@ -7,8 +7,7 @@ const fs = require('fs');
 const http = require('http');
 const path = require('path');
 const crypto = require('crypto');
-const { execFile } = require('child_process');
-const { listReviews } = require('./review-data.js');
+const { listReviews, writeAtomic, changedFile, revealInFolder } = require('./reviews.js');
 
 const TEMPLATE = path.join(__dirname, '..', 'assets', 'review.html');
 const MAX_BODY_BYTES = 5 * 1024 * 1024;
@@ -36,27 +35,6 @@ function sendFile(response, file, type, fallback) {
     if (error.code !== 'ENOENT') throw error;
     return fallback === undefined ? send(response, 404, 'text/plain', 'not found') : send(response, 200, type, fallback);
   }
-}
-
-// Write to a temporary file first, so the agent never reads a half-written reviewer.json.
-function writeAtomic(file, content) {
-  const temporary = `${file}.${process.pid}.tmp`;
-  fs.writeFileSync(temporary, content);
-  fs.renameSync(temporary, file);
-}
-
-// Only a file that the pull request changes and keeps is served, so the page cannot read anything else on disk.
-function changedFile(reviewFile, asked) {
-  const review = JSON.parse(fs.readFileSync(reviewFile, 'utf8'));
-  const hunk = review.hunks.find((candidate) => candidate.file === asked && candidate.status !== 'removed');
-  return hunk ? { path: hunk.file, localPath: review.pr?.localPath } : null;
-}
-
-function revealInFolder(file) {
-  const [command, args] = process.platform === 'darwin' ? ['open', ['-R', file]]
-    : process.platform === 'win32' ? ['explorer', [`/select,${file}`]]
-    : ['xdg-open', [path.dirname(file)]];
-  return new Promise((resolve, reject) => execFile(command, args, (error) => (error ? reject(error) : resolve())));
 }
 
 function createHandler(reviewDir, log) {
@@ -87,7 +65,7 @@ function createHandler(reviewDir, log) {
         return send(response, 204, 'text/plain', '');
       }
       if (route === 'GET /file') {
-        const file = changedFile(reviewFile, new URL(request.url, 'http://localhost').searchParams.get('path'));
+        const file = changedFile(reviewDir, new URL(request.url, 'http://localhost').searchParams.get('path'));
         if (!file) return send(response, 404, 'text/plain', 'not found');
         const root = file.localPath || path.join(reviewDir, 'files');
         return sendFile(response, path.join(root, file.path), 'text/plain; charset=utf-8');
@@ -95,7 +73,7 @@ function createHandler(reviewDir, log) {
       if (route === 'POST /open') {
         // A plain cross-site form cannot set this header, so another web page cannot make the server open folders.
         if (request.headers['x-guided-review'] !== '1') return send(response, 403, 'text/plain', 'forbidden');
-        const file = changedFile(reviewFile, JSON.parse(await readBody(request)).path);
+        const file = changedFile(reviewDir, JSON.parse(await readBody(request)).path);
         if (!file || !file.localPath) return send(response, 404, 'text/plain', 'not found');
         await revealInFolder(path.join(file.localPath, file.path));
         return send(response, 204, 'text/plain', '');

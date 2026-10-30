@@ -6,7 +6,8 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { reviewDir, parseDiff, mergeHunks, checkFlows, writeSession, listReviews } = require('../scripts/review-data.js');
+const { parseDiff, mergeHunks, checkFlows } = require('../scripts/review-data.js');
+const { reviewDir, writeSession, listReviews, watchEvents } = require('../scripts/reviews.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
 index 1111111..2222222 100644
@@ -129,9 +130,9 @@ test('writeSession records the agent session, the directory it runs from and the
   t.after(() => { if (before === undefined) delete process.env.CLAUDE_CODE_SESSION_ID; else process.env.CLAUDE_CODE_SESSION_ID = before; });
   process.env.CLAUDE_CODE_SESSION_ID = 'abc-123';
   writeSession(dir, '/clones/shop-pr-7');
-  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'session.json'), 'utf8')), { sessionId: 'abc-123', cwd: process.cwd(), worktree: '/clones/shop-pr-7' });
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'session.json'), 'utf8')), { sessionId: 'abc-123', cwd: process.cwd(), worktree: '/clones/shop-pr-7', watcherPid: null });
   delete process.env.CLAUDE_CODE_SESSION_ID;
-  assert.deepStrictEqual(writeSession(dir), { sessionId: null, cwd: process.cwd(), worktree: null });
+  assert.deepStrictEqual(writeSession(dir, null, 42), { sessionId: null, cwd: process.cwd(), worktree: null, watcherPid: 42 });
 });
 
 test('listReviews lists each review directory with a review.json, and a URL only for a server that runs', () => {
@@ -141,7 +142,7 @@ test('listReviews lists each review directory with a review.json, and a URL only
     fs.writeFileSync(path.join(root, dir, file), JSON.stringify(content));
   };
   write('acme/shop/7', 'review.json', { pr: { title: 'Add a cache' }, remote: { state: 'merged' } });
-  write('acme/shop/7', 'session.json', { sessionId: 's1', cwd: '/work', worktree: null });
+  write('acme/shop/7', 'session.json', { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid });
   write('acme/shop/7', 'server.json', { url: 'http://127.0.0.1:1/', pid: process.pid });
   write('acme/shop/8', 'review.json', { pr: { title: 'Fix the cache' } });
   write('acme/shop/8', 'session.json', { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' });
@@ -149,9 +150,9 @@ test('listReviews lists each review directory with a review.json, and a URL only
   write('acme/shop/9', 'reviewer.json', {});
   write('acme/api/1', 'review.json', { pr: { title: 'Old review' } });
   assert.deepStrictEqual(listReviews(root).map(({ dir, ...review }) => review), [
-    { owner: 'acme', repo: 'api', number: 1, title: 'Old review', state: 'open', session: null, url: null },
-    { owner: 'acme', repo: 'shop', number: 7, title: 'Add a cache', state: 'merged', session: { sessionId: 's1', cwd: '/work', worktree: null }, url: 'http://127.0.0.1:1/' },
-    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' }, url: null },
+    { owner: 'acme', repo: 'api', number: 1, title: 'Old review', state: 'open', session: null, agentConnected: false, url: null },
+    { owner: 'acme', repo: 'shop', number: 7, title: 'Add a cache', state: 'merged', session: { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid }, agentConnected: true, url: 'http://127.0.0.1:1/' },
+    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' }, agentConnected: false, url: null },
   ]);
 });
 
@@ -166,6 +167,19 @@ test('listReviews leaves out a review whose review.json is broken, and reads a b
   write('acme/shop/8', 'session.json', '{"sessionId":');
   write('acme/shop/8', 'server.json', '');
   assert.deepStrictEqual(listReviews(root).map(({ dir, ...review }) => review), [
-    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: null, url: null },
+    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: null, agentConnected: false, url: null },
   ]);
+});
+
+test('watchEvents passes on each line added after the watch started, also a line written in two parts', async (t) => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-')), 'events.jsonl');
+  fs.writeFileSync(file, '{"old":true}\n');
+  const lines = [];
+  const stop = watchEvents(file, (line) => lines.push(line), 20);
+  t.after(stop);
+  fs.appendFileSync(file, '{"type":"ask"}\n{"type":');
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  fs.appendFileSync(file, '"check"}\n');
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.deepStrictEqual(lines, ['{"type":"ask"}', '{"type":"check"}']);
 });

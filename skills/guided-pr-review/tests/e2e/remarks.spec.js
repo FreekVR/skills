@@ -18,7 +18,7 @@ test.describe('a remark', () => {
     await expect(page.getByText('Name the url.')).toBeVisible();
   });
 
-  test('is saved from the line', async ({ page }) => {
+  test('is saved from the line', async () => {
     await expectPoll(() => review.remark('Name the url.'));
     expect(review.remark('Name the url.')).toMatchObject({ hunkId: H.client, line: 12, side: 'RIGHT', severity: 'medium', body: 'Name the url.' });
   });

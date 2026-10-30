@@ -9,78 +9,16 @@
 //   node review-data.js session <review-dir> [--worktree <path>]
 //                                                        Record in session.json which agent session runs the review.
 //   node review-data.js list                             Print the reviews that are not deleted.
+//   node review-data.js watch <review-dir> [--worktree <path>]
+//                                                        Record this session like "session" does, then print each new
+//                                                        event in events.jsonl as an "EVENT <json>" line until stopped.
 'use strict';
 
 const fs = require('fs');
-const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 
-function stateRoot() {
-  return path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local', 'state'), 'guided-pr-review');
-}
-
-function reviewDir(repository, number) {
-  const [owner, repo] = repository.split('/');
-  if (!owner || !repo || !/^\d+$/.test(String(number))) {
-    throw new Error('Expected <owner>/<repo> <pr-number>');
-  }
-  return path.join(stateRoot(), owner, repo, String(number));
-}
-
-// A resume overwrites the file, so it always names the session that runs the review now.
-function writeSession(dir, worktree = null) {
-  const session = { sessionId: process.env.CLAUDE_CODE_SESSION_ID || null, cwd: process.cwd(), worktree };
-  fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify(session) + '\n');
-  return session;
-}
-
-// A file that is missing, or broken by a crash or a write still in progress, counts as absent,
-// so one bad review directory does not hide the others.
-function readJson(file) {
-  try {
-    return JSON.parse(fs.readFileSync(file, 'utf8'));
-  } catch (error) {
-    if (error.code === 'ENOENT' || error instanceof SyntaxError) return null;
-    throw error;
-  }
-}
-
-function subdirectories(dir) {
-  return fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort((a, b) => a.localeCompare(b, 'en', { numeric: true })) : [];
-}
-
-// A server that stopped without removing its URL, for example after a kill -9, no longer has a process.
-function isRunning(pid) {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return error.code === 'EPERM';
-  }
-}
-
-function listReviews(root = stateRoot()) {
-  const reviews = [];
-  for (const owner of subdirectories(root)) {
-    for (const repo of subdirectories(path.join(root, owner))) {
-      for (const number of subdirectories(path.join(root, owner, repo))) {
-        const dir = path.join(root, owner, repo, number);
-        const review = readJson(path.join(dir, 'review.json'));
-        if (!review) continue;
-        const server = readJson(path.join(dir, 'server.json'));
-        reviews.push({
-          owner, repo, number: Number(number), dir,
-          title: review.pr?.title || '',
-          state: review.remote?.state || 'open',
-          session: readJson(path.join(dir, 'session.json')),
-          url: server && isRunning(server.pid) ? server.url : null,
-        });
-      }
-    }
-  }
-  return reviews;
-}
+const { reviewDir, writeSession, watchEvents, listReviews } = require('./reviews.js');
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
@@ -230,6 +168,11 @@ function main([command, ...args]) {
     console.log(JSON.stringify(writeSession(args[0], args[2] || null)));
     return 0;
   }
+  if (command === 'watch' && (args.length === 1 || (args.length === 3 && args[1] === '--worktree'))) {
+    writeSession(args[0], args[2] || null, process.pid);
+    watchEvents(path.join(args[0], 'events.jsonl'), (line) => console.log(`EVENT ${line}`));
+    return undefined;
+  }
   if (command === 'list' && args.length === 0) {
     listReviews().forEach((review) => console.log(`${review.owner}/${review.repo}#${review.number} ${review.state} ${review.url || 'not running'} ${review.dir}`));
     return 0;
@@ -242,4 +185,4 @@ if (require.main === module) {
   process.exitCode = main(process.argv.slice(2));
 }
 
-module.exports = { reviewDir, parseDiff, mergeHunks, checkFlows, writeSession, listReviews };
+module.exports = { parseDiff, mergeHunks, checkFlows };
