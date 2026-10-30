@@ -80,7 +80,6 @@ function listReviews(root = stateRoot()) {
         const dir = path.join(root, owner, repo, number);
         const review = readJson(path.join(dir, 'review.json'));
         if (!review) continue;
-        const server = readJson(path.join(dir, 'server.json'));
         const session = readJson(path.join(dir, 'session.json'));
         reviews.push({
           owner, repo, number: Number(number), dir,
@@ -88,7 +87,6 @@ function listReviews(root = stateRoot()) {
           state: review.remote?.state || 'open',
           session,
           agentConnected: Boolean(session?.watcherPid && isRunning(session.watcherPid)),
-          url: server && isRunning(server.pid) ? server.url : null,
         });
       }
     }

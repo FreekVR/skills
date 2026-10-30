@@ -3,5 +3,3 @@ node_modules/
 .data/
 test-results/
 playwright-report/
-# The built server is committed once the review page runs on it instead of serve.js.
-.output/

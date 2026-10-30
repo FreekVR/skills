@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
-const { openReview, startServer } = require('./helpers.js');
+const { openReview } = require('./helpers.js');
 const { review: fixture } = require('./fixture.js');
 
 const other = () => {
@@ -21,29 +21,13 @@ test('the review switch lists both reviews and shows how to resume one that does
   await expect(page.getByText('Ask your agent to resume the guided review of example-org/sample-widget#18.')).toBeVisible();
 });
 
-// The Nuxt server serves every review, so its switch links to the other review's path on the same server.
-test('the review switch links to another review on the same Nuxt server', async ({ page }) => {
-  test.skip(process.env.REVIEW_TARGET !== 'nuxt', 'Only the Nuxt server serves every review.');
+// One server serves every review, so the switch links to the other review's path on the same server.
+test('the review switch links to another review on the same server', async ({ page }) => {
   await openReview(page, { others: [other()] });
   await page.getByRole('banner').getByText('2 reviews').click();
   await expect(page.getByRole('link', { name: /fix: round the temperature/ })).toHaveAttribute('href', '/example-org/sample-widget/18');
 });
 
-// The single-file page links only to a review with its own running server.
-test('the review switch links to another review whose own server runs', async ({ page }) => {
-  test.skip(process.env.REVIEW_TARGET === 'nuxt', 'Only the single-file page runs one server per review.');
-  const review = await openReview(page, { others: [other()] });
-  const dir = path.join(review.stateHome, 'guided-pr-review', 'example-org', 'sample-widget', '18');
-  const { url, stop } = await startServer(dir, review.stateHome);
-  page.on('close', stop);
-
-  await page.reload();
-  await page.getByRole('main').waitFor();
-  await page.getByRole('banner').getByText('2 reviews').click();
-  await expect(page.getByRole('link', { name: /fix: round the temperature/ })).toHaveAttribute('href', url);
-});
-
-// This test changes form after the Nuxt migration: the page will then show per review whether an agent is connected.
 test('when the server stops the page says the review is not running and shows the resume command', async ({ page }) => {
   const review = await openReview(page);
   fs.writeFileSync(path.join(review.dir, 'session.json'), JSON.stringify({ sessionId: 'abc-123', cwd: '/work/sample widget', worktree: null }));

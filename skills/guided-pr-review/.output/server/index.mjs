@@ -1,0 +1,17 @@
+import process from 'node:process';globalThis._importMeta_={url:import.meta.url,env:process.env};import 'node:http';
+import 'node:https';
+export { I as default } from './chunks/nitro/nitro.mjs';
+import 'unhead/server';
+import 'vue';
+import 'unhead/legacy';
+import 'unhead/plugins';
+import 'node:events';
+import 'node:buffer';
+import 'node:fs';
+import 'node:path';
+import 'node:crypto';
+import 'fs';
+import 'os';
+import 'path';
+import 'child_process';
+import 'node:url';

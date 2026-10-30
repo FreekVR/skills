@@ -1,37 +1,21 @@
 'use strict';
 // Starts the review server on a copy of the fixture, so each test owns its review directory.
-// REVIEW_TARGET picks the server: "legacy" (scripts/serve.js) or "nuxt" (the built Nuxt server, one for all reviews).
 
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { spawn, execFileSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { expect } = require('@playwright/test');
 const { review: fixture } = require('./fixture.js');
 
 const ROOT = path.join(__dirname, '..', '..');
 
-function startNuxt(dir, stateHome) {
+function startServer(dir, stateHome) {
   const output = execFileSync(process.execPath, [path.join(ROOT, 'scripts', 'review-server.js')], { env: { ...process.env, XDG_STATE_HOME: stateHome } });
   const base = String(output).match(/READY (\S+)/)[1];
   const record = path.join(stateHome, 'guided-pr-review', 'server.json');
   const stop = () => { try { process.kill(JSON.parse(fs.readFileSync(record, 'utf8')).pid); } catch { /* already stopped */ } };
   return { url: base + path.relative(path.join(stateHome, 'guided-pr-review'), dir).split(path.sep).join('/'), stop };
-}
-
-async function startServer(dir, stateHome) {
-  const target = process.env.REVIEW_TARGET || 'legacy';
-  if (target === 'nuxt') return startNuxt(dir, stateHome);
-  if (target !== 'legacy') throw new Error(`Unknown REVIEW_TARGET ${target}`);
-  const child = spawn(process.execPath, [path.join(ROOT, 'scripts', 'serve.js'), dir], { env: { ...process.env, XDG_STATE_HOME: stateHome } });
-  const url = await new Promise((resolve, reject) => {
-    child.stdout.on('data', (chunk) => {
-      const ready = String(chunk).match(/READY (\S+)/);
-      if (ready) resolve(ready[1]);
-    });
-    child.on('exit', (code) => reject(new Error(`serve.js exited with ${code}`)));
-  });
-  return { url, stop: () => child.kill() };
 }
 
 // mutate changes the fixture before the page opens; reviewer is the saved reviewer state, if any.
@@ -99,4 +83,4 @@ async function openHunk(page, flow, stop) {
   await page.getByRole('navigation', { name: /^Hunks in / }).getByRole('button', { name: stop }).click();
 }
 
-module.exports = { openReview, openHunk, startServer, eventOf, expectPoll };
+module.exports = { openReview, openHunk, eventOf, expectPoll };

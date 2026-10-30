@@ -6,11 +6,10 @@
 //                                                        the explanations of hunks that did not change. Each file
 //                                                        passed with --whole becomes one hunk.
 //   node review-data.js check <review-file>              Check that every hunk is in a flow or in "notInAnyFlow".
-//   node review-data.js session <review-dir> [--worktree <path>]
-//                                                        Record in session.json which agent session runs the review.
-//   node review-data.js list                             Print the reviews that are not deleted.
+//   node review-data.js list                             Print the reviews that are not deleted, with their page URL
+//                                                        while the review server runs.
 //   node review-data.js watch <review-dir> [--worktree <path>]
-//                                                        Record this session like "session" does, then print each new
+//                                                        Record this session in session.json, then print each new
 //                                                        event in events.jsonl as an "EVENT <json>" line until stopped.
 'use strict';
 
@@ -18,7 +17,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const { reviewDir, writeSession, watchEvents, listReviews } = require('./reviews.js');
+const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, listReviews } = require('./reviews.js');
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
@@ -164,20 +163,21 @@ function main([command, ...args]) {
     console.log('ok: every hunk is placed');
     return 0;
   }
-  if (command === 'session' && (args.length === 1 || (args.length === 3 && args[1] === '--worktree'))) {
-    console.log(JSON.stringify(writeSession(args[0], args[2] || null)));
-    return 0;
-  }
   if (command === 'watch' && (args.length === 1 || (args.length === 3 && args[1] === '--worktree'))) {
     writeSession(args[0], args[2] || null, process.pid);
     watchEvents(path.join(args[0], 'events.jsonl'), (line) => console.log(`EVENT ${line}`));
     return undefined;
   }
   if (command === 'list' && args.length === 0) {
-    listReviews().forEach((review) => console.log(`${review.owner}/${review.repo}#${review.number} ${review.state} ${review.url || 'not running'} ${review.dir}`));
+    const server = readJson(path.join(stateRoot(), 'server.json'));
+    const base = server && isRunning(server.pid) ? server.url : null;
+    listReviews().forEach((review) => {
+      const page = base ? `${base}${review.owner}/${review.repo}/${review.number}` : 'server not running';
+      console.log(`${review.owner}/${review.repo}#${review.number} ${review.state} ${review.agentConnected ? 'agent connected' : 'no agent'} ${page} ${review.dir}`);
+    });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | session <review-dir> [--worktree <path>] | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] | list');
   return 2;
 }
 
