@@ -1,7 +1,7 @@
 ---
 name: guided-pr-review
 description: Use when a developer wants to review a GitHub pull request themselves with guidance, for example "guide me through PR 123", "walk me through this pull request", "help me review this PR step by step", "I need to review PR <url> but don't know this code", or "review the PR for ticket ABC-123 with me". Do not use when the user wants the agent to review a PR on its own and only report or post the result, to review local uncommitted changes, to answer review comments on their own PR, or for GitLab or Bitbucket.
-compatibility: Needs Node.js 22.21 or newer, git, read and write access to GitHub, a background process whose output the agent can watch, and a browser on the same computer. The review page loads avatars from github.com; without internet it shows none.
+compatibility: Needs Node.js 22.22.3 or a newer 22, 24.15 or a newer 24, or 26 and up, git, read and write access to GitHub, a background process whose output the agent can watch, and a browser on the same computer. The review page loads avatars from github.com; without internet it shows none.
 metadata:
   internal: true
 ---
@@ -18,7 +18,7 @@ You MUST complete these checks in order and mark each one done before you contin
 
 1. [ ] The user named a PR (URL, or number plus repository) or a Jira ticket key. If not, ask. Do not guess a PR from the current branch.
 2. [ ] This session is not already running a guided review for another PR. If it is, stop and ask the user to start this review in a new session: one session MUST run only one guided review at a time.
-3. [ ] `node` 22.21 or newer and `git` are available. If not, stop and tell the user.
+3. [ ] `git` is available, and `node --version` matches `^22.22.3 || ^24.15.0 || >=26`. If not, stop and tell the user.
 4. [ ] You can read the PR and post reviews on GitHub, through the `gh` CLI or a GitHub tool. If not, stop and tell the user. Only GitHub is supported.
 5. [ ] You can run a background process and act on each line it prints while the user works, and the user has a browser on this computer. If not, stop and tell the user that this skill needs both.
 6. [ ] You know the one PR to review. For a Jira ticket: read its development links with a tool that can read Jira. If you have no such tool, or the ticket links no PR, stop and ask for a PR URL. If it links several PRs, list them with repository, title and state, and ask the user to pick one. Keep the others as linked PRs for the context step.

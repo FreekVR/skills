@@ -2,6 +2,19 @@
   "name": "guided-pr-review",
   "private": true,
   "type": "commonjs",
+  "packageManager": "npm@11.19.1",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^22.22.3 || ^24.15.0 || >=26",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": "^11.19.1",
+      "onFail": "error"
+    }
+  },
   "scripts": {
     "dev": "nuxt dev",
     "build": "nuxt build",
