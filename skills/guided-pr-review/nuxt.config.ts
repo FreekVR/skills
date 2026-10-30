@@ -8,5 +8,7 @@ export default defineNuxtConfig({
   icon: { serverBundle: { collections: ['lucide'] }, clientBundle: { scan: true } },
   // Fonts would be fetched from Google at build time; the page uses system fonts.
   ui: { fonts: false },
+  // The theme tokens in main.css follow data-theme, as on the single-file page.
+  colorMode: { dataValue: 'theme', classSuffix: '' },
   eslint: { config: { stylistic: false } },
 })

@@ -1,2 +1,97 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* Tailwind's dark: variant follows the same data-theme attribute as the tokens below. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* The colours and type of the single-file review page, kept as the design tokens of this app.
+   static: the flow colours are also read as var(--color-<name>) from inline styles, which Tailwind does not see. */
+@theme static {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+  --ease-review: cubic-bezier(.33, 1, .68, 1);
+  --color-add-bg: #e3eedb;
+  --color-add-ink: #1d5c2e;
+  --color-del-bg: #f6e2da;
+  --color-del-ink: #8a2418;
+  --color-line-a: #7a4468;
+  --color-line-b: #466a5a;
+  --color-line-c: #8f4a2c;
+  --color-line-d: #3f5a7a;
+  --color-line-e: #5c6b2e;
+  --color-line-f: #6b5040;
+  --color-unplaced: #8a8270;
+}
+
+:root {
+  color-scheme: light dark;
+  --ui-bg: #f7f4ec;
+  --ui-bg-muted: #f2eee3;
+  --ui-bg-elevated: #eee8da;
+  --ui-bg-accented: #e4dccb;
+  --ui-text: #221f19;
+  --ui-text-highlighted: #221f19;
+  --ui-text-toned: #4b463b;
+  --ui-text-muted: #686152;
+  --ui-text-dimmed: #726c5c;
+  --ui-border: #dcd4c3;
+  --ui-border-accented: #b8ad97;
+  --ui-primary: #1d3fa8;
+  --ui-success: #1a6b33;
+  --ui-error: #b3261e;
+  --ui-warning: #8a5a00;
+  --ui-info: #0019a8;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-add-bg: #17301e;
+  --color-add-ink: #9ad8a8;
+  --color-del-bg: #3a1d19;
+  --color-del-ink: #f2a79c;
+  --color-unplaced: #7b7b74;
+  --color-line-a: #e879f9;
+  --color-line-b: #67e8f9;
+  --color-line-c: #a78bfa;
+  --color-line-d: #f472b6;
+  --color-line-e: #9fb0c2;
+  --color-line-f: #c7b299;
+  --ui-bg: #151514;
+  --ui-bg-muted: #1a1a19;
+  --ui-bg-elevated: #1e1e1c;
+  --ui-bg-accented: #2a2a27;
+  --ui-text: #ededea;
+  --ui-text-highlighted: #ffffff;
+  --ui-text-toned: #c2c2bc;
+  --ui-text-muted: #96968f;
+  --ui-text-dimmed: #86867f;
+  --ui-border: #33332f;
+  --ui-border-accented: #4a4a45;
+  --ui-primary: #60a5fa;
+  --ui-success: #6fcf8a;
+  --ui-error: #ff8a80;
+  --ui-warning: #ffcf3f;
+  --ui-info: #8ea2ff;
+}
+
+body {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .3 0 0 0 0 .2 0 0 0 .06 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
+    var(--ui-bg);
+  background-attachment: fixed;
+  font: 15px/1.6 var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+:root[data-theme="dark"] body {
+  background:
+    radial-gradient(60vw 50vh at 0% 0%, color-mix(in srgb, var(--color-line-c) 38%, transparent), transparent 70%),
+    radial-gradient(50vw 60vh at 100% 15%, color-mix(in srgb, var(--color-line-b) 26%, transparent), transparent 70%),
+    radial-gradient(70vw 50vh at 60% 100%, color-mix(in srgb, var(--color-line-a) 30%, transparent), transparent 70%),
+    var(--ui-bg);
+  background-attachment: fixed;
+}

@@ -53,7 +53,7 @@ test('shows the explanation, and asks for a longer one', async ({ page }) => {
   await page.getByRole('button', { name: 'Explain more' }).click();
   expect((await eventOf(review, 'explain')).hunkId).toBe(H.cache);
   review.update((data) => { data.hunks.find((hunk) => hunk.id === H.cache).explanationMore = 'The longer story about the TTL.'; });
-  await page.getByText('Longer explanation from the AI').click();
+  // The longer explanation opens by itself when it arrives.
   await expect(page.getByText('The longer story about the TTL.')).toBeVisible();
 });
 

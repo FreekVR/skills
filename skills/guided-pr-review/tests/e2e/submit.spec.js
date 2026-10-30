@@ -167,7 +167,7 @@ test('shows the error when GitHub refuses a draft', async ({ page }) => {
 test('does not post a draft without anything in it', async ({ page }) => {
   const review = await openSubmit(page, { mutate: noOwnReview });
   await page.getByRole('main').getByRole('button', { name: /^Post as draft/ }).click();
-  await expect(page.getByText('There is nothing to put in a draft yet.')).toBeVisible();
+  await expect(page.getByText('There is nothing to put in a draft yet.').last()).toBeVisible();
   expect(review.events().filter((event) => event.type === 'post')).toEqual([]);
 });
 
