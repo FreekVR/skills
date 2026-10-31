@@ -3,7 +3,7 @@ import { githubStatus, hasOwnReview, postedInEarlierRound, postedReview, standin
 
 // Get a reviewer state with every field set.
 export function emptyReviewer() {
-  return { seen: [], decisions: {}, edits: {}, severities: {}, remarks: [], summary: '', verdict: null, hunkVerdicts: {}, threadCalls: {}, threadReplies: {}, knownHunks: [], sent: [], imported: [] }
+  return { seen: [], seenIn: {}, decisions: {}, edits: {}, severities: {}, remarks: [], summary: '', verdict: null, hunkVerdicts: {}, threadCalls: {}, threadReplies: {}, knownHunks: [], sent: [], imported: [] }
 }
 
 // Lines, hunks and stations only change with review.json, so index them once per change.

@@ -21,9 +21,11 @@ export function saveReviewer() {
   }, 250)
 }
 
-export function markSeen(hunkId) {
+// `lineId` is the flow the reviewer saw the hunk in first, so another flow can say they saw it there.
+export function markSeen(hunkId, lineId) {
   if (!isSeen(hunkId)) {
     state.reviewer.seen.push(hunkId)
+    state.reviewer.seenIn = { ...state.reviewer.seenIn, [hunkId]: lineId }
     state.seen.add(hunkId)
     state.freshHunks.delete(hunkId)
     saveReviewer()

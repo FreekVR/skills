@@ -14,7 +14,7 @@ export function markCurrentSeen() {
   if (state.view.kind === 'station' && !state.view.line) state.view.line = lines()[0].id
   if (state.view.kind !== 'station') return
   const stop = lineById(state.view.line).stops[state.view.index]
-  if (stop) markSeen(stop.hunkId)
+  if (stop) markSeen(stop.hunkId, state.view.line)
 }
 
 // Open the hunk at this index of a flow. `state.ui.enter` says from which side the new hunk comes in: next or prev.

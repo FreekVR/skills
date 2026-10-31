@@ -36,6 +36,19 @@ test('a hunk in two flows counts as seen in both', async ({ page }) => {
   expect(review.reviewer().seen.filter((id) => id === H.cache)).toHaveLength(1);
 });
 
+test('a hunk says you saw it in another flow only after you saw it there', async ({ page }) => {
+  await openReview(page);
+  const sawIt = page.getByText('You saw this hunk in another flow already.');
+  await openFlow(page, 'Store the forecast');
+  await expect(stop(page, 'B1')).toHaveAttribute('aria-current', 'step');
+  await expect(page.getByTitle('Open this hunk in the flow Show the forecast')).toBeVisible();
+  await expect(sawIt).toBeHidden();
+  await page.getByRole('button', { name: 'Home' }).click();
+  await openFlow(page, 'Show the forecast');
+  await stop(page, 'A2').click();
+  await expect(sawIt).toBeVisible();
+});
+
 test('keyboard: j, k and n move between hunks', async ({ page }) => {
   await openReview(page);
   await page.keyboard.press('j');

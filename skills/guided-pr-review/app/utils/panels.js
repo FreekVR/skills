@@ -1,7 +1,7 @@
 // The data parts of the old page's render functions. The view draws them; icon names here are names, not icons:
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
-import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, firstStationOf, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityRank, severityTone, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
+import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityRank, severityTone, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
 import { answerFor, buildPost, githubStatus, isFinishing, newComments, openOwnThreads, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsWithoutCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
@@ -47,10 +47,10 @@ export function advice(hunk) {
 
 export function explainPending(hunk) { return sentEvents('explain', hunk.id).length > 0 && !hunk.explanationMore }
 
-// The hunk in view is also in an earlier stop, so the reviewer saw it there.
+// The reviewer saw the hunk in view first in another flow.
 export function seenBefore(hunkId) {
-  const first = firstStationOf(hunkId)
-  return Boolean(first && (first.line.id !== state.view.line || first.index !== state.view.index))
+  const where = state.reviewer.seenIn[hunkId]
+  return Boolean(where && where !== state.view.line)
 }
 
 export function fixLine(own) {
