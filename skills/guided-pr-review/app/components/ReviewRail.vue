@@ -15,7 +15,7 @@ const flows = computed(() => lines().map((line: { id: string, stops: { hunkId: s
 const reviewCounts = computed(() => {
   const others = othersReviewCount()
   const toCheck = threadsToCheck().length
-  return [others ? `${others} by others` : '', toCheck ? `${toCheck} to decide` : ''].filter(Boolean).join(' · ')
+  return [others ? `${others} by others` : '', toCheck ? needsDecisionLabel(toCheck) : ''].filter(Boolean).join(' · ')
 })
 
 const submit = computed(() => {

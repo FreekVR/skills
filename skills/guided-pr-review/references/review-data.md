@@ -55,7 +55,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   ],
   "viewer": { "login": "<login of the authenticated GitHub user>" },
   "reviews": [
-    { "id": 5653742310, "author": "other-reviewer", "state": "CHANGES_REQUESTED", "submittedAt": "<ISO time>", "url": "<link to the review>", "body": "<the review body, verbatim>" }
+    { "id": 5653742310, "author": "other-reviewer", "state": "CHANGES_REQUESTED", "commitId": "<the commit the review was made on>", "submittedAt": "<ISO time>", "url": "<link to the review>", "body": "<the review body, verbatim>" }
   ],
   "reviewComments": [
     { "id": "c1", "reviewId": 5653742310, "threadId": "<GraphQL ID of the thread>", "author": "other-reviewer", "url": "<link to the comment>", "hunkId": "3f2a9c1d0b7e", "path": "src/cache.ts", "line": 2, "side": "RIGHT",
@@ -86,7 +86,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - An acceptance criterion has `source` `ticket` when the ticket lists it, or `description` when the agent took it from the description because the ticket lists none. Do not repeat that in `text`. `verdict` is `met`, `not-met` or `unclear`, with a one-line `note`.
 - `relatedTickets` holds open tickets that concern the same code, found by searching the tracker. Each one has `key`, `url` and `title`, and no criteria. The review page links their keys like the linked tickets; a related ticket's project prefix also makes other keys with that prefix linkable. They do not count as acceptance criteria.
 - `tickets` holds Jira tickets (`key` like `WX-42`) and GitHub issues (`key` like `example-org/sample-api#12`), each with `url` and `title`. The review page links every reference it can resolve in any text, with the title as tooltip.
-- `reviews` are the submitted reviews on the PR, by the user and by others, without pending ones and without the empty `COMMENTED` reviews GitHub makes for thread replies. `state` is GitHub's: `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED` or `DISMISSED`. The Existing reviews tab shows them, the user's own first.
+- `reviews` are the submitted reviews on the PR, by the user and by others, without pending ones and without the empty `COMMENTED` reviews GitHub makes for thread replies. `state` is GitHub's: `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED` or `DISMISSED`. `commitId` is GitHub's `commit_id` of the review: the head commit when it was submitted. The Existing reviews tab shows them, the user's own first, each with its commit next to the commit the page shows.
 - `reviewComments` are other reviewers' line comments, resolved ones too, each with the `reviewId` it belongs to. `stance` is `agree`, `disagree` or `unsure`. Open comments also show on their hunk; a comment with `hunkId: null`, or on a line outside the diff, shows on the home page. The review page never posts these comments. The reviewer can copy one into their own review as a new remark.
 - `viewer.login` is the authenticated GitHub user; the review page shows that account's avatar on the user's own remarks, and none when `viewer` is missing.
 - `pr.body` is the PR description, verbatim; the home page shows it as a collapsible block.

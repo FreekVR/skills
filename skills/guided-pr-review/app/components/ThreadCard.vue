@@ -10,10 +10,21 @@ const props = defineProps<{ comment: Comment, mine: boolean }>()
 
 const at = computed(() => (props.comment.hunkId ? firstStationOf(props.comment.hunkId) : null))
 const copied = computed(() => isCopied(props.comment))
+const reasons = computed(() => (props.mine && !props.comment.resolved && !threadCall(props.comment) ? checkReasons(props.comment) : []))
 </script>
 
 <template>
-  <component :is="comment.resolved ? 'details' : 'div'" class="thread mt-3.5 rounded-lg border border-default bg-elevated" :class="comment.resolved ? 'px-3.5 py-2' : 'px-3.5 py-3'">
+  <component
+    :is="comment.resolved ? 'details' : 'div'"
+    class="thread mt-3.5 scroll-mt-6 rounded-lg border bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info"
+    :class="[comment.resolved ? 'px-3.5 py-2' : 'px-3.5 py-3', reasons.length ? 'border-warning' : 'border-default']"
+    :data-needs-decision="reasons.length ? '' : undefined"
+    :tabindex="reasons.length ? -1 : undefined"
+  >
+    <p v-if="reasons.length" class="mt-0 mb-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-label">
+      <span class="inline-flex items-center gap-1 font-semibold text-warning"><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Needs your decision</span>
+      <span class="text-toned">{{ reasons.join(' · ') }}</span>
+    </p>
     <component :is="comment.resolved ? 'summary' : 'div'" class="flex list-none flex-wrap items-center gap-x-2.5 gap-y-1.5" :class="{ 'cursor-pointer': comment.resolved }">
       <span class="font-mono text-label wrap-anywhere text-toned">{{ threadPlace(comment) }}</span>
       <span v-if="comment.outdated" class="text-label text-dimmed">outdated</span>

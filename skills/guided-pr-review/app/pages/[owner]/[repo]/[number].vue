@@ -38,7 +38,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
     <a href="#main" class="sr-only focus:not-sr-only">Skip to the content</a>
     <ReviewStrip class="md:col-start-2 md:row-start-1" />
     <ReviewRail class="md:col-start-1 md:row-span-2 md:row-start-1" />
-    <main id="main" ref="main" tabindex="-1" class="relative overflow-x-clip overflow-y-auto md:col-start-2 md:row-start-2">
+    <main id="main" ref="main" tabindex="-1" class="relative overflow-x-clip md:overflow-y-auto md:col-start-2 md:row-start-2">
       <ReviewUpdates />
       <HomeView v-if="state.view.kind === 'home'" />
       <TerminusView v-else-if="state.view.kind === 'terminus'" />

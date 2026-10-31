@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // One review on GitHub with its comment threads, from reviewCard in panels.js. The current review holds the update.
-const props = defineProps<{ review: { id: number, author: string, state: string, submittedAt?: string, url?: string, body?: string }, current: boolean }>()
+const props = defineProps<{ review: { id: number, author: string, state: string, commitId?: string, submittedAt?: string, url?: string, body?: string }, current: boolean }>()
 
 const STATE_COLORS: Record<string, string> = { approved: 'text-success', changes: 'text-error' }
 const card = computed(() => reviewCard(props.review, props.current))
@@ -21,7 +21,8 @@ function onToggle(event: Event) {
         <VerdictIcon :verdict="card.kind.icon" class="size-3.5" />{{ card.kind.label }}
       </span>
       <span v-if="review.submittedAt" class="text-label text-dimmed">{{ timeLabel(review.submittedAt) }}</span>
-      <span class="ml-auto text-ui text-toned">{{ plural(card.comments.length, 'comment') }}{{ card.toCheck ? ` · ${card.toCheck} to resolve or leave open` : '' }}</span>
+      <span v-if="card.commit" class="text-label text-dimmed">{{ card.commit }}</span>
+      <span class="ml-auto text-ui text-toned">{{ plural(card.comments.length, 'comment') }}<span v-if="card.toCheck" class="font-semibold text-warning"> · {{ needsDecisionLabel(card.toCheck) }}</span></span>
     </summary>
     <div class="border-t border-default px-4 pb-4">
       <div v-if="review.body" class="mt-3">

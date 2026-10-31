@@ -20,7 +20,7 @@ const buttons = computed(() => BUTTONS.filter((button) => button.call !== 'resol
     Resolved on GitHub.
   </p>
   <template v-else-if="actions">
-    <div class="mt-2.5 inline-flex flex-wrap gap-2" role="group" aria-label="Your call on this comment">
+    <div class="mt-2.5 inline-flex flex-wrap gap-2" role="group" aria-label="Your decision on this comment">
       <UButton
         v-for="button in buttons"
         :key="button.call"

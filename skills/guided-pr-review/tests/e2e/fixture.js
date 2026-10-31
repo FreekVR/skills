@@ -76,8 +76,8 @@ function review() {
       { id: 'f3', hunkId: null, severity: 'medium', title: 'No test for the card', body: 'The new card has no test.', rule: 'tests' },
     ],
     reviews: [
-      { id: 501, author: 'other-reviewer', state: 'CHANGES_REQUESTED', submittedAt: '2026-10-20T09:00:00Z', url: 'https://github.com/example-org/sample-widget/pull/17#pullrequestreview-501', body: 'Please check the TTL.' },
-      { id: 502, author: 'sample-reviewer', state: 'COMMENTED', submittedAt: '2026-10-21T09:00:00Z', url: 'https://github.com/example-org/sample-widget/pull/17#pullrequestreview-502', body: 'First round.' },
+      { id: 501, author: 'other-reviewer', state: 'CHANGES_REQUESTED', commitId: '9f8e7d6c5b4a', submittedAt: '2026-10-20T09:00:00Z', url: 'https://github.com/example-org/sample-widget/pull/17#pullrequestreview-501', body: 'Please check the TTL.' },
+      { id: 502, author: 'sample-reviewer', state: 'COMMENTED', commitId: 'aaa111', submittedAt: '2026-10-21T09:00:00Z', url: 'https://github.com/example-org/sample-widget/pull/17#pullrequestreview-502', body: 'First round.' },
     ],
     reviewComments: [
       { id: 'c1', reviewId: 501, threadId: 'T-c1', author: 'other-reviewer', url: 'https://github.com/example-org/sample-widget/pull/17#discussion_r1', hunkId: H.client, path: 'src/api/weatherClient.ts', line: 11, side: 'RIGHT',

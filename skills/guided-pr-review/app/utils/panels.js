@@ -290,7 +290,7 @@ export function threadCallCounts() {
   const threads = openOwnThreads()
   const count = (call) => threads.filter((own) => threadCall(own) === call).length
   const left = threadsWithoutCall().length
-  return `${count('resolve')} to resolve · ${count('open')} left open${left ? ` · ${left} without a call` : ''}`
+  return `${count('resolve')} to resolve · ${count('open')} left open${left ? ` · ${left} without a decision` : ''}`
 }
 
 // Below the reviewer's newest review: the call on each open comment becomes an update of that review.
@@ -312,6 +312,15 @@ export function updateFooter(review) {
   }
 }
 
+// The commit a review on GitHub was made on, next to the commit this page shows.
+export function commitLabel(sha) {
+  if (!sha) return null
+  const where = sha === state.review.pr.headSha ? 'the commit on this page' : sha === state.review.remote?.headSha ? 'a newer commit than this page' : 'an older commit'
+  return `on ${shortSha(sha)} · ${where}`
+}
+
+export function shortSha(sha) { return sha.slice(0, 7) }
+
 // The reviews on GitHub, newest first, split into the reviewer's own and those of others.
 export function existingReviews() {
   const reviews = [...(state.review.reviews || [])].sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''))
@@ -329,6 +338,7 @@ export function reviewCard(review, current) {
     mine,
     comments,
     toCheck,
+    commit: commitLabel(review.commitId),
     key,
     // After an update, the comments still open sit in an older review; that review stays open so they are in reach.
     open: state.ui.terminusOpen?.[key] ?? (current || (mine ? toCheck > 0 : review.state !== 'APPROVED')),

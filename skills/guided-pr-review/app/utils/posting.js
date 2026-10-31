@@ -81,9 +81,15 @@ export function threadsWithoutCall() { return openOwnThreads().filter((own) => !
 
 // A comment needs the reviewer's look once commits came after it (the agent then wrote a fix check)
 // or someone else replied last; until then there is nothing new to resolve or leave open.
-export function threadsToCheck() {
-  return threadsWithoutCall().filter((own) => own.fix || (own.replies?.length && own.replies.at(-1).author !== viewerLogin()))
+export function threadsToCheck() { return threadsWithoutCall().filter((own) => checkReasons(own).length) }
+
+// Why a comment needs the reviewer's decision, as the page shows it next to the comment.
+export function checkReasons(own) {
+  const last = own.replies?.at(-1)
+  return [own.fix ? 'New commits since your comment' : '', last && last.author !== viewerLogin() ? `@${last.author} replied` : ''].filter(Boolean)
 }
+
+export function needsDecisionLabel(count) { return `${count} ${count === 1 ? 'needs' : 'need'} your decision` }
 
 // A posted comment stands until GitHub shows it resolved or the reviewer chose to resolve it.
 export function standingOwnRemarks() { return postedOwnRemarks().filter((own) => !own.resolved && threadCall(own) !== 'resolve') }
