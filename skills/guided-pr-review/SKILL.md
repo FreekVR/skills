@@ -55,8 +55,11 @@ Big PR: read them in the worktree. Set `pr.localPath` to the absolute path of th
 
 Find how the changed code fits together, using change untangling and ordering related changes together. This is the most important step. Take the time it needs: read the surrounding code, not only the diff.
 
+- Untangle the changes (change untangling, Barnett et al., ICSE 2015): split the PR into groups of changes that depend on each other, where one change defines or calls code that another change uses. Each group becomes a flow. A hunk that two groups use, such as a shared function, goes in both flows. A change with no such link, such as a rename or a format change, goes in its own flow or in `notInAnyFlow`, not in the flow of other changes.
+- Order related changes together (Baum et al., Empirical Software Engineering 2019): in a flow, put hunks that depend on each other next to each other, such as a function and its callers, so the reviewer does not keep a change in memory while reading unrelated hunks.
 - A flow is a path through the code, with a name in plain words, an entry point and an end point (fully qualified code names with their namespace or module path, such as `App\Weather\ForecastClient::fetch()` or `src/api/weatherClient.ts:fetchForecast()`, not sentences) and the ordered hunks it passes through.
-- Order the steps bottom-up by default (bottom-up program comprehension): for example the request to a backend first, then the model that holds the data, the repository that works with it, and last the UI or public API that shows it.
+- Order the steps bottom-up by default (bottom-up program comprehension, Pennington): for example the request to a backend first, then the model that holds the data, the repository that works with it, and last the UI or public API that shows it.
+- Order the steps top-down (top-down program comprehension, Brooks) when the PR adds a new entry point, such as a new endpoint or command: start at the entry point and follow the calls down.
 - Each step says in one line why it comes at that place.
 - Each flow has an `icon`: the name of a Lucide icon (https://lucide.dev/icons) that shows what the flow does, for example `database` or `globe`. Give each flow a different icon.
 - A flow MUST name the acceptance criteria of the linked tickets that it resolves. A flow that resolves none MUST get `noCriteria`: one line that says why, for example that no linked ticket lists criteria, or that the criteria belong to other flows.
