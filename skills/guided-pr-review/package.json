@@ -1,0 +1,45 @@
+{
+  "name": "guided-pr-review",
+  "private": true,
+  "type": "commonjs",
+  "packageManager": "npm@11.19.1",
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "^22.22.3 || ^24.15.0 || >=26",
+      "onFail": "error"
+    },
+    "packageManager": {
+      "name": "npm",
+      "version": "^11.19.1",
+      "onFail": "error"
+    }
+  },
+  "scripts": {
+    "dev": "nuxt dev",
+    "build": "nuxt build",
+    "postinstall": "nuxt prepare",
+    "lint": "eslint .",
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@comark/nuxt": "0.8.1",
+    "@iconify-json/lucide": "1.2.149",
+    "@nuxt/eslint": "1.17.0",
+    "@nuxt/test-utils": "4.3.4",
+    "@nuxt/ui": "4.12.0",
+    "@playwright/test": "1.64.1",
+    "@vue/test-utils": "2.5.1",
+    "@vueuse/core": "15.0.0",
+    "@vueuse/nuxt": "15.0.0",
+    "eslint": "10.13.0",
+    "happy-dom": "21.0.4",
+    "nuxt": "4.6.3",
+    "shiki": "4.5.0",
+    "tailwindcss": "4.3.3",
+    "vitest": "5.0.5",
+    "vue": "3.5.44",
+    "vue-router": "5.4.0"
+  }
+}

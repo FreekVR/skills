@@ -64,11 +64,12 @@ description: Use when <…>
 
 ### Harness neutrality
 
-Every skill MUST work in any harness that supports `SKILL.md`, such as Claude Code, Codex, pi and Mistral Vibe. Apply graceful degradation.
+Every skill MUST work in any harness that supports `SKILL.md`, such as Claude Code, Codex, pi and Mistral Vibe, unless it states a hard capability requirement. Apply graceful degradation.
 
 - A skill MAY use a capability that only some harnesses have, such as subagents, task lists, structured questions to the user or tool permissions. It MUST describe the capability in generic terms and MUST give the fallback for harnesses without it, for example: "If you can start a subagent, run the review there. Otherwise, run it yourself after the work is done."
+- A skill MAY have a hard capability requirement when no fallback can reach its end goal. It MUST describe the capability in generic terms, state it in `compatibility`, and check it in Preflight. When the capability is missing, the skill MUST stop and tell the user.
 - A skill MUST NOT refer to a tool, command or setting by a name that only one harness uses.
-- `compatibility` MUST NOT limit a skill to one harness. Use it for runtime requirements only, for example "Needs git and python3".
+- `compatibility` MUST NOT limit a skill to one harness. Use it for runtime requirements and hard capability requirements only, for example "Needs git and python3".
 
 ### References
 
@@ -133,7 +134,9 @@ When the task is done and the user corrected you, or this skill gave wrong or in
 - Scripts MUST use POSIX shell, `python3` or `node`, with the standard library only.
 - Scripts MUST NOT access the network or install packages.
 - Scripts MUST NOT write outside the working directory, and MUST NOT change git state unless the skill exists to do that.
+- Exception: a script MAY write state that must outlive a session to a per-user data directory: `$XDG_STATE_HOME/<skill-name>/`, or `~/.local/state/<skill-name>/` when `XDG_STATE_HOME` is not set. `SKILL.md` MUST name what is stored there and when it is deleted.
 - `SKILL.md` MUST say how to run each script.
+- Exception: a skill MAY ship a web app as source plus a committed build that runs with `node` only, for example a Nuxt `.output`. The build MAY contain third-party code. Its build tools MUST be development dependencies of the skill, and the agent MUST NOT build or install anything when the skill runs.
 
 ### Trigger tests
 
