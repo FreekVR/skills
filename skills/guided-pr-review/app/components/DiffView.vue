@@ -35,9 +35,13 @@ function rowClass(row: Row, index: number) {
     row.kind,
     selected && index >= selected[0] && index <= selected[1] && 'selected',
     selecting.value && index >= selecting.value[0] && index <= selecting.value[1] && 'selecting',
-    diff.value.marks.get(index),
+    marked.value && index >= marked.value[0] && index <= marked.value[1] && 'noted',
   ]
 }
+
+// The lines of the note the reviewer points at or has in focus.
+const marked = computed(() => (state.ui.activeNote ? diff.value.noteRanges.get(state.ui.activeNote) : null))
+function markNote(key: string | null) { state.ui.activeNote = key }
 
 function onPointerDown(event: PointerEvent, index: number) {
   if (event.button !== 0) return
@@ -108,7 +112,15 @@ useEventListener(document, 'pointerup', () => {
                 </td>
                 <td class="code"><DiffCode :text="row.text" :tokens="tokens?.[index]" /></td>
               </tr>
-              <tr v-for="note in diff.rowNotes[index]" :key="`${note.type}:${note.item.id}`" class="note">
+              <tr
+                v-for="note in diff.rowNotes[index]"
+                :key="noteKey(note)"
+                class="note"
+                @mouseenter="markNote(noteKey(note))"
+                @mouseleave="markNote(null)"
+                @focusin="markNote(noteKey(note))"
+                @focusout="markNote(null)"
+              >
                 <td colspan="4"><DiffNote :note="note" class="sticky left-0 w-[100cqw]" /></td>
               </tr>
               <tr v-if="index === diff.composerRow" class="note">
@@ -135,9 +147,7 @@ useEventListener(document, 'pointerup', () => {
 .station-diff tr.add td:is(.sign, .code) { color: var(--color-add-ink); }
 .station-diff tr.del { background: var(--color-del-bg); }
 .station-diff tr.del td:is(.sign, .code) { color: var(--color-del-ink); }
-.station-diff tr.noted td.num { box-shadow: inset 3px 0 0 var(--ui-text-muted); }
-.station-diff tr.noted-mine td { background-image: linear-gradient(color-mix(in srgb, var(--ui-text) 11%, transparent), color-mix(in srgb, var(--ui-text) 11%, transparent)); }
-.station-diff tr.noted-mine td.num { box-shadow: inset 4px 0 0 var(--ui-text); }
+.station-diff tr.noted td.num { box-shadow: inset 4px 0 0 var(--ui-text); }
 .station-diff tr:is(.selected, .selecting) td { background: color-mix(in srgb, var(--ui-info) 14%, transparent); }
 .station-diff tr:is(.selected, .selecting) td.num { box-shadow: inset 3px 0 0 var(--ui-info); }
 .station-diff tr.focus td.num { box-shadow: inset 3px 0 0 var(--ui-info); }

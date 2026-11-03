@@ -84,20 +84,18 @@ export function hunkDiff(hunk) {
   const notes = [...reviewCommentsOn(hunk.id).map((comment) => ({ type: 'comment', item: comment })), ...findings.map((finding) => ({ type: 'finding', item: finding })), ...remarks.map((remark) => ({ type: 'remark', item: remark })), ...posted.map((own) => ({ type: 'posted', item: own }))]
   if (hunk.lines.length === 0) {
     const empty = hunk.binary ? 'This is a binary file. Open it on GitHub to compare.' : `No line changes: the file is ${hunk.status}.`
-    return { rows, added, removed, ranges, empty, rowNotes: [], loose: notes, marks: new Map(), selected: null, composer: null, composerRow: -1 }
+    return { rows, added, removed, ranges, empty, rowNotes: [], loose: notes, noteRanges: new Map(), selected: null, composer: null, composerRow: -1 }
   }
   const placed = new Set()
   const composer = state.ui.composer && state.ui.composer.hunkId === hunk.id ? state.ui.composer : null
   const selected = composer ? [rowIndexOf(rows, composer.startLine ?? composer.line, composer.startSide ?? composer.side), rowIndexOf(rows, composer.line, composer.side)].sort((a, b) => a - b) : null
-  // Every line a note covers is marked; the reviewer's own remarks get the stronger mark.
-  const marks = new Map()
+  // The rows each note covers, by note key. As on GitHub, the diff marks them only while the reviewer points at the note.
+  const noteRanges = new Map()
   for (const note of notes) {
     if (!note.item.line) continue
     const end = rows.findIndex((row) => rowMatches(row, note.item))
     const start = note.item.startLine ? rows.findIndex((row) => rowMatches(row, { line: note.item.startLine, side: note.item.startSide || note.item.side })) : end
-    if (end === -1) continue
-    const mine = note.type === 'remark' || note.type === 'posted'
-    for (let index = Math.max(0, Math.min(start, end)); index <= end; index++) if (mine || !marks.has(index)) marks.set(index, mine ? 'noted-mine' : 'noted')
+    if (end !== -1) noteRanges.set(noteKey(note), [Math.max(0, Math.min(start, end)), end])
   }
   const rowNotes = rows.map((row) => {
     if (row.kind === 'meta') return []
@@ -106,8 +104,10 @@ export function hunkDiff(hunk) {
     return attached
   })
   const loose = notes.filter((note) => !placed.has(note))
-  return { rows, added, removed, ranges, empty: null, rowNotes, loose, marks, selected, composer, composerRow: composer ? rowIndexOf(rows, composer.line, composer.side) : -1 }
+  return { rows, added, removed, ranges, empty: null, rowNotes, loose, noteRanges, selected, composer, composerRow: composer ? rowIndexOf(rows, composer.line, composer.side) : -1 }
 }
+
+export function noteKey(note) { return `${note.type}:${note.item.id}` }
 
 export function firstChangedLine(hunk) {
   return diffRows(hunk).find((row) => row.kind === 'add')?.newNo || hunk.newStart

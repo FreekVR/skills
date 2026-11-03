@@ -252,3 +252,14 @@ test('shows a single line break in a comment as a new line, as GitHub does', asy
   const thread = page.getByRole('main').locator('.thread').filter({ hasText: 'First line' });
   await expect(thread.locator('p').filter({ hasText: 'First line' }).locator('br')).toHaveCount(1);
 });
+
+test('marks the lines of a comment in the diff only while you point at the comment, as GitHub does', async ({ page }) => {
+  await openReview(page, { mutate: (data) => { Object.assign(data.ownRemarks[0], { startLine: 1, startSide: 'RIGHT' }); } });
+  await page.getByRole('main').getByRole('button', { name: /^Store the forecast/ }).first().click();
+  const marked = page.locator('tr.noted');
+  await expect(page.locator('#note-gh-1')).toBeVisible();
+  await page.mouse.move(0, 0);
+  await expect(marked).toHaveCount(0);
+  await page.locator('#note-gh-1').hover();
+  await expect(marked).toHaveCount(4);
+});
