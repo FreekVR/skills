@@ -48,8 +48,8 @@ export function buildPost(kind) {
   if (general.length) parts.push(general.map((item) => `- ${labelled(item.severity, item.body).replace(/\n(?=.)/g, '\n  ')}`).join('\n'))
   const body = withDisclosure(parts.join('\n\n'), (state.reviewer.summaryAiSuggested || general.some((item) => item.source === 'ai')) && disclosure.review).trim()
   const event = { type: 'post', kind, body, comments }
-  // A reply shows on GitHub at once, so a draft does not take the replies.
-  if (kind === 'final') Object.assign(event, { verdict: state.reviewer.verdict || proposedVerdict(), replies: pendingReplies() })
+  // A reply or a resolved thread shows on GitHub at once, so only the final review takes them; a draft stays private.
+  if (kind === 'final') Object.assign(event, { verdict: state.reviewer.verdict || proposedVerdict(), replies: pendingReplies(), resolve: threadsToResolve() })
   const contents = items.map((item) => ({ id: item.id, body: item.body }))
   if (state.reviewer.summary.trim()) contents.push({ id: 'summary', body: state.reviewer.summary.trim() })
   return { event, contents }
@@ -155,7 +155,7 @@ export function postedVerdict(sent) {
 export function startNewRound() {
   const last = postedReview()
   if (!last) return
-  Object.assign(state.reviewer, { reopenedAfter: last.id, summary: '', summaryAiSuggested: false, verdict: null, remarks: [], threadCalls: {}, threadReplies: {}, updateNote: '', copiedToSummary: [] })
+  Object.assign(state.reviewer, { reopenedAfter: last.id, summary: '', summaryAiSuggested: false, verdict: null, remarks: [], threadCalls: {}, threadReplies: {}, copiedToSummary: [] })
   saveReviewer()
 }
 
@@ -175,10 +175,9 @@ export function pendingReplies() {
     .map(({ thread, body }) => ({ threadId: thread.threadId, body: withDisclosure(body, body === thread.fix?.reply?.trim() && disclosure.comment) }))
 }
 
-// Replies and resolved threads of an update: the replies with text, and the reviewer's own threads they chose to resolve.
-export function threadPayload() {
-  const resolve = openOwnThreads().filter((own) => threadCall(own) === 'resolve' && own.canResolve !== false)
-  return { resolve: resolve.map((own) => own.threadId), replies: pendingReplies() }
+// The reviewer's own open threads they chose to resolve, as thread IDs for the post.
+export function threadsToResolve() {
+  return openOwnThreads().filter((own) => threadCall(own) === 'resolve' && own.canResolve !== false).map((own) => own.threadId)
 }
 
 export function pendingSummaryDraft() {

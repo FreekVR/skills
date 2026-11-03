@@ -32,7 +32,12 @@ function onToggle(event: Event) {
         <a :href="review.url" target="_blank" rel="noopener" class="text-info underline underline-offset-3">Open on GitHub</a>
       </p>
       <ThreadCard v-for="comment in card.comments" :key="comment.id" :comment="comment" :mine="card.mine" />
-      <ReviewsUpdateFooter v-if="card.footer" :footer="card.footer" />
+      <p v-if="card.pending" class="mt-4.5 mb-0 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-default pt-3.5 text-ui text-toned">
+        Your decisions and replies go to GitHub with your next review.
+        <UButton color="neutral" variant="outline" class="font-semibold" @click="goTerminus()">
+          Submit review
+        </UButton>
+      </p>
     </div>
   </details>
 </template>

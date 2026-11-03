@@ -12,8 +12,8 @@ const BUTTONS = [
 const buttons = computed(() => BUTTONS.filter((button) => button.call !== 'resolve' || actions.value?.canResolve))
 
 const CHOSEN: Record<string, { title: string, text: string, tone: string }> = {
-  resolve: { title: 'You resolve this comment.', text: 'GitHub marks it resolved when you post the update.', tone: 'border-success/40 bg-success/8 [--tone:var(--ui-success)]' },
-  open: { title: 'You leave this comment open.', text: 'It stays open on GitHub after the update.', tone: 'border-error/40 bg-error/8 [--tone:var(--ui-error)]' },
+  resolve: { title: 'You resolve this comment.', text: 'GitHub marks it resolved when you post your next review.', tone: 'border-success/40 bg-success/8 [--tone:var(--ui-success)]' },
+  open: { title: 'You leave this comment open.', text: 'It stays open on GitHub.', tone: 'border-error/40 bg-error/8 [--tone:var(--ui-error)]' },
 }
 const chosen = computed(() => {
   const call = actions.value?.call

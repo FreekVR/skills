@@ -82,10 +82,11 @@ export function isCopied(comment) {
   return state.reviewer.remarks.some((remark) => remark.copiedFrom === comment.id) || (state.reviewer.copiedToSummary || []).includes(comment.id)
 }
 
-// Where the thread of a reply is, for the preview of what a post sends.
-export function replyPlace(threadId) {
+// Whose thread it is and where, for the preview of what a post sends. The reviewer's own threads have no author.
+export function threadLabel(threadId) {
   const thread = [...(state.review.ownRemarks || []), ...(state.review.reviewComments || [])].find((candidate) => candidate.threadId === threadId)
-  return thread ? `Reply to @${thread.author || viewerLogin()} on ${threadPlace(thread)}` : 'Reply in a thread'
+  if (!thread) return 'a thread'
+  return `${thread.author ? `@${thread.author}'s comment` : 'your comment'} on ${threadPlace(thread)}`
 }
 
 export function threadPlace(item) { return `${item.path || hunkById(item.hunkId)?.file || ''}${item.line ? ` ${lineLabel(item)}` : ''}` }
@@ -237,7 +238,7 @@ export function terminus() {
     finalVerdict: VERDICTS.find((option) => option.id === verdict),
     unseenWarning: (verdict === 'APPROVE' || verdict === 'REQUEST_CHANGES') && unseen.length ? `You have not seen ${unseen.length} of ${plural(review.hunks.length, 'hunk')}.` : '',
     post,
-    posts: `${post.body ? 'the review body and ' : ''}${plural(post.comments.length, 'comment')}${post.replies.length ? ` and ${plural(post.replies.length, 'reply', 'replies')}` : ''}`,
+    posts: [post.body ? 'the review body' : '', plural(post.comments.length, 'comment'), post.replies.length ? plural(post.replies.length, 'reply', 'replies') : '', post.resolve.length ? `${plural(post.resolve.length, 'thread')} to resolve` : ''].filter(Boolean).join(', '),
     general,
     openGeneral: general.filter((finding) => decisionOf(finding) === 'open').length,
     openFindings: review.findings.filter((finding) => decisionOf(finding) === 'open'),
@@ -281,14 +282,9 @@ export function postResult({ id, kind, at }) {
   return { status: 'posted', url: result.url, text: `${noun[0].toUpperCase() + noun.slice(1)} posted${at ? ` at ${timeLabel(at)}` : ''}.` }
 }
 
-// Updates show under the review they update, not here.
+// Posts of kind `update` came from an older version of the page and carry no comments; GitHub lists them as reviews.
 export function sentPosts() {
   return sentEvents('post').filter((sent) => sent.kind !== 'update').reverse()
-}
-
-export function updateStatus() {
-  const last = sentEvents('post').filter((sent) => sent.kind === 'update').at(-1)
-  return last ? postResult(last) : null
 }
 
 export function threadCallCounts() {
@@ -298,27 +294,8 @@ export function threadCallCounts() {
   return `${count('resolve')} to resolve · ${count('open')} left open${left ? ` · ${left} without a decision` : ''}`
 }
 
-// Below the reviewer's newest review: the call on each open comment becomes an update of that review.
-// A review that requests changes always gets the footer, so the reviewer can approve on top of it.
-// `verdicts` lists the update buttons in order; it is empty while comments wait for a call.
-export function updateFooter(review) {
-  const threads = openOwnThreads()
-  const requested = review.state === 'CHANGES_REQUESTED'
-  const replies = pendingReplies().length
-  if (!threads.length && !requested && !replies && !sentEvents('post').some((sent) => sent.kind === 'update')) return null
-  const left = threadsWithoutCall().length
-  const open = threads.filter((own) => threadCall(own) === 'open').length
-  return {
-    form: threads.length > 0 || requested || replies > 0,
-    left,
-    open,
-    verdicts: left ? [] : open ? ['REQUEST_CHANGES', 'APPROVE', 'COMMENT'] : ['APPROVE', 'COMMENT'],
-    intro: threads.length ? `${threadCallCounts()}. Replies and resolved comments go to GitHub with the update.`
-      : replies ? `${plural(replies, 'reply', 'replies')} to post. Replies go to GitHub with the update.`
-        : 'Your review requests changes. Approving now replaces that as your verdict.',
-    status: updateStatus(),
-  }
-}
+// Under the reviewer's newest review: their decisions and replies wait for the next review they post.
+function hasPendingThreadWork() { return openOwnThreads().length > 0 || pendingReplies().length > 0 }
 
 // The commit a review on GitHub was made on, next to the commit this page shows.
 export function commitLabel(sha) {
@@ -350,6 +327,6 @@ export function reviewCard(review, current) {
     key,
     // After an update, the comments still open sit in an older review; that review stays open so they are in reach.
     open: state.ui.terminusOpen?.[key] ?? (current || (mine ? toCheck > 0 : review.state !== 'APPROVED')),
-    footer: current ? updateFooter(review) : null,
+    pending: current && hasPendingThreadWork(),
   }
 }

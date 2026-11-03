@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// What the post sends to GitHub: the review body, each line comment and each reply in a thread.
-const props = defineProps<{ post: { body: string, comments: { path: string, line: number, side: string, start_line?: number, body: string }[], replies?: { threadId: string, body: string }[] } }>()
+// What the post sends to GitHub: the review body, each line comment, each reply in a thread and each thread it resolves.
+const props = defineProps<{ post: { body: string, comments: { path: string, line: number, side: string, start_line?: number, body: string }[], replies?: { threadId: string, body: string }[], resolve?: string[] } }>()
 
 const comments = computed(() => props.post.comments.map((comment) => ({
   ...comment,
@@ -31,11 +31,14 @@ const comments = computed(() => props.post.comments.map((comment) => ({
     </div>
     <div v-for="reply in post.replies || []" :key="reply.threadId" class="px-4.5 py-3.5">
       <div class="font-mono text-meta text-dimmed">
-        {{ replyPlace(reply.threadId) }}
+        Reply to {{ threadLabel(reply.threadId) }}
       </div>
       <div class="preview-text mt-1 text-ui">
         <SafeMarkdown :value="reply.body" />
       </div>
+    </div>
+    <div v-for="threadId in post.resolve || []" :key="`resolve-${threadId}`" class="flex items-center gap-2 px-4.5 py-3.5 font-mono text-meta text-dimmed">
+      <VerdictIcon verdict="approved" class="size-3.5 text-success" />Resolve {{ threadLabel(threadId) }}
     </div>
   </div>
 </template>

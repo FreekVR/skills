@@ -2,7 +2,7 @@ import { state, POLL_MS, CHECK_MS } from './state.js'
 import { transport } from './api.js'
 import { notify } from './notify.js'
 import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isCurrentReview, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
-import { answerFor, applySummaryDraft, buildPost, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits, threadPayload } from './posting.js'
+import { answerFor, applySummaryDraft, buildPost, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, restorePosition, step } from './navigation.js'
 import { composerKey } from './panels.js'
@@ -101,30 +101,17 @@ export async function post(kind) {
     notify('There is nothing to put in a draft yet. Accept a finding, write a remark or a summary first.', true)
     return
   }
-  const payload = { body: event.body, comments: event.comments, verdict: event.verdict, replies: event.replies }
+  if (kind === 'final' && event.verdict !== 'APPROVE' && !event.body) {
+    notify('Write a summary first. GitHub needs a review body for request changes and comment.', true)
+    return
+  }
+  const payload = { body: event.body, comments: event.comments, verdict: event.verdict, replies: event.replies, resolve: event.resolve }
   const id = await sendEvent(event, { contents, at: new Date().toISOString(), headSha: state.review.pr.headSha, payload })
   if (!id) return
-  clearSentReplies(event.replies)
+  // Sent replies are not sent again; a thread left open keeps its call until new commits start the next round.
+  for (const reply of event.replies || []) state.reviewer.threadReplies[reply.threadId] = ''
   saveReviewer()
   notify(kind === 'final' ? 'The review is on its way to GitHub.' : 'The draft is on its way to GitHub.')
-}
-
-// An update adds a review on top of the reviewer's earlier one. It carries no new line comments.
-export async function postUpdate(verdict) {
-  const body = (state.reviewer.updateNote || '').trim()
-  if (verdict !== 'APPROVE' && !body) return notify('Write a note to the author first. GitHub needs a body for this verdict.', true)
-  const event = { type: 'post', kind: 'update', verdict, body, comments: [], ...threadPayload() }
-  const id = await sendEvent(event, { at: new Date().toISOString(), payload: { verdict, body, resolve: event.resolve, replies: event.replies } })
-  if (!id) return
-  clearSentReplies(event.replies)
-  state.reviewer.updateNote = ''
-  saveReviewer()
-  notify('The update is on its way to GitHub.')
-}
-
-// Sent replies are not sent again; a thread left open keeps its call until new commits start the next round.
-function clearSentReplies(replies = []) {
-  for (const reply of replies) state.reviewer.threadReplies[reply.threadId] = ''
 }
 
 export function setTheme(choice) {
@@ -327,11 +314,6 @@ export function setSummary(text) {
   state.reviewer.summary = text
   // Once the reviewer clears the AI draft, what they write is their own.
   if (!text.trim()) state.reviewer.summaryAiSuggested = false
-  saveReviewer()
-}
-
-export function setUpdateNote(text) {
-  state.reviewer.updateNote = text
   saveReviewer()
 }
 

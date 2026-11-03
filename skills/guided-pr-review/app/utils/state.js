@@ -86,7 +86,7 @@ export const SEVERITY_TONES = ['info', 'info', 'warn', 'bad']
 
 export const AC_VERDICTS = { met: 'Met', 'not-met': 'Not met', unclear: 'Unclear' }
 
-export const POST_NOUNS = { final: 'review', draft: 'draft', update: 'update' }
+export const POST_NOUNS = { final: 'review', draft: 'draft' }
 
 export const LANGUAGE_BY_EXTENSION = { js: 'javascript', mjs: 'javascript', cjs: 'javascript', jsx: 'javascript', ts: 'typescript', tsx: 'typescript', vue: 'xml', html: 'xml', phtml: 'xml', yml: 'yaml', md: 'markdown', sh: 'bash', py: 'python', rb: 'ruby' }
 

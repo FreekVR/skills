@@ -12,19 +12,17 @@ A GitHub user has at most one pending (draft) review per PR. Each `post` event h
    - `comments`: the event's `comments`, each with `path`, `line`, `side` and `body`, and `start_line` and `start_side` for a comment on several lines.
    - `event`: for `kind: final`, the event's `verdict` (`APPROVE`, `REQUEST_CHANGES` or `COMMENT`). For `kind: draft`, leave `event` out; GitHub then keeps the review pending.
 
-For `kind: final`, first post each of the event's `replies` in its thread, as in step 1 of an update below. A reply can be in a thread of someone else.
-
 Example with `gh`, where `payload.json` holds the fields of step 3:
 
 ```sh
 gh api --method POST repos/{owner}/{repo}/pulls/{number}/reviews --input payload.json
 ```
 
-For `kind: update`, the reviewer updates their earlier review. GitHub records it as a new review by the same user, on top of the earlier one:
+For `kind: final`, answer the threads first, then create the review:
 
-1. Post each of the event's `replies` in its thread, with the GraphQL mutation `addPullRequestReviewThreadReply` (`pullRequestReviewThreadId`, `body`).
+1. Post each of the event's `replies` in its thread, with the GraphQL mutation `addPullRequestReviewThreadReply` (`pullRequestReviewThreadId`, `body`). A reply can be in a thread of someone else.
 2. Resolve each thread in the event's `resolve`, with the GraphQL mutation `resolveReviewThread` (`threadId`). Use `gh api graphql`; the REST API cannot resolve threads.
-3. Create the review as in step 3 above, with the event's `verdict` and `body`, and no `comments`.
+3. Create the review as in step 3 above.
 4. Read the reviews and threads again, as for a `check` event, so the Existing reviews tab shows the new state.
 
 Every entry you add to `posts` MUST have the event's `id` as `eventId`; without it, the review page shows the post as still on its way. On success, add an entry to `posts` with `status: posted`, the review's `html_url` as `url` and its `id` as `reviewId`. If GitHub returns an error, do not retry with changed content. Add the error message to `posts` with `status: error`; the review page shows it to the reviewer.

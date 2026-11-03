@@ -152,16 +152,27 @@ test('shows the AI on the code under "Needs your decision", above the comment', 
   expect(fix.y).toBeLessThan(comment.y);
 });
 
-test('replies in a thread of someone else, and sends the reply with the update', async ({ page }) => {
+test('replies in a thread of someone else, and sends the reply with the next review', async ({ page }) => {
   const review = await openReview(page, { reviewer: { threadCalls: { 'T-gh1': 'resolve' } } });
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   const thread = threadOf(page, 'Should days come from the settings?');
   await thread.getByRole('button', { name: 'Reply', exact: true }).click();
   await thread.getByRole('textbox', { name: 'Reply in this thread' }).fill('Agreed, a follow-up then.');
   await review.saved((state) => state.threadReplies?.['T-c1'] === 'Agreed, a follow-up then.');
-  await page.getByRole('button', { name: 'Update review: approve' }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Submit review' }).click();
+  await page.getByRole('group', { name: 'Verdict' }).getByRole('button', { name: /^Approve/ }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Post new review: approve' }).click();
   const event = await eventOf(review, 'post');
-  expect(event).toMatchObject({ kind: 'update', resolve: ['T-gh1'], replies: [{ threadId: 'T-c1', body: 'Agreed, a follow-up then.' }] });
+  expect(event).toMatchObject({ kind: 'final', resolve: ['T-gh1'], replies: [{ threadId: 'T-c1', body: 'Agreed, a follow-up then.' }] });
+});
+
+test('the existing reviews only record your decisions; they have no post form of their own', async ({ page }) => {
+  await openReview(page);
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const main = page.getByRole('main');
+  await expect(main.getByText('Your decisions and replies go to GitHub with your next review.')).toBeVisible();
+  await expect(main.getByRole('button', { name: /^Update review/ })).toHaveCount(0);
+  await expect(main.getByRole('textbox', { name: 'Note to the author' })).toHaveCount(0);
 });
 
 test('offers a reply in your own thread next to Resolve and Leave open', async ({ page }) => {

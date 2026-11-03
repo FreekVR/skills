@@ -183,7 +183,7 @@ test('posts the final review with the chosen verdict', async ({ page }) => {
 test('sends the replies with the final review, and shows them in the preview', async ({ page }) => {
   const review = await openSubmit(page, { ...draftOptions, reviewer: { ...draftOptions.reviewer, threadReplies: { 'T-c1': 'Fine for now.' } } });
   await page.locator('#term-preview summary').click();
-  await expect(page.getByText('Reply to @other-reviewer on src/api/weatherClient.ts')).toBeVisible();
+  await expect(page.getByText("Reply to @other-reviewer's comment on src/api/weatherClient.ts")).toBeVisible();
   await verdictButton(page, /^Comment/).click();
   await page.getByRole('button', { name: 'Post review: comment' }).click();
   const event = await eventOf(review, 'post');
@@ -192,7 +192,6 @@ test('sends the replies with the final review, and shows them in the preview', a
 
 test('shows the posted state after the final review is posted', async ({ page }) => {
   const review = await openSubmit(page);
-  await expect(page.getByRole('button', { name: 'update your review' })).toBeVisible();
   await verdictButton(page, /^Approve/).click();
   await page.getByRole('main').getByRole('button', { name: 'Post new review: approve' }).click();
   const event = await eventOf(review, 'post');
@@ -204,19 +203,31 @@ test('shows the posted state after the final review is posted', async ({ page })
   await expect(page.getByText('Nothing reaches GitHub until you press a post button.')).toBeHidden();
 });
 
-test('sends an update with replies and resolved threads', async ({ page }) => {
-  const review = await openReview(page, { reviewer: { threadCalls: { 'T-gh1': 'open' }, threadReplies: { 'T-gh1': 'Still open.' } } });
-  await page.getByRole('button', { name: /Existing reviews/ }).click();
-  await page.getByRole('textbox', { name: 'Note to the author' }).fill('Please fix this.');
-  await page.getByRole('button', { name: 'Update review: request changes' }).click();
+test('the review resolves the comments you chose to resolve and posts your replies, with new comments and one verdict', async ({ page }) => {
+  const review = await openSubmit(page, { reviewer: { threadCalls: { 'T-gh1': 'resolve' }, threadReplies: { 'T-gh1': 'Fixed, thanks.' }, remarks: [{ id: 'r1', hunkId: H.cache, line: 3, side: 'RIGHT', severity: 'minor', body: 'A new finding.' }] } });
+  await expect(page.getByText('1 to resolve · 0 left open')).toBeVisible();
+  await page.locator('#term-preview summary').click();
+  await expect(page.getByText('Resolve your comment on src/cache.ts line 3')).toBeVisible();
+  await verdictButton(page, /^Request changes/).click();
+  await page.getByRole('main').getByRole('button', { name: 'Post new review: request changes' }).click();
   const event = await eventOf(review, 'post');
-  expect(event).toMatchObject({ kind: 'update', verdict: 'REQUEST_CHANGES', body: 'Please fix this.', comments: [], resolve: [], replies: [{ threadId: 'T-gh1', body: 'Still open.' }] });
+  expect(event).toMatchObject({ kind: 'final', verdict: 'REQUEST_CHANGES', resolve: ['T-gh1'], replies: [{ threadId: 'T-gh1', body: 'Fixed, thanks.' }] });
+  expect(event.comments.map((comment) => comment.body)).toContain('**minor:** A new finding.');
 });
 
-test('sends an update that resolves a thread and approves', async ({ page }) => {
-  const review = await openReview(page, { reviewer: { threadCalls: { 'T-gh1': 'resolve' } } });
-  await page.getByRole('button', { name: /Existing reviews/ }).click();
-  await page.getByRole('button', { name: 'Update review: approve' }).click();
+test('a draft resolves nothing and posts no replies', async ({ page }) => {
+  const review = await openSubmit(page, { ...draftOptions, reviewer: { ...draftOptions.reviewer, threadCalls: { 'T-gh1': 'resolve' }, threadReplies: { 'T-c1': 'Later.' } } });
+  await page.getByRole('main').getByRole('button', { name: /^Post as draft/ }).click();
   const event = await eventOf(review, 'post');
-  expect(event).toMatchObject({ kind: 'update', verdict: 'APPROVE', resolve: ['T-gh1'], replies: [] });
+  expect(event.kind).toBe('draft');
+  expect(event.resolve).toBeUndefined();
+  expect(event.replies).toBeUndefined();
+});
+
+test('does not post request changes or comment without a review body, which GitHub needs for them', async ({ page }) => {
+  const review = await openSubmit(page, { mutate: (data) => { data.ownPendingReview = null; }, reviewer: { threadCalls: { 'T-gh1': 'resolve' } } });
+  await verdictButton(page, /^Comment/).click();
+  await page.getByRole('main').getByRole('button', { name: 'Post new review: comment' }).click();
+  await expect(page.getByText('Write a summary first. GitHub needs a review body for request changes and comment.').last()).toBeVisible();
+  expect(review.events().filter((event) => event.type === 'post')).toEqual([]);
 });

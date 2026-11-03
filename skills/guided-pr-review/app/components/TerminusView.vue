@@ -11,6 +11,8 @@ const criteria = computed(() => criteriaCheck())
 const verdicts = computed(() => hunkVerdictsCheck())
 const notPosted = computed(() => notPostedFindings())
 const posts = computed(() => sentPosts())
+// The reviewer's own posted comments that are still open: their decisions go to GitHub with this review.
+const earlier = computed(() => (openOwnThreads().length ? { left: threadsWithoutCall().length, counts: threadCallCounts() } : null))
 const ownReview = computed(() => hasOwnReview())
 const draftCount = computed(() => localCount())
 const draftLabel = computed(() => (draftCount.value ? `Post as draft. ${plural(draftCount.value, 'remark')} not on GitHub yet.` : 'Post as draft'))
@@ -44,8 +46,7 @@ async function showThem() {
         Nothing reaches GitHub until you press a post button.
       </p>
       <p v-if="ownReview" :class="LEDE">
-        This posts a new review with new comments. To approve the fixes or follow up on your earlier comments,
-        <button type="button" :class="LINK_BUTTON" @click="goReviews()">update your review</button> instead.
+        GitHub shows this as a new review, after your earlier one. It also resolves the comments you chose to resolve and posts your replies.
       </p>
       <p v-if="state.review.pr.isOwnPr" :class="LEDE">
         This is your own PR. GitHub does not accept approve or request changes from the author; use comment.
@@ -123,6 +124,12 @@ async function showThem() {
               </p>
               <NoteCard v-for="finding in notPosted.open.filter((candidate: { hunkId: string }) => candidate.hunkId === hunk.id)" :key="finding.id" type="finding" :item="finding" />
             </div>
+          </TerminusCheckItem>
+          <TerminusCheckItem v-if="earlier" :number="notPosted ? 5 : 4" :done="earlier.left === 0" section="earlier" title="Your earlier comments" :counts="earlier.counts" :open="earlier.left > 0">
+            <p :class="LEDE">
+              {{ earlier.left ? 'Decide on each one: resolve it or leave it open. A comment without a decision stays open on GitHub.' : 'This review resolves the comments you chose to resolve and posts your replies.' }}
+              <button type="button" :class="LINK_BUTTON" @click="goReviews()">Go to the existing reviews</button>
+            </p>
           </TerminusCheckItem>
         </ol>
       </div>
