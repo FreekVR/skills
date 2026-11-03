@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityRank, severityTone, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { answerFor, buildPost, githubStatus, isFinishing, newComments, openOwnThreads, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsWithoutCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { answerFor, buildPost, githubStatus, isFinishing, newComments, openOwnThreads, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsWithoutCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // Each kind of change on GitHub comes with the one action that deals with it.
@@ -70,8 +70,6 @@ export function threadActions(own) {
     call,
     suggested: own.fix?.verdict === 'fixed' ? 'resolve' : own.fix?.verdict === 'not-fixed' ? 'open' : null,
     canResolve: own.canResolve !== false,
-    reply: call === 'open' ? (state.reviewer.threadReplies[own.threadId] ?? '') : null,
-    replyFromAi: Boolean(own.fix?.reply),
   }
 }
 
@@ -82,6 +80,12 @@ export function conversation(comment) {
 
 export function isCopied(comment) {
   return state.reviewer.remarks.some((remark) => remark.copiedFrom === comment.id) || (state.reviewer.copiedToSummary || []).includes(comment.id)
+}
+
+// Where the thread of a reply is, for the preview of what a post sends.
+export function replyPlace(threadId) {
+  const thread = [...(state.review.ownRemarks || []), ...(state.review.reviewComments || [])].find((candidate) => candidate.threadId === threadId)
+  return thread ? `Reply to @${thread.author || viewerLogin()} on ${threadPlace(thread)}` : 'Reply in a thread'
 }
 
 export function threadPlace(item) { return `${item.path || hunkById(item.hunkId)?.file || ''}${item.line ? ` ${lineLabel(item)}` : ''}` }
@@ -233,7 +237,7 @@ export function terminus() {
     finalVerdict: VERDICTS.find((option) => option.id === verdict),
     unseenWarning: (verdict === 'APPROVE' || verdict === 'REQUEST_CHANGES') && unseen.length ? `You have not seen ${unseen.length} of ${plural(review.hunks.length, 'hunk')}.` : '',
     post,
-    posts: `${post.body ? 'the review body and ' : ''}${plural(post.comments.length, 'comment')}`,
+    posts: `${post.body ? 'the review body and ' : ''}${plural(post.comments.length, 'comment')}${post.replies.length ? ` and ${plural(post.replies.length, 'reply', 'replies')}` : ''}`,
     general,
     openGeneral: general.filter((finding) => decisionOf(finding) === 'open').length,
     openFindings: review.findings.filter((finding) => decisionOf(finding) === 'open'),
@@ -300,15 +304,18 @@ export function threadCallCounts() {
 export function updateFooter(review) {
   const threads = openOwnThreads()
   const requested = review.state === 'CHANGES_REQUESTED'
-  if (!threads.length && !requested && !sentEvents('post').some((sent) => sent.kind === 'update')) return null
+  const replies = pendingReplies().length
+  if (!threads.length && !requested && !replies && !sentEvents('post').some((sent) => sent.kind === 'update')) return null
   const left = threadsWithoutCall().length
   const open = threads.filter((own) => threadCall(own) === 'open').length
   return {
-    form: threads.length > 0 || requested,
+    form: threads.length > 0 || requested || replies > 0,
     left,
     open,
     verdicts: left ? [] : open ? ['REQUEST_CHANGES', 'APPROVE', 'COMMENT'] : ['APPROVE', 'COMMENT'],
-    intro: threads.length ? `${threadCallCounts()}. Replies and resolved comments go to GitHub with the update.` : 'Your review requests changes. Approving now replaces that as your verdict.',
+    intro: threads.length ? `${threadCallCounts()}. Replies and resolved comments go to GitHub with the update.`
+      : replies ? `${plural(replies, 'reply', 'replies')} to post. Replies go to GitHub with the update.`
+        : 'Your review requests changes. Approving now replaces that as your verdict.',
     status: updateStatus(),
   }
 }

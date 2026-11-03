@@ -1,6 +1,6 @@
 'use strict';
 const { test, expect } = require('@playwright/test');
-const { openReview } = require('./helpers.js');
+const { openReview, eventOf } = require('./helpers.js');
 
 
 test('counts only your open comments with new commits or a reply from someone else', async ({ page }) => {
@@ -35,15 +35,19 @@ test('shows reviews by others and your own with threaded replies', async ({ page
   await expect(main.getByText('Is MAX still right?')).toBeVisible();
 });
 
-test('saves a call to resolve a thread or leave it open', async ({ page }) => {
+test('saves a call to resolve a thread or leave it open, shows it in place of the buttons, and takes it back', async ({ page }) => {
   const review = await openReview(page);
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   const main = page.getByRole('main');
   await main.getByRole('button', { name: 'Resolve', exact: true }).click();
-  await expect(main.getByRole('button', { name: 'Resolve', pressed: true })).toBeVisible();
+  await expect(main.getByRole('status').filter({ hasText: 'You resolve this comment.' })).toBeVisible();
+  await expect(main.getByRole('button', { name: 'Resolve', exact: true })).toBeHidden();
   await review.saved((state) => state.threadCalls?.['T-gh1'] === 'resolve');
+  await main.getByRole('button', { name: 'Change', exact: true }).click();
+  await review.saved((state) => state.threadCalls && !('T-gh1' in state.threadCalls));
+  await expect(main.locator('[data-needs-decision]')).toHaveCount(1);
   await main.getByRole('button', { name: 'Leave open', exact: true }).click();
-  await expect(main.getByRole('button', { name: 'Leave open', pressed: true })).toBeVisible();
+  await expect(main.getByRole('status').filter({ hasText: 'You leave this comment open.' })).toBeVisible();
   await review.saved((state) => state.threadCalls?.['T-gh1'] === 'open');
 });
 
@@ -60,7 +64,7 @@ test('offers a reply draft in a thread left open and saves what you write', asyn
 test('shows a saved call and reply when the page opens', async ({ page }) => {
   await openReview(page, { reviewer: { threadCalls: { 'T-gh1': 'open' }, threadReplies: { 'T-gh1': 'My saved reply.' } } });
   await page.getByRole('button', { name: /Existing reviews/ }).click();
-  await expect(page.getByRole('button', { name: 'Leave open', pressed: true })).toBeVisible();
+  await expect(page.getByRole('main').getByRole('status').filter({ hasText: 'You leave this comment open.' })).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Reply in this thread' })).toHaveValue('My saved reply.');
 });
 
@@ -124,4 +128,58 @@ test('hides the jump button when no comment needs your decision', async ({ page 
   await openReview(page, { reviewer: { threadCalls: { 'T-gh1': 'open' } } });
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   await expect(page.getByRole('button', { name: /Next comment to decide/ })).toBeHidden();
+});
+
+const threadOf = (page, text) => page.getByRole('main').locator('.thread').filter({ hasText: text });
+
+test('shows the AI on a comment under that comment, before its replies', async ({ page }) => {
+  await openReview(page);
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const entries = threadOf(page, 'Should days come from the settings?').locator('li');
+  await expect(entries.first()).toContainText('AI on this comment: agrees.');
+  await expect(entries.nth(1)).toContainText('Good idea, later.');
+  await expect(entries.nth(1)).not.toContainText('AI on this comment');
+});
+
+test('shows the AI on the code under "Needs your decision", above the comment', async ({ page }) => {
+  await openReview(page);
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = page.locator('[data-needs-decision]');
+  const fix = await thread.getByText('AI on the code').boundingBox();
+  const decision = await thread.getByText('Needs your decision').boundingBox();
+  const comment = await thread.getByText('Is MAX still right?').boundingBox();
+  expect(fix.y).toBeGreaterThan(decision.y);
+  expect(fix.y).toBeLessThan(comment.y);
+});
+
+test('replies in a thread of someone else, and sends the reply with the update', async ({ page }) => {
+  const review = await openReview(page, { reviewer: { threadCalls: { 'T-gh1': 'resolve' } } });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'Should days come from the settings?');
+  await thread.getByRole('button', { name: 'Reply', exact: true }).click();
+  await thread.getByRole('textbox', { name: 'Reply in this thread' }).fill('Agreed, a follow-up then.');
+  await review.saved((state) => state.threadReplies?.['T-c1'] === 'Agreed, a follow-up then.');
+  await page.getByRole('button', { name: 'Update review: approve' }).click();
+  const event = await eventOf(review, 'post');
+  expect(event).toMatchObject({ kind: 'update', resolve: ['T-gh1'], replies: [{ threadId: 'T-c1', body: 'Agreed, a follow-up then.' }] });
+});
+
+test('offers a reply in your own thread next to Resolve and Leave open', async ({ page }) => {
+  const review = await openReview(page);
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = page.locator('[data-needs-decision]');
+  await thread.getByRole('button', { name: 'Reply', exact: true }).click();
+  await thread.getByRole('textbox', { name: 'Reply in this thread' }).fill('Thanks!');
+  await review.saved((state) => state.threadReplies?.['T-gh1'] === 'Thanks!');
+  await expect(thread.getByRole('button', { name: 'Resolve', exact: true })).toBeVisible();
+});
+
+test('shows a comment in each flow its hunk is in, with the comment in focus', async ({ page }) => {
+  await openReview(page);
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = page.locator('[data-needs-decision]');
+  await expect(thread.getByRole('button', { name: /^Show this comment in the flow/ })).toHaveCount(2);
+  await thread.getByRole('button', { name: 'Show this comment in the flow Store the forecast' }).click();
+  await expect(page.getByRole('button', { name: /^B1 / })).toHaveAttribute('aria-current', 'step');
+  await expect(page.locator('#note-gh-1')).toBeFocused();
 });

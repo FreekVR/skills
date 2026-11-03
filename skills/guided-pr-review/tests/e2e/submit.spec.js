@@ -180,6 +180,16 @@ test('posts the final review with the chosen verdict', async ({ page }) => {
   expect(event.comments).toHaveLength(2);
 });
 
+test('sends the replies with the final review, and shows them in the preview', async ({ page }) => {
+  const review = await openSubmit(page, { ...draftOptions, reviewer: { ...draftOptions.reviewer, threadReplies: { 'T-c1': 'Fine for now.' } } });
+  await page.locator('#term-preview summary').click();
+  await expect(page.getByText('Reply to @other-reviewer on src/api/weatherClient.ts')).toBeVisible();
+  await verdictButton(page, /^Comment/).click();
+  await page.getByRole('button', { name: 'Post review: comment' }).click();
+  const event = await eventOf(review, 'post');
+  expect(event.replies).toEqual([{ threadId: 'T-c1', body: 'Fine for now.' }]);
+});
+
 test('shows the posted state after the final review is posted', async ({ page }) => {
   const review = await openSubmit(page);
   await expect(page.getByRole('button', { name: 'update your review' })).toBeVisible();

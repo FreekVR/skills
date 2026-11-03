@@ -35,7 +35,8 @@ const stops = computed(() => {
   })
 })
 
-const reviews = computed(() => state.reviews || [])
+// The review on this page comes first, so the list starts with where the reviewer is.
+const reviews = computed(() => [...(state.reviews || [])].sort((a, b) => Number(isCurrentReview(b)) - Number(isCurrentReview(a))))
 const switcherOpen = computed({ get: () => Boolean(state.ui.switcherOpen), set: toggleSwitcher })
 const draftCount = computed(() => localCount())
 const draftLabel = computed(() => (draftCount.value ? `Post as draft. ${plural(draftCount.value, 'remark')} not on GitHub yet.` : 'Post as draft'))
@@ -140,12 +141,15 @@ useEventListener(document, 'scroll', (event: Event) => {
                 v-for="review in reviews"
                 :key="reviewRef(review)"
                 class="flex items-start gap-1 rounded-md text-label"
-                :class="isCurrentReview(review) ? 'bg-elevated px-2.5 py-2' : 'has-[a:hover]:bg-elevated'"
+                :class="isCurrentReview(review) ? 'mb-1 bg-elevated px-2.5 py-2 ring-1 ring-accented' : 'has-[a:hover]:bg-elevated'"
                 :aria-current="isCurrentReview(review) ? 'page' : undefined"
               >
                 <div class="min-w-0 flex-1">
                   <template v-if="isCurrentReview(review)">
-                    <span class="block font-semibold">{{ reviewRef(review) }}{{ review.state === 'open' ? '' : ` · ${review.state}` }}</span>
+                    <span class="flex flex-wrap items-center gap-x-1.5 font-semibold">
+                      <UIcon name="i-lucide-check" class="size-3.5 text-success" aria-hidden="true" />{{ reviewRef(review) }}{{ review.state === 'open' ? '' : ` · ${review.state}` }}
+                      <span class="rounded-sm px-1.5 text-tag font-normal text-muted ring-1 ring-accented">this page</span>
+                    </span>
                     <span class="block text-muted">{{ review.title }}</span>
                     <span v-if="review.paused" class="block text-warning">Agent paused</span>
                   </template>
@@ -211,6 +215,10 @@ useEventListener(document, 'scroll', (event: Event) => {
         </UTooltip>
       </div>
     </div>
+    <!-- On a phone the rail with the PR's name sits below the page, so the header names the PR. -->
+    <p class="compact-hide m-0 truncate px-gutter pt-2 text-label text-muted md:hidden" :class="{ 'pb-3': !line }">
+      <span class="font-mono">{{ reviewRef(state.review.pr) }}</span> · {{ state.review.pr.title }}
+    </p>
 
     <template v-if="line">
       <details v-if="criteria.length" class="criteria compact-hide mx-gutter mt-3 mb-0.5 max-w-[110ch] rounded-card border px-3.5 py-2" :open="criteriaOpen" @toggle="onCriteriaToggle">

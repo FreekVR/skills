@@ -101,9 +101,12 @@ export async function post(kind) {
     notify('There is nothing to put in a draft yet. Accept a finding, write a remark or a summary first.', true)
     return
   }
-  const payload = { body: event.body, comments: event.comments, verdict: event.verdict }
+  const payload = { body: event.body, comments: event.comments, verdict: event.verdict, replies: event.replies }
   const id = await sendEvent(event, { contents, at: new Date().toISOString(), headSha: state.review.pr.headSha, payload })
-  if (id) notify(kind === 'final' ? 'The review is on its way to GitHub.' : 'The draft is on its way to GitHub.')
+  if (!id) return
+  clearSentReplies(event.replies)
+  saveReviewer()
+  notify(kind === 'final' ? 'The review is on its way to GitHub.' : 'The draft is on its way to GitHub.')
 }
 
 // An update adds a review on top of the reviewer's earlier one. It carries no new line comments.
@@ -113,11 +116,15 @@ export async function postUpdate(verdict) {
   const event = { type: 'post', kind: 'update', verdict, body, comments: [], ...threadPayload() }
   const id = await sendEvent(event, { at: new Date().toISOString(), payload: { verdict, body, resolve: event.resolve, replies: event.replies } })
   if (!id) return
-  // Sent replies are not sent again; a thread left open keeps its call until new commits start the next round.
-  for (const reply of event.replies) state.reviewer.threadReplies[reply.threadId] = ''
+  clearSentReplies(event.replies)
   state.reviewer.updateNote = ''
   saveReviewer()
   notify('The update is on its way to GitHub.')
+}
+
+// Sent replies are not sent again; a thread left open keeps its call until new commits start the next round.
+function clearSentReplies(replies = []) {
+  for (const reply of replies) state.reviewer.threadReplies[reply.threadId] = ''
 }
 
 export function setTheme(choice) {
@@ -126,9 +133,11 @@ export function setTheme(choice) {
 }
 
 // Resolve a posted comment of the reviewer, or leave it open. A thread left open starts with the AI's draft reply.
+// A call of null takes the choice back, so the comment needs a decision again.
 export function setThreadCall(threadId, call) {
   const own = openOwnThreads().find((candidate) => candidate.threadId === threadId)
-  state.reviewer.threadCalls = { ...state.reviewer.threadCalls, [threadId]: call }
+  const { [threadId]: _previous, ...others } = state.reviewer.threadCalls
+  state.reviewer.threadCalls = call ? { ...others, [threadId]: call } : others
   if (call === 'open' && state.reviewer.threadReplies[threadId] === undefined) state.reviewer.threadReplies[threadId] = own?.fix?.reply || ''
   saveReviewer()
 }

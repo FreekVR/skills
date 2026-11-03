@@ -149,7 +149,7 @@ Every event has `id`, `at`, `type` and `review`, the pull request it belongs to 
 | `ask` | `hunkId` (or null), `question` | Answer it and add an entry to `answers`. |
 | `explain` | `hunkId` | Fill `explanationMore` of that hunk. |
 | `summarize` | `verdict` (null while hunks wait for a verdict), `remarks` (each `severity`, `where`, `body`) | Write a review summary from these remarks, in the user's words and conventions: what the PR does well and what the author must do, without repeating each remark. Add it to `answers` with `hunkId` null and the summary as `answer`. |
-| `post` | `kind` (`draft`, `final` or `update`), `verdict` (final and update only), `body`, `comments`, and for update only `replies` and `resolve` | Post exactly this payload, then add an entry to `posts`. |
+| `post` | `kind` (`draft`, `final` or `update`), `verdict` (final and update only), `body`, `comments`, `replies` (final and update only), and for update only `resolve` | Post exactly this payload, then add an entry to `posts`. |
 | `check` | none | Read the PR's head commit, state, reviews and comments on GitHub. Write `remote`. Update `reviews`, `reviewComments` and `ownRemarks`, as in step 5: new ones, new replies, `resolved`. Change nothing else. |
 | `refresh` | none | Run the Resume steps for a changed head commit, then set `pr.headSha` to the new head. |
 | `finish` | none | Go to step 8. |

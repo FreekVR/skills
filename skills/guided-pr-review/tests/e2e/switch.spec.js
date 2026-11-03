@@ -12,6 +12,19 @@ const other = () => {
   return data;
 };
 
+test('the page names its PR, and the review switch lists it first, marked as this page', async ({ page }) => {
+  const first = fixture();
+  first.pr.number = 9;
+  first.pr.title = 'chore: an older PR';
+  await openReview(page, { others: [first] });
+  await expect(page.getByRole('complementary', { name: 'Review navigation' })).toContainText('example-org/sample-widget#17feat: add three-day forecast');
+  await page.getByRole('banner').getByText('2 reviews').click();
+  const items = page.getByRole('listitem').filter({ hasText: 'example-org/sample-widget#' });
+  await expect(items.first()).toContainText('example-org/sample-widget#17');
+  await expect(items.first()).toContainText('this page');
+  await expect(items.first()).toHaveAttribute('aria-current', 'page');
+});
+
 test('the review switch lists both reviews and shows how to resume one that does not run', async ({ page }) => {
   await openReview(page, { others: [other()] });
   await page.getByRole('banner').getByText('2 reviews').click();

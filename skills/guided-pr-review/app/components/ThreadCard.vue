@@ -8,7 +8,8 @@ type Comment = {
 }
 const props = defineProps<{ comment: Comment, mine: boolean }>()
 
-const at = computed(() => (props.comment.hunkId ? firstStationOf(props.comment.hunkId) : null))
+// Every flow that passes the hunk of this comment, each with the stop where it does.
+const stations = computed(() => (props.comment.hunkId ? stationsOf(props.comment.hunkId) : []) as { line: { id: string, name: string, letter: string, color: string }, index: number }[])
 const copied = computed(() => isCopied(props.comment))
 const reasons = computed(() => (props.mine && !props.comment.resolved && !threadCall(props.comment) ? checkReasons(props.comment) : []))
 </script>
@@ -25,34 +26,41 @@ const reasons = computed(() => (props.mine && !props.comment.resolved && !thread
       <span class="inline-flex items-center gap-1 font-semibold text-warning"><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Needs your decision</span>
       <span class="text-toned">{{ reasons.join(' · ') }}</span>
     </p>
+    <FixLine v-if="!comment.resolved" :item="comment" class="mt-0! mb-2.5" />
     <component :is="comment.resolved ? 'summary' : 'div'" class="flex list-none flex-wrap items-center gap-x-2.5 gap-y-1.5" :class="{ 'cursor-pointer': comment.resolved }">
       <span class="font-mono text-label wrap-anywhere text-toned">{{ threadPlace(comment) }}</span>
       <span v-if="comment.outdated" class="text-label text-dimmed">outdated</span>
-      <UButton
-        v-if="at"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        class="ml-auto text-toned"
-        title="Open this hunk in its flow"
-        @click="go(at.line.id, at.index)"
-      >
+      <span v-if="stations.length" class="ml-auto inline-flex flex-wrap items-center gap-1 text-label text-toned">
         Show in flow
-      </UButton>
+        <UButton
+          v-for="station in stations"
+          :key="station.line.id"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          square
+          :aria-label="`Show this comment in the flow ${station.line.name}`"
+          :title="station.line.name"
+          @click="showComment(comment.id, station.line.id, station.index)"
+        >
+          <FlowBullet :line="station.line" class="size-5! text-tag!" />
+        </UButton>
+      </span>
       <span v-if="comment.resolved" class="text-meta font-semibold">Resolved</span>
     </component>
     <ThreadCode :comment="comment" />
-    <CommentConversation :comment="comment" />
-    <template v-if="!comment.resolved">
-      <OpinionLine :opinion="comment.opinion" :own="mine" />
-      <FixLine :item="comment" />
-    </template>
+    <CommentConversation :comment="comment">
+      <template #first>
+        <OpinionLine v-if="!comment.resolved" :opinion="comment.opinion" :own="mine" />
+      </template>
+    </CommentConversation>
     <ThreadActions v-if="mine" :own="comment" />
     <div v-else class="mt-2 flex flex-wrap items-center gap-1.5">
       <span v-if="copied" class="text-meta text-dimmed">Copied to your review</span>
       <UButton v-else color="neutral" variant="ghost" size="sm" class="text-toned" @click="copyComment(comment)">
         Copy to my review
       </UButton>
+      <ThreadReply v-if="comment.threadId && !comment.resolved" :thread-id="comment.threadId" />
     </div>
   </component>
 </template>

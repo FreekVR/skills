@@ -1,6 +1,6 @@
 <script setup lang="ts">
-// What the post sends to GitHub: the review body and each line comment.
-const props = defineProps<{ post: { body: string, comments: { path: string, line: number, side: string, start_line?: number, body: string }[] } }>()
+// What the post sends to GitHub: the review body, each line comment and each reply in a thread.
+const props = defineProps<{ post: { body: string, comments: { path: string, line: number, side: string, start_line?: number, body: string }[], replies?: { threadId: string, body: string }[] } }>()
 
 const comments = computed(() => props.post.comments.map((comment) => ({
   ...comment,
@@ -27,6 +27,14 @@ const comments = computed(() => props.post.comments.map((comment) => ({
       </div>
       <div class="preview-text mt-1 text-ui">
         <SafeMarkdown :value="comment.body" />
+      </div>
+    </div>
+    <div v-for="reply in post.replies || []" :key="reply.threadId" class="px-4.5 py-3.5">
+      <div class="font-mono text-meta text-dimmed">
+        {{ replyPlace(reply.threadId) }}
+      </div>
+      <div class="preview-text mt-1 text-ui">
+        <SafeMarkdown :value="reply.body" />
       </div>
     </div>
   </div>

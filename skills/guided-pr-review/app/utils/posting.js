@@ -1,5 +1,5 @@
 import { state, VERDICTS, REVIEW_EVENTS } from './state.js'
-import { acceptedItems, hunkById, plural, severityRank, verdictOf, viewerLogin } from './review.js'
+import { acceptedItems, hunkById, openReviewComments, plural, severityRank, verdictOf, viewerLogin } from './review.js'
 import { saveReviewer } from './actions.js'
 
 // Posting replaces the user's pending GitHub review, so its remarks and body must be in the page first.
@@ -48,7 +48,8 @@ export function buildPost(kind) {
   if (general.length) parts.push(general.map((item) => `- ${labelled(item.severity, item.body).replace(/\n(?=.)/g, '\n  ')}`).join('\n'))
   const body = withDisclosure(parts.join('\n\n'), (state.reviewer.summaryAiSuggested || general.some((item) => item.source === 'ai')) && disclosure.review).trim()
   const event = { type: 'post', kind, body, comments }
-  if (kind === 'final') event.verdict = state.reviewer.verdict || proposedVerdict()
+  // A reply shows on GitHub at once, so a draft does not take the replies.
+  if (kind === 'final') Object.assign(event, { verdict: state.reviewer.verdict || proposedVerdict(), replies: pendingReplies() })
   const contents = items.map((item) => ({ id: item.id, body: item.body }))
   if (state.reviewer.summary.trim()) contents.push({ id: 'summary', body: state.reviewer.summary.trim() })
   return { event, contents }
@@ -166,15 +167,18 @@ export function startRoundOnNewCommits() {
 
 export function hasOwnReview() { return (state.review.reviews || []).some((review) => review.author === viewerLogin()) }
 
-// Replies and resolved threads of an update: only threads the reviewer made a call on, and only replies with text.
-export function threadPayload() {
+// The replies with text in any open thread, the reviewer's own and those of others. A reply that is still the AI's draft gets the disclosure.
+export function pendingReplies() {
   const disclosure = state.review.conventions.disclosure || {}
-  const calls = (call) => openOwnThreads().filter((own) => threadCall(own) === call)
-  return {
-    resolve: calls('resolve').filter((own) => own.canResolve !== false).map((own) => own.threadId),
-    replies: calls('open').map((own) => ({ own, body: (state.reviewer.threadReplies[own.threadId] || '').trim() })).filter(({ body }) => body)
-      .map(({ own, body }) => ({ threadId: own.threadId, body: withDisclosure(body, body === own.fix?.reply?.trim() && disclosure.comment) })),
-  }
+  return [...openOwnThreads(), ...openReviewComments()].filter((thread) => thread.threadId)
+    .map((thread) => ({ thread, body: (state.reviewer.threadReplies[thread.threadId] || '').trim() })).filter(({ body }) => body)
+    .map(({ thread, body }) => ({ threadId: thread.threadId, body: withDisclosure(body, body === thread.fix?.reply?.trim() && disclosure.comment) }))
+}
+
+// Replies and resolved threads of an update: the replies with text, and the reviewer's own threads they chose to resolve.
+export function threadPayload() {
+  const resolve = openOwnThreads().filter((own) => threadCall(own) === 'resolve' && own.canResolve !== false)
+  return { resolve: resolve.map((own) => own.threadId), replies: pendingReplies() }
 }
 
 export function pendingSummaryDraft() {

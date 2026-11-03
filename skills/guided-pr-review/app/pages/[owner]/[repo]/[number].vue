@@ -15,9 +15,16 @@ watchEffect(() => {
 })
 
 // A new view starts at its top, with the focus on its heading, as the single-file page did.
+// A view opened for one element, such as a comment, puts the focus on that element instead.
 watch(() => state.view, async (view, before) => {
-  if (!before || JSON.stringify(view) === JSON.stringify(before)) return
+  if (!before || JSON.stringify(view) === JSON.stringify(before)) {
+    state.ui.focusTarget = null
+    return
+  }
   await nextTick()
+  const target = state.ui.focusTarget ? document.getElementById(state.ui.focusTarget) : null
+  state.ui.focusTarget = null
+  if (target) return target.focus()
   main.value?.scrollTo({ top: 0 })
   document.querySelector<HTMLElement>('header h1')?.focus()
 })

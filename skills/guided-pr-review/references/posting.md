@@ -12,6 +12,8 @@ A GitHub user has at most one pending (draft) review per PR. Each `post` event h
    - `comments`: the event's `comments`, each with `path`, `line`, `side` and `body`, and `start_line` and `start_side` for a comment on several lines.
    - `event`: for `kind: final`, the event's `verdict` (`APPROVE`, `REQUEST_CHANGES` or `COMMENT`). For `kind: draft`, leave `event` out; GitHub then keeps the review pending.
 
+For `kind: final`, first post each of the event's `replies` in its thread, as in step 1 of an update below. A reply can be in a thread of someone else.
+
 Example with `gh`, where `payload.json` holds the fields of step 3:
 
 ```sh

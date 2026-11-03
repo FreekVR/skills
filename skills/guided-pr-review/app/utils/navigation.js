@@ -34,6 +34,12 @@ export function go(lineId, index) {
   markCurrentSeen()
 }
 
+// Open a hunk in a flow with the focus on a comment on it; the page moves the focus there in place of the heading.
+export function showComment(commentId, lineId, index) {
+  state.ui.focusTarget = `note-${commentId}`
+  go(lineId, index)
+}
+
 export function goHome() {
   state.view = { kind: 'home' }
   state.ui.askOpen = false

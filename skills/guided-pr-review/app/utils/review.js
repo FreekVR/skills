@@ -58,8 +58,9 @@ export function unseenHunks() { return state.review.hunks.filter((hunk) => !isSe
 export function plural(count, word, many = `${word}s`) { return `${count} ${count === 1 ? word : many}` }
 
 export function stationCode(line, index) { return `${line.letter}${index + 1}` }
-export function linesOf(hunkId) { return (state.stations.get(hunkId) || []).map((station) => station.line) }
-export function firstStationOf(hunkId) { return (state.stations.get(hunkId) || [])[0] || null }
+export function stationsOf(hunkId) { return state.stations.get(hunkId) || [] }
+export function linesOf(hunkId) { return stationsOf(hunkId).map((station) => station.line) }
+export function firstStationOf(hunkId) { return stationsOf(hunkId)[0] || null }
 
 // Get the acceptance criterion with this ID from the linked tickets.
 export function criterionById(id) {
