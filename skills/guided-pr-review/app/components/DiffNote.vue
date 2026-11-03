@@ -68,7 +68,9 @@ const TARGET = 'scroll-mt-24 outline-none focus:outline-2 focus:-outline-offset-
       </template>
     </CommentConversation>
     <template v-else>
-      <p class="mt-2 mb-0 max-w-[72ch] text-ui whitespace-pre-wrap"><MarkupText :text="item.body" /></p>
+      <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+        <SafeMarkdown :value="item.body" />
+      </div>
       <OpinionLine v-if="!item.resolved" :opinion="item.opinion" own />
     </template>
     <FixLine v-if="!item.resolved" :item="item" />

@@ -228,3 +228,20 @@ test('shows HTML in comments the way GitHub does: allowed tags render, the rest 
   await expect(thread.getByText('styled')).toHaveAttribute('id', 'user-content-anchor');
   expect(await page.evaluate(() => window.hacked)).toBeUndefined();
 });
+
+test('shows your posted comment in the hunk view with the same HTML rules', async ({ page }) => {
+  await openReview(page, { mutate: (data) => { data.ownRemarks[0].body = 'Is MAX still right?\n\n<sub>AI Disclaimer: written by AI</sub>'; } });
+  await page.getByRole('main').getByRole('button', { name: /^Store the forecast/ }).first().click();
+  const note = page.locator('#note-gh-1');
+  await expect(note.locator('sub')).toHaveText('AI Disclaimer: written by AI');
+  await expect(note).not.toContainText('<sub>');
+});
+
+test('shows your remarks in the hunk view as markdown, as GitHub will show them', async ({ page }) => {
+  const { H } = require('./fixture.js');
+  await openReview(page, { reviewer: { remarks: [{ id: 'r1', hunkId: H.cache, line: 3, side: 'RIGHT', severity: 'minor', body: 'Press <kbd>Ctrl</kbd> and use `MAX`.' }] } });
+  await page.getByRole('main').getByRole('button', { name: /^Store the forecast/ }).first().click();
+  const remark = page.locator('main').getByText('and use');
+  await expect(remark.locator('kbd')).toHaveText('Ctrl');
+  await expect(remark.locator('code')).toHaveText('MAX');
+});

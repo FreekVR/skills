@@ -89,7 +89,10 @@ const struck = computed(() => decision.value === 'dismissed' && 'text-muted line
       </div>
     </div>
     <template v-else>
-      <p class="mt-2 mb-0 max-w-[72ch] text-ui whitespace-pre-wrap" :class="struck"><MarkupText :text="text" /></p>
+      <!-- Remarks and findings are posted as markdown, and a remark can quote a comment from GitHub. -->
+      <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0" :class="struck">
+        <SafeMarkdown :value="text" />
+      </div>
       <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" own />
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
         <template v-if="isFinding">
