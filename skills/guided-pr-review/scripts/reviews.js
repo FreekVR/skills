@@ -72,6 +72,27 @@ function watchEvents(file, onLine, interval = 300) {
   return () => clearInterval(timer);
 }
 
+// While the review server keeps a `paused` file in the review directory, the agent gets no events: check events are
+// dropped, because they only poll GitHub, and the others wait until the reviewer presses play.
+function watchReview(dir, print, interval = 300) {
+  const held = [];
+  const paused = () => fs.existsSync(path.join(dir, 'paused'));
+  const release = () => held.splice(0).forEach(print);
+  const stopEvents = watchEvents(path.join(dir, 'events.jsonl'), (line) => {
+    if (!paused()) {
+      release();
+      print(line);
+    } else if (JSON.parse(line).type !== 'check') {
+      held.push(line);
+    }
+  }, interval);
+  const timer = setInterval(() => { if (held.length && !paused()) release(); }, interval);
+  return () => {
+    stopEvents();
+    clearInterval(timer);
+  };
+}
+
 function listReviews(root = stateRoot()) {
   const reviews = [];
   for (const owner of subdirectories(root)) {
@@ -87,6 +108,7 @@ function listReviews(root = stateRoot()) {
           state: review.remote?.state || 'open',
           session,
           agentConnected: Boolean(session?.watcherPid && isRunning(session.watcherPid)),
+          paused: fs.existsSync(path.join(dir, 'paused')),
         });
       }
     }
@@ -128,4 +150,4 @@ function anyAgentConnected(root = stateRoot()) {
   return false;
 }
 
-module.exports = { stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };
+module.exports = { stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };

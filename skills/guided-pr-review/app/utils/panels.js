@@ -10,11 +10,12 @@ import { diffRows, lineLabel } from './diff.js'
 export function updates() {
   const remote = state.review.remote || {}
   const banners = []
+  const current = (state.reviews || []).find(isCurrentReview)
   if (state.offline) {
     const { owner, repo, number } = state.review.pr
-    const current = (state.reviews || []).find(isCurrentReview) || { owner, repo, number }
-    banners.push({ kind: 'offline', key: 'offline', resume: resumeHelp(current) })
+    banners.push({ kind: 'offline', key: 'offline', resume: resumeHelp(current || { owner, repo, number }) })
   }
+  if (current?.paused) banners.push({ kind: 'paused', key: 'paused', review: current })
   if (remote.state === 'merged' || remote.state === 'closed') {
     banners.push({ kind: 'state', key: `state-${remote.state}`, state: remote.state, finishing: isFinishing() })
   }

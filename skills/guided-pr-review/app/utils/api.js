@@ -23,6 +23,12 @@ export const transport = {
   loadReviews() {
     return $fetch('/api/reviews')
   },
+  // Any review in the switch can be paused, so this call names its review.
+  setPaused({ owner, repo, number }, paused) {
+    return $fetch(`/api/reviews/${owner}/${repo}/${number}/paused`, { method: 'POST', headers: GUARD, body: { paused } }).catch((error) => {
+      throw new Error(`${error.statusCode} ${error.statusMessage}`)
+    })
+  },
   async saveReviewer(reviewer) {
     await $fetch(`${base}/reviewer`, { method: 'PUT', headers: GUARD, body: JSON.stringify(reviewer) }).catch((error) => {
       throw new Error(`Saving failed: ${error.statusCode} ${error.statusMessage}`)

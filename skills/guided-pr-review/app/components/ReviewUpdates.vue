@@ -21,6 +21,9 @@ const banners = computed(() => updates())
             <p class="m-0"><strong>This review is not running.</strong> The page cannot save your work or reach the agent.</p>
             <ResumeHelp :help="banner.resume" />
           </template>
+          <p v-else-if="banner.kind === 'paused'" class="m-0">
+            <strong>Agent paused.</strong> It does not check GitHub. Questions and posts wait until you resume it.
+          </p>
           <p v-else-if="banner.kind === 'state'" class="m-0">
             <strong>This PR is {{ banner.state }}.</strong> {{ banner.finishing ? 'The agent asks in the chat whether to delete the review data.' : 'A review has little effect now.' }}
           </p>
@@ -39,6 +42,7 @@ const banners = computed(() => updates())
             <UButton v-if="banner.canStartRound" color="neutral" variant="soft" @click="newRound()">Start a new review round</UButton>
           </template>
           <UButton v-if="banner.kind === 'comments'" color="neutral" variant="soft" @click="showNewComments()">Show</UButton>
+          <UButton v-if="banner.kind === 'paused'" color="neutral" variant="soft" icon="i-lucide-play" @click="setPaused(banner.review, false)">Resume</UButton>
         </template>
       </UAlert>
     </TransitionGroup>

@@ -7,7 +7,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { parseDiff, mergeHunks, checkFlows } = require('../scripts/review-data.js');
-const { reviewDir, writeSession, listReviews, watchEvents } = require('../scripts/reviews.js');
+const { reviewDir, writeSession, listReviews, watchEvents, watchReview } = require('../scripts/reviews.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
 index 1111111..2222222 100644
@@ -135,7 +135,7 @@ test('writeSession records the agent session, the directory it runs from and the
   assert.deepStrictEqual(writeSession(dir, null, 42), { sessionId: null, cwd: process.cwd(), worktree: null, watcherPid: 42 });
 });
 
-test('listReviews lists each review directory with a review.json, and whether an agent watches it', () => {
+test('listReviews lists each review directory with a review.json, whether an agent watches it, and whether it is paused', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-root-'));
   const write = (dir, file, content) => {
     fs.mkdirSync(path.join(root, dir), { recursive: true });
@@ -143,14 +143,15 @@ test('listReviews lists each review directory with a review.json, and whether an
   };
   write('acme/shop/7', 'review.json', { pr: { title: 'Add a cache' }, remote: { state: 'merged' } });
   write('acme/shop/7', 'session.json', { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid });
+  write('acme/shop/7', 'paused', '');
   write('acme/shop/8', 'review.json', { pr: { title: 'Fix the cache' } });
   write('acme/shop/8', 'session.json', { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' });
   write('acme/shop/9', 'reviewer.json', {});
   write('acme/api/1', 'review.json', { pr: { title: 'Old review' } });
   assert.deepStrictEqual(listReviews(root).map(({ dir, ...review }) => review), [
-    { owner: 'acme', repo: 'api', number: 1, title: 'Old review', state: 'open', session: null, agentConnected: false },
-    { owner: 'acme', repo: 'shop', number: 7, title: 'Add a cache', state: 'merged', session: { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid }, agentConnected: true },
-    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' }, agentConnected: false },
+    { owner: 'acme', repo: 'api', number: 1, title: 'Old review', state: 'open', session: null, agentConnected: false, paused: false },
+    { owner: 'acme', repo: 'shop', number: 7, title: 'Add a cache', state: 'merged', session: { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid }, agentConnected: true, paused: true },
+    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' }, agentConnected: false, paused: false },
   ]);
 });
 
@@ -164,7 +165,7 @@ test('listReviews leaves out a review whose review.json is broken, and reads a b
   write('acme/shop/8', 'review.json', JSON.stringify({ pr: { title: 'Fix the cache' } }));
   write('acme/shop/8', 'session.json', '{"sessionId":');
   assert.deepStrictEqual(listReviews(root).map(({ dir, ...review }) => review), [
-    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: null, agentConnected: false },
+    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: null, agentConnected: false, paused: false },
   ]);
 });
 
@@ -179,4 +180,26 @@ test('watchEvents passes on each line added after the watch started, also a line
   fs.appendFileSync(file, '"check"}\n');
   await new Promise((resolve) => setTimeout(resolve, 80));
   assert.deepStrictEqual(lines, ['{"type":"ask"}', '{"type":"check"}']);
+});
+
+test('watchReview holds events while the review is paused, drops check events, and prints the rest in order on play', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-'));
+  const file = path.join(dir, 'events.jsonl');
+  const pause = (paused) => (paused ? fs.writeFileSync(path.join(dir, 'paused'), '') : fs.rmSync(path.join(dir, 'paused'), { force: true }));
+  const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
+  const lines = [];
+  pause(false);
+  const stop = watchReview(dir, (line) => lines.push(line), 20);
+  t.after(stop);
+  fs.appendFileSync(file, '{"type":"ask","n":1}\n');
+  await wait();
+  pause(true);
+  fs.appendFileSync(file, '{"type":"check"}\n{"type":"ask","n":2}\n{"type":"post","n":3}\n');
+  await wait();
+  assert.deepStrictEqual(lines, ['{"type":"ask","n":1}']);
+  pause(false);
+  await wait();
+  fs.appendFileSync(file, '{"type":"check"}\n');
+  await wait();
+  assert.deepStrictEqual(lines, ['{"type":"ask","n":1}', '{"type":"ask","n":2}', '{"type":"post","n":3}', '{"type":"check"}']);
 });

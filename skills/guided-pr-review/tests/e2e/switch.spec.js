@@ -40,3 +40,26 @@ test('when the server stops the page says the review is not running and shows th
   await expect(page.getByRole('main').getByText('This review is not running.')).toBeVisible({ timeout: 15000 });
   await expect(page.getByText("cd '/work/sample widget' && claude --resume abc-123")).toBeVisible();
 });
+
+const checks = (review) => review.events().filter((event) => event.type === 'check').length;
+
+test('pause and play the agent from the review switch, and play asks the agent to check GitHub', async ({ page }) => {
+  const review = await openReview(page);
+  const paused = path.join(review.dir, 'paused');
+  // The test runner stands in for the agent's watch process, so the review counts as running.
+  fs.writeFileSync(path.join(review.dir, 'session.json'), JSON.stringify({ sessionId: 'abc-123', cwd: '/work', worktree: null, watcherPid: process.pid }));
+  await page.reload();
+  await page.getByRole('banner').getByText('1 review').click();
+  await page.getByRole('button', { name: 'Pause the agent of example-org/sample-widget#17' }).click();
+  await expect.poll(() => fs.existsSync(paused)).toBe(true);
+  await expect(page.getByText('Agent paused.')).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByText('Agent paused.')).toBeVisible();
+  const before = checks(review);
+  await page.getByRole('banner').getByText('1 review').click();
+  await page.getByRole('button', { name: 'Resume the agent of example-org/sample-widget#17' }).click();
+  await expect.poll(() => fs.existsSync(paused)).toBe(false);
+  await expect(page.getByText('Agent paused.')).toBeHidden();
+  await expect.poll(() => checks(review)).toBe(before + 1);
+});

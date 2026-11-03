@@ -132,28 +132,44 @@ useEventListener(document, 'scroll', (event: Event) => {
       </div>
 
       <div class="flex shrink-0 items-center gap-2 max-md:min-w-0 max-md:shrink max-md:flex-wrap">
-        <UPopover v-if="reviews.length > 1" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
-          <UButton color="neutral" variant="outline" class="font-semibold" :label="plural(reviews.length, 'review')" :aria-label="`${plural(reviews.length, 'review')}: switch to another review`" trailing-icon="i-lucide-chevron-down" />
+        <UPopover v-if="reviews.length" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
+          <UButton color="neutral" variant="outline" class="font-semibold" :label="plural(reviews.length, 'review')" :aria-label="`${plural(reviews.length, 'review')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
           <template #content>
             <ul role="list" class="m-0 grid w-[min(420px,calc(100vw-32px))] list-none gap-0.5 p-1.5">
               <li
                 v-for="review in reviews"
                 :key="reviewRef(review)"
-                class="rounded-md text-label"
-                :class="isCurrentReview(review) ? 'bg-elevated px-2.5 py-2' : 'has-[>a:hover]:bg-elevated'"
+                class="flex items-start gap-1 rounded-md text-label"
+                :class="isCurrentReview(review) ? 'bg-elevated px-2.5 py-2' : 'has-[a:hover]:bg-elevated'"
                 :aria-current="isCurrentReview(review) ? 'page' : undefined"
               >
-                <template v-if="isCurrentReview(review)">
-                  <span class="block font-semibold">{{ reviewRef(review) }}{{ review.state === 'open' ? '' : ` · ${review.state}` }}</span>
-                  <span class="block text-muted">{{ review.title }}</span>
-                </template>
-                <template v-else>
-                  <a :href="`/${review.owner}/${review.repo}/${review.number}`" class="grid gap-0.5 px-2.5 py-2 text-default no-underline">
-                    <span class="font-semibold">{{ reviewRef(review) }}{{ review.state === 'open' ? '' : ` · ${review.state}` }}</span>
-                    <span class="text-muted">{{ review.title }}</span>
-                  </a>
-                  <ResumeHelp v-if="!review.agentConnected" :help="resumeHelp(review)" lead="Not running. " class="px-2.5 pb-2 text-muted" />
-                </template>
+                <div class="min-w-0 flex-1">
+                  <template v-if="isCurrentReview(review)">
+                    <span class="block font-semibold">{{ reviewRef(review) }}{{ review.state === 'open' ? '' : ` · ${review.state}` }}</span>
+                    <span class="block text-muted">{{ review.title }}</span>
+                    <span v-if="review.paused" class="block text-warning">Agent paused</span>
+                  </template>
+                  <template v-else>
+                    <a :href="`/${review.owner}/${review.repo}/${review.number}`" class="grid gap-0.5 px-2.5 py-2 text-default no-underline">
+                      <span class="font-semibold">{{ reviewRef(review) }}{{ review.state === 'open' ? '' : ` · ${review.state}` }}</span>
+                      <span class="text-muted">{{ review.title }}</span>
+                      <span v-if="review.paused" class="text-warning">Agent paused</span>
+                    </a>
+                    <ResumeHelp v-if="!review.agentConnected" :help="resumeHelp(review)" lead="Not running. " class="px-2.5 pb-2 text-muted" />
+                  </template>
+                </div>
+                <UTooltip v-if="review.agentConnected" :text="review.paused ? 'Resume the agent' : 'Pause the agent'">
+                  <UButton
+                    :icon="review.paused ? 'i-lucide-play' : 'i-lucide-pause'"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    square
+                    class="mt-1.5 shrink-0"
+                    :aria-label="`${review.paused ? 'Resume' : 'Pause'} the agent of ${reviewRef(review)}`"
+                    @click="setPaused(review, !review.paused)"
+                  />
+                </UTooltip>
               </li>
             </ul>
           </template>

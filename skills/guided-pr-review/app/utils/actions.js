@@ -1,7 +1,7 @@
 import { state, POLL_MS, CHECK_MS } from './state.js'
 import { transport } from './api.js'
 import { notify } from './notify.js'
-import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
+import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isCurrentReview, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
 import { answerFor, applySummaryDraft, buildPost, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits, threadPayload } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, restorePosition, step } from './navigation.js'
@@ -63,6 +63,18 @@ export async function loadReviews() {
   } catch {
     // Without the list the page works as before, only without the switch.
   }
+}
+
+// Pause or play the agent of a review. Play sends one check, so the page catches up with GitHub.
+export async function setPaused(review, paused) {
+  try {
+    await transport.setPaused(review, paused)
+  } catch (error) {
+    notify(`The agent did not get this: ${error.message}`, true)
+    return
+  }
+  review.paused = paused
+  if (!paused && isCurrentReview(review)) deliver({ type: 'check' }).catch(() => {})
 }
 
 // Open or close the list of open reviews.

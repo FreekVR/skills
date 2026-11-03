@@ -92,3 +92,12 @@ test('accepts a change only from the review page, on a local host name, and not 
   assert.strictEqual(rebound.statusCode, 403);
   assert.strictEqual(fs.existsSync(path.join(small, 'events.jsonl')) ? fs.readFileSync(path.join(small, 'events.jsonl'), 'utf8') : '', before);
 });
+
+test('pauses and plays the agent of a review with a paused file', async () => {
+  const paused = path.join(small, 'paused');
+  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: true }))).status, 200);
+  assert.ok(fs.existsSync(paused));
+  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: false }))).status, 200);
+  assert.ok(!fs.existsSync(paused));
+  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: 'yes' }))).status, 400);
+});

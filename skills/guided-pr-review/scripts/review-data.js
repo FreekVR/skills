@@ -11,13 +11,14 @@
 //   node review-data.js watch <review-dir> [--worktree <path>]
 //                                                        Record this session in session.json, then print each new
 //                                                        event in events.jsonl as an "EVENT <json>" line until stopped.
+//                                                        While the review is paused, it prints nothing.
 'use strict';
 
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, listReviews } = require('./reviews.js');
+const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews } = require('./reviews.js');
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
@@ -165,7 +166,7 @@ function main([command, ...args]) {
   }
   if (command === 'watch' && (args.length === 1 || (args.length === 3 && args[1] === '--worktree'))) {
     writeSession(args[0], args[2] || null, process.pid);
-    watchEvents(path.join(args[0], 'events.jsonl'), (line) => console.log(`EVENT ${line}`));
+    watchReview(args[0], (line) => console.log(`EVENT ${line}`));
     return undefined;
   }
   if (command === 'list' && args.length === 0) {
