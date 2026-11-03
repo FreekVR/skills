@@ -30,6 +30,21 @@ const banners = computed(() => updates())
           <p v-else-if="banner.kind === 'head'" class="m-0">
             <strong>New commits on this PR.</strong> {{ banner.updating ? 'The agent is loading the new commits…' : 'Some hunks may have changed since this review was prepared.' }}
           </p>
+          <p v-else-if="banner.kind === 'refreshed' && banner.status === 'error'" class="m-0">
+            <strong>The agent could not load the new commits: {{ banner.message }}</strong>
+          </p>
+          <div v-else-if="banner.kind === 'refreshed'">
+            <p class="m-0">
+              <strong>{{ banner.from === banner.to ? 'No new commits.' : 'Loaded the new commits' }}</strong>
+              <template v-if="banner.from !== banner.to">
+                ({{ shortSha(banner.from) }} → {{ shortSha(banner.to) }}). {{ banner.counts }}.
+              </template>
+              The page is up to date; no reload needed.
+            </p>
+            <div v-if="banner.summary" class="mt-1.5 text-toned [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+              <SafeMarkdown :value="banner.summary" />
+            </div>
+          </div>
           <p v-else-if="banner.kind === 'comments'" class="m-0">
             <strong>{{ plural(banner.count, 'new comment') }}</strong> by {{ banner.authors.map((author: string) => `@${author}`).join(', ') }}.
           </p>
@@ -40,6 +55,11 @@ const banners = computed(() => updates())
             <UButton v-if="banner.updating" color="neutral" variant="ghost" @click="refresh()">Ask again</UButton>
             <UButton v-else color="primary" variant="outline" @click="refresh()">Load the new commits</UButton>
             <UButton v-if="banner.canStartRound" color="neutral" variant="soft" @click="newRound()">Start a new review round</UButton>
+          </template>
+          <template v-if="banner.kind === 'refreshed'">
+            <UButton v-if="banner.status === 'error'" color="primary" variant="outline" @click="refresh()">Try again</UButton>
+            <UButton v-else-if="state.reviewer.hunkChanges?.added && state.freshHunks.size" color="neutral" variant="soft" @click="showFirstChangedHunk()">Show the first changed hunk</UButton>
+            <UButton color="neutral" variant="ghost" @click="closeRefreshResult(banner.eventId)">Close</UButton>
           </template>
           <UButton v-if="banner.kind === 'comments'" color="neutral" variant="soft" @click="showNewComments()">Show</UButton>
           <UButton v-if="banner.kind === 'paused'" color="neutral" variant="soft" icon="i-lucide-play" @click="setPaused(banner.review, false)">Resume</UButton>

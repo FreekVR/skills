@@ -27,6 +27,7 @@ function scrollTo(target: string) {
 }
 
 const groupTitle = 'm-0 flex flex-wrap items-center gap-2.5 text-title font-bold tracking-[-.01em]'
+const changes = computed(() => changesSince())
 const group = 'mt-18 border-t border-accented pt-7'
 const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-ui font-semibold text-default [&::-webkit-details-marker]:hidden'
 </script>
@@ -47,6 +48,17 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
       <AiTag label="AI summary" class="mb-2" />
       <SafeMarkdown :value="context.summary" />
     </div>
+
+    <section v-if="changes" class="mt-5 max-w-[70ch] rounded-lg border border-default bg-elevated/60 px-4 py-3 text-body" aria-labelledby="changes-since">
+      <h3 id="changes-since" class="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-ui font-semibold">
+        Changed since your last review
+        <span class="font-mono text-label font-normal text-muted">{{ changes.range }}</span>
+        <AiTag label="AI summary" />
+      </h3>
+      <div class="mt-1.5 text-toned [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+        <SafeMarkdown :value="changes.summary" />
+      </div>
+    </section>
 
     <div class="mt-5.5 mb-4.5 flex flex-wrap gap-2" role="group" aria-label="What to look at first">
       <UButton

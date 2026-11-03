@@ -291,8 +291,22 @@ export function setFindingSeverity(id, severity) {
 
 // Ask the agent to load the new commits of the PR.
 export function refresh() {
-  state.ui.updatingTo = state.review.remote.headSha
+  state.reviewer.hunkChanges = null
   return sendEvent({ type: 'refresh' })
+}
+
+// Hide the banner about loaded commits until the next load.
+export function closeRefreshResult(eventId) {
+  state.reviewer.closedRefresh = eventId
+  saveReviewer()
+}
+
+// Open the first hunk that is new or changed since the last load, in reading order.
+export function showFirstChangedHunk() {
+  for (const line of lines()) {
+    const index = line.stops.findIndex((stop) => state.freshHunks.has(stop.hunkId))
+    if (index !== -1) return go(line.id, index)
+  }
 }
 
 export function finish() { return sendEvent({ type: 'finish' }) }

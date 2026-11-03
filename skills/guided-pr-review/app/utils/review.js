@@ -192,12 +192,19 @@ export function flowVerdict(line) {
   return verdicts.every((verdict) => verdict === 'approved') ? 'approved' : 'comment'
 }
 
+// Hunks that are new or gone since the page last loaded the review. The counts add up until the next refresh, because the
+// agent can write the new hunks in several passes; they are kept, so a reload can still show them.
 export function noteFreshHunks() {
   const known = state.reviewer.knownHunks || []
+  const current = allHunkIds()
   if (known.length) {
-    for (const id of allHunkIds()) if (!known.includes(id) && !isSeen(id)) state.freshHunks.add(id)
+    for (const id of current) if (!known.includes(id) && !isSeen(id)) state.freshHunks.add(id)
+    const added = current.filter((id) => !known.includes(id)).length
+    const gone = known.filter((id) => !current.includes(id)).length
+    const before = state.reviewer.hunkChanges || { added: 0, gone: 0 }
+    if (added || gone) state.reviewer.hunkChanges = { added: before.added + added, gone: before.gone + gone }
   }
-  state.reviewer.knownHunks = allHunkIds()
+  state.reviewer.knownHunks = current
 }
 
 export function ticketCriteria() { return (state.review.context.tickets || []).flatMap((ticket) => ticket.acceptanceCriteria || []) }

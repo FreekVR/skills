@@ -130,7 +130,7 @@ Each event from the review page is one request. Its `review` field names the PR;
 - For a `summarize` event, write the review summary from the remarks in the event only, in plain text the reviewer can edit. Follow the user's review conventions. Do not add the disclosure; the review page adds it.
 - No events for a long time is normal: the user paused the agent (the watch printed `PAUSED`), the review page is in a hidden tab, or the user stepped away. You MUST NOT restart the watch, ask the user to finish or end the review because no events came; only `finish` or the user in the chat ends it.
 - The review page sends a `check` event when it opens and every 5 minutes after that. Handle it as the events table says: it updates reviews and comments and writes `remote`, but never changes hunks, flows or findings. Only a `refresh` event does that.
-- After a `refresh` event that loaded a new head commit, also write a new `fix` for each open posted comment, the user's and others', as in step 5.
+- After a `refresh` event that loaded a new head commit, also write a new `fix` for each open posted comment, the user's and others', as in step 5. Report the result of every `refresh` in `refreshes` and `changesSince`, not in the chat.
 - For a `post` event, post the payload exactly as it is: no extra text, no changed words, no other comments. Read `references/posting.md` for the GitHub requests. The button press is the reviewer's approval. You MUST NOT post at any other moment, and you MUST NOT ask for a second approval in the chat.
 
 Handle every event in silence: the review page shows the result, so you MUST NOT write anything in the chat for it, not even a short confirmation. The exceptions are the final `post` and `finish`: after those, do step 8. When the user asks you something in the chat instead, answer there too.
@@ -147,7 +147,7 @@ You MUST write the result of each event to `review.json` before you write anythi
 A review directory with a `review.json` means the reviewer stopped earlier.
 
 - If the PR head commit is the same as `pr.headSha`: open the review page again (step 6).
-- If it changed: run steps 1 and 2 again. Hunk IDs depend on the hunk content, so unchanged hunks keep their ID, explanation and "seen" state, and changed hunks get a new ID and show as not reviewed. Run steps 3 to 5 for the new hunks only, keep the findings of unchanged hunks with their IDs, and run the flow check again. Then open the review page again.
+- If it changed: write `changesSince` (see `references/review-data.md`), then run steps 1 and 2 again. Hunk IDs depend on the hunk content, so unchanged hunks keep their ID, explanation and "seen" state, and changed hunks get a new ID and show as not reviewed. Run steps 3 to 5 for the new hunks only, keep the findings of unchanged hunks with their IDs, and run the flow check again. Then open the review page again.
 
 ## Self-healing
 

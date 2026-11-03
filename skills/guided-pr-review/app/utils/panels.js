@@ -19,14 +19,40 @@ export function updates() {
   if (remote.state === 'merged' || remote.state === 'closed') {
     banners.push({ kind: 'state', key: `state-${remote.state}`, state: remote.state, finishing: isFinishing() })
   }
-  if (remote.headSha && remote.headSha !== state.review.pr.headSha) {
-    banners.push({ kind: 'head', key: `head-${remote.headSha}`, updating: state.ui.updatingTo === remote.headSha, canStartRound: Boolean(postedReview()) })
-  }
+  // One banner about new commits at a time: loading, then the result of the last load, else an offer to load them.
+  const load = refreshState()
+  const shown = load && state.reviewer.closedRefresh !== load.eventId
+  const newer = remote.headSha && remote.headSha !== state.review.pr.headSha
+  const loading = load?.status === 'loading'
+  if (shown && !loading && (load.status === 'error' || !newer)) banners.push({ kind: 'refreshed', key: `refreshed-${load.eventId}`, ...load })
+  else if (loading || newer) banners.push({ kind: 'head', key: 'head', updating: loading, canStartRound: Boolean(postedReview()) })
   const fresh = newComments()
   if (fresh.length) {
     banners.push({ kind: 'comments', key: `comments-${fresh.length}`, count: fresh.length, authors: [...new Set(fresh.map((comment) => comment.author))] })
   }
   return banners
+}
+
+// The last request to load new commits and what came of it: loading until the agent writes a result to `refreshes`.
+// Without a result, it only counts as loading while GitHub still has newer commits, so a refresh from before the page
+// read results, or one the agent never answered, does not keep the banner on.
+export function refreshState() {
+  const sent = sentEvents('refresh').at(-1)
+  if (!sent) return null
+  const result = (state.review.refreshes || []).find((candidate) => candidate.eventId === sent.id)
+  const newer = state.review.remote?.headSha && state.review.remote.headSha !== state.review.pr.headSha
+  if (!result) return newer ? { status: 'loading', eventId: sent.id } : null
+  // A changed hunk gets a new ID, so its old ID counts as gone too; removed hunks only count when nothing is new.
+  const { added = 0, gone = 0 } = state.reviewer.hunkChanges || {}
+  const counts = added ? `${plural(added, 'hunk')} new or changed` : gone ? `${plural(gone, 'hunk')} removed` : 'No hunk changed'
+  // Home shows the summary in a panel of its own.
+  return { ...result, counts, summary: state.view.kind === 'home' ? '' : changesSince()?.summary || '' }
+}
+
+// What changed since the reviewer's last review, while the page shows the commit the summary is about.
+export function changesSince() {
+  const changes = state.review.changesSince
+  return changes?.summary && changes.to === state.review.pr.headSha ? { ...changes, range: `${shortSha(changes.from)} → ${shortSha(changes.to)}` } : null
 }
 
 // The advice follows from the findings and the repo's own severity cutoff, so it never contradicts them.
