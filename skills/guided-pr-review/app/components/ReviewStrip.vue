@@ -141,7 +141,7 @@ useEventListener(document, 'scroll', (event: Event) => {
 
       <div class="flex shrink-0 items-center gap-2 max-md:min-w-0 max-md:shrink max-md:flex-wrap">
         <UPopover v-if="reviews.length" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
-          <UButton color="neutral" variant="outline" class="font-semibold" :label="plural(reviews.length, 'review')" :aria-label="`${plural(reviews.length, 'review')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
+          <UButton color="neutral" variant="outline" class="font-semibold" :label="plural(reviews.length, 'session')" :aria-label="`${plural(reviews.length, 'session')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
           <template #content>
             <ul role="list" class="m-0 grid w-[min(420px,calc(100vw-32px))] list-none gap-0.5 p-1.5">
               <li

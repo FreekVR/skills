@@ -18,7 +18,7 @@ test('the page names its PR, and the review switch lists it first, marked as thi
   first.pr.title = 'chore: an older PR';
   await openReview(page, { others: [first] });
   await expect(page.getByRole('complementary', { name: 'Review navigation' })).toContainText('example-org/sample-widget#17feat: add three-day forecast');
-  await page.getByRole('banner').getByText('2 reviews').click();
+  await page.getByRole('banner').getByText('2 sessions').click();
   const items = page.getByRole('listitem').filter({ hasText: 'example-org/sample-widget#' });
   await expect(items.first()).toContainText('example-org/sample-widget#17');
   await expect(items.first()).toContainText('this page');
@@ -27,7 +27,7 @@ test('the page names its PR, and the review switch lists it first, marked as thi
 
 test('the review switch lists both reviews and shows how to resume one that does not run', async ({ page }) => {
   await openReview(page, { others: [other()] });
-  await page.getByRole('banner').getByText('2 reviews').click();
+  await page.getByRole('banner').getByText('2 sessions').click();
   await expect(page.getByText('feat: add three-day forecast', { exact: true }).last()).toBeVisible();
   await expect(page.getByText('fix: round the temperature')).toBeVisible();
   await expect(page.getByText('Not running.')).toBeVisible();
@@ -37,7 +37,7 @@ test('the review switch lists both reviews and shows how to resume one that does
 // One server serves every review, so the switch links to the other review's path on the same server.
 test('the review switch links to another review on the same server', async ({ page }) => {
   await openReview(page, { others: [other()] });
-  await page.getByRole('banner').getByText('2 reviews').click();
+  await page.getByRole('banner').getByText('2 sessions').click();
   await expect(page.getByRole('link', { name: /fix: round the temperature/ })).toHaveAttribute('href', '/example-org/sample-widget/18');
 });
 
@@ -62,7 +62,7 @@ test('pause and play the agent from the review switch, and play asks the agent t
   // The test runner stands in for the agent's watch process, so the review counts as running.
   fs.writeFileSync(path.join(review.dir, 'session.json'), JSON.stringify({ sessionId: 'abc-123', cwd: '/work', worktree: null, watcherPid: process.pid }));
   await page.reload();
-  await page.getByRole('banner').getByText('1 review').click();
+  await page.getByRole('banner').getByText('1 session').click();
   await page.getByRole('button', { name: 'Pause the agent of example-org/sample-widget#17' }).click();
   await expect.poll(() => fs.existsSync(paused)).toBe(true);
   await expect(page.getByText('Agent paused.')).toBeVisible();
@@ -70,7 +70,7 @@ test('pause and play the agent from the review switch, and play asks the agent t
   await page.reload();
   await expect(page.getByText('Agent paused.')).toBeVisible();
   const before = checks(review);
-  await page.getByRole('banner').getByText('1 review').click();
+  await page.getByRole('banner').getByText('1 session').click();
   await page.getByRole('button', { name: 'Resume the agent of example-org/sample-widget#17' }).click();
   await expect.poll(() => fs.existsSync(paused)).toBe(false);
   await expect(page.getByText('Agent paused.')).toBeHidden();
