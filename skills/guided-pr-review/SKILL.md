@@ -81,6 +81,16 @@ Read the target repository's contribution guide and agent instruction files, if 
 
 First let the user choose. Look through the skills available to you for ones that review code. Use skills only, not agent types. Keep the ones that fit this PR's language, platform and kind of change, and drop a skill that duplicates another one or a check below. Then show the user the checks below and the review skills you kept, each with one line on what it checks and why it fits, with all of them selected, and say how many subagents you would start. If you can ask the user a structured multiple-choice question, use it, so the user can confirm or change the selection; otherwise ask in the chat. Run only what the user chose, once, before you open the review page. If you can start a subagent, run the chosen checks there, in no more subagents than the user agreed to. Otherwise, run them yourself.
 
+Give each subagent a brief with these parts, and nothing more:
+
+1. The checks it runs: one review skill, or one or more of the built-in checks below, with their text. Run the test coverage check yourself, not in a subagent, because it can need the user's answer.
+2. Where the PR is: the repository, the PR number, the head commit, the path of the diff file from step 2, and the list of hunks with their ID, file and line ranges. For a big PR, also the worktree path.
+3. The tickets as read in step 1, only for the checks of acceptance criteria and scope.
+4. The code rules and the severity labels from step 4.
+5. The answer format: a JSON list of findings, each with `hunkId` (null for the whole PR), `line`, `side`, `severity`, `title`, `body` and `rule`; an empty list when the checks find nothing. The acceptance criteria check also returns, per criterion ID, a `verdict` and a one-line `note`.
+
+Leave out your own view of the PR, the flows, and the findings of other checks, so each subagent reviews the code without your conclusions. When a review skill answers in its own format, convert its findings to this format yourself and keep its wording in `body`.
+
 Attach each finding to the hunk and line it is about, or set `hunkId` to null for a finding about the whole PR. When an open ticket in `context.relatedTickets` already covers a finding, name that ticket's key in the finding. Write each finding `body` as the comment text that would be posted, without the severity label and without the disclosure; the review page adds both.
 
 - Use the review skills that are available to you. Skills of the target project take precedence.
