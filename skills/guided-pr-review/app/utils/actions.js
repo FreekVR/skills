@@ -4,7 +4,7 @@ import { notify } from './notify.js'
 import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isCurrentReview, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
 import { answerFor, applySummaryDraft, buildPost, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
-import { go, goHome, goTerminus, markCurrentSeen, restorePosition, step } from './navigation.js'
+import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, restorePosition } from './navigation.js'
 import { composerKey } from './panels.js'
 
 let saveTimer = null
@@ -194,7 +194,7 @@ export function addRemark(text, severity) {
   delete state.ui.drafts[composerKey(composer)]
   state.ui.composer = null
   saveReviewer()
-  if (composer.thenNext) return step(1)
+  if (composer.thenNext) return nextAfterVerdict()
 }
 
 // A press on a line number starts a selection. With shift, it extends the open remark form from its first line.
@@ -268,11 +268,11 @@ export function setHunkVerdict(hunkId, verdict) {
   const hasRemark = state.reviewer.remarks.some((remark) => remark.hunkId === hunkId) || state.review.findings.some((finding) => finding.hunkId === hunkId && decisionOf(finding) === 'accepted')
   if (verdict !== 'approved' && !hasRemark) {
     const composer = wholeHunkComposer(hunkById(hunkId))
-    if (!composer) return step(1)
+    if (!composer) return nextAfterVerdict()
     openComposer({ ...composer, thenNext: true })
     return notify(verdict === 'changes' ? 'Say what should change in a remark. Adding it takes you to the next hunk.' : 'Write your comment. Adding it takes you to the next hunk.')
   }
-  return step(1)
+  return nextAfterVerdict()
 }
 
 // Choose the verdict of the review: APPROVE, REQUEST_CHANGES or COMMENT.

@@ -68,6 +68,22 @@ test('a flow that changed since you left it opens at its first unseen hunk', asy
   await expect(stop(page, 'A3')).toHaveAttribute('aria-current', 'step');
 });
 
+test('a verdict on the last hunk of a flow goes back to the first hunk without a verdict', async ({ page }) => {
+  await openReview(page, { reviewer: { hunkVerdicts: { [H.cache]: 'approved' } } });
+  await openFlow(page, 'Show the forecast');
+  await stop(page, 'A3').click();
+  await page.keyboard.press('a');
+  await expect(stop(page, 'A1')).toHaveAttribute('aria-current', 'step');
+});
+
+test('a verdict on the last hunk goes to the next flow once every hunk of the flow has one', async ({ page }) => {
+  await openReview(page, { reviewer: { hunkVerdicts: { [H.client]: 'approved', [H.cache]: 'approved' } } });
+  await openFlow(page, 'Show the forecast');
+  await stop(page, 'A3').click();
+  await page.keyboard.press('a');
+  await expect(stop(page, 'B1')).toHaveAttribute('aria-current', 'step');
+});
+
 test('keyboard: j, k and n move between hunks', async ({ page }) => {
   await openReview(page);
   await page.keyboard.press('j');

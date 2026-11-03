@@ -1,5 +1,5 @@
 import { state, PAGE_VIEWS, SHORTCUTS } from './state.js'
-import { hunkById, isSeen, lineById, lines } from './review.js'
+import { hunkById, isSeen, lineById, lines, verdictOf } from './review.js'
 import { postedReview } from './posting.js'
 import { markSeen, saveReviewer, setHunkVerdict } from './actions.js'
 
@@ -110,6 +110,16 @@ export function step(delta) {
   if (next >= 0 && next < line.stops.length) return go(line.id, next)
   if (delta > 0) return lineIndex + 1 < all.length ? go(all[lineIndex + 1].id, 0) : goTerminus()
   if (lineIndex > 0) return go(all[lineIndex - 1].id, all[lineIndex - 1].stops.length - 1)
+}
+
+// After a verdict: the next hunk in the flow. At the end of the flow, the first hunk in it without a verdict;
+// only when every hunk of the flow has one, the next flow or Submit review.
+export function nextAfterVerdict() {
+  if (state.view.kind !== 'station') return step(1)
+  const line = lineById(state.view.line)
+  if (state.view.index + 1 < line.stops.length) return step(1)
+  const open = line.stops.findIndex((stop) => !verdictOf(stop.hunkId))
+  return open === -1 ? step(1) : go(line.id, open)
 }
 
 export function nextUnseen() {
