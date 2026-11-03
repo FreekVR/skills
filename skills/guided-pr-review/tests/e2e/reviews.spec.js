@@ -194,3 +194,37 @@ test('shows a comment in each flow its hunk is in, with the comment in focus', a
   await expect(page.getByRole('button', { name: /^B1 / })).toHaveAttribute('aria-current', 'step');
   await expect(page.locator('#note-gh-1')).toBeFocused();
 });
+
+// GitHub's allowlist: html-pipeline's SanitizationFilter, with Selma's default protocols and removed contents.
+test('shows HTML in comments the way GitHub does: allowed tags render, the rest is removed', async ({ page }) => {
+  await openReview(page, {
+    mutate: (data) => {
+      data.reviewComments[0].body = [
+        'Small print: <sub>AI wrote this</sub>, press <kbd>Ctrl</kbd>.',
+        '<script>window.hacked = true</script>',
+        '<a href="javascript:alert(1)">bad link</a> <a href="https://example.test/ok" onclick="window.hacked = true" class="x">good link</a>',
+        '<img src="https://example.test/a.png" alt="a picture" onerror="window.hacked = true">',
+        '<details><summary>More</summary>Hidden text</details>',
+        '<custom-element>kept text</custom-element> <span style="color: red" id="anchor">styled</span>',
+      ].join('\n\n');
+    },
+  });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = page.getByRole('main').locator('.thread').filter({ hasText: 'Small print' });
+  await expect(thread.locator('sub')).toHaveText('AI wrote this');
+  await expect(thread.locator('kbd')).toHaveText('Ctrl');
+  await expect(thread.locator('script')).toHaveCount(0);
+  await expect(thread).not.toContainText('window.hacked');
+  await expect(thread.getByText('bad link')).not.toHaveAttribute('href');
+  const good = thread.getByRole('link', { name: 'good link' });
+  await expect(good).toHaveAttribute('href', 'https://example.test/ok');
+  await expect(good).not.toHaveAttribute('onclick');
+  await expect(good).not.toHaveClass(/(^|\s)x(\s|$)/);
+  await expect(thread.getByRole('img', { name: 'a picture' })).not.toHaveAttribute('onerror');
+  await expect(thread.locator('details summary')).toHaveText('More');
+  await expect(thread.locator('custom-element')).toHaveCount(0);
+  await expect(thread).toContainText('kept text');
+  await expect(thread.getByText('styled')).not.toHaveAttribute('style');
+  await expect(thread.getByText('styled')).toHaveAttribute('id', 'user-content-anchor');
+  expect(await page.evaluate(() => window.hacked)).toBeUndefined();
+});
