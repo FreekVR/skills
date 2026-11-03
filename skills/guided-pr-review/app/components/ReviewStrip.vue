@@ -1,8 +1,7 @@
 <script setup lang="ts">
-// Width of one stop on the flow map, in pixels. The ring and the filled bar move by this much per hunk.
+// Width of one stop on the flow map, in pixels. The filled bar moves by this much per hunk.
 const STOP_WIDTH = 132
 const THEME_ICONS: Record<string, string> = { system: 'i-lucide-monitor', light: 'i-lucide-sun', dark: 'i-lucide-moon' }
-const VERDICT_TICKS: Record<string, string> = { approved: 'bg-success border-success', changes: 'bg-error border-error', comment: 'bg-(--ui-text-toned) border-(--ui-text-toned)' }
 const AC_COLORS: Record<string, 'success' | 'error' | 'warning'> = { 'met': 'success', 'not-met': 'error', 'unclear': 'warning' }
 
 const header = useTemplateRef<HTMLElement>('header')
@@ -42,9 +41,17 @@ const draftCount = computed(() => localCount())
 const draftLabel = computed(() => (draftCount.value ? `Post as draft. ${plural(draftCount.value, 'remark')} not on GitHub yet.` : 'Post as draft'))
 const theme = computed(() => state.reviewer.theme || 'system')
 
+const TICK_COLORS: Record<string, string> = { approved: 'var(--ui-success)', changes: 'var(--ui-error)', comment: 'var(--ui-text-toned)' }
+
 function tickClass(stop: { verdict?: string, seen: boolean, stamp: boolean }) {
-  if (stop.verdict) return ['-mt-px grid size-5 place-items-center text-inverted', VERDICT_TICKS[stop.verdict], stop.stamp && 'stamp']
-  return ['mt-0.5 size-3.5', stop.seen ? 'border-primary bg-primary' : 'border-(--line) bg-default']
+  if (stop.verdict) return ['-mt-px grid size-5 place-items-center border-(--tick) bg-(--tick) text-inverted', stop.stamp && 'stamp']
+  return ['mt-0.5 size-3.5 border-(--tick)', stop.seen ? 'bg-(--tick)' : 'bg-default']
+}
+
+// The stops other than the current one get a faded colour; it stays opaque, so the line does not show through.
+function tickStyle(stop: { verdict?: string, seen: boolean }, current: boolean) {
+  const color = stop.verdict ? TICK_COLORS[stop.verdict] : stop.seen ? 'var(--ui-primary)' : 'var(--line)'
+  return { '--tick': current ? color : `color-mix(in srgb, ${color} 80%, var(--ui-bg))` }
 }
 
 function onCriteriaToggle(event: Event) {
@@ -273,7 +280,12 @@ useEventListener(document, 'scroll', (event: Event) => {
             @click="drag?.moved || go(line.id, stop.at)"
           >
             <span class="block h-7 pt-1 font-mono text-tag leading-none font-semibold tracking-[.02em] text-muted">{{ stop.code }}</span>
-            <span class="relative mx-auto block rounded-full border-3" :class="tickClass(stop)">
+            <!-- The current stop is bigger and the others are faded, so the eye finds the current one first. -->
+            <span
+              class="relative mx-auto block rounded-full border-3 transition-[scale] duration-[380ms] ease-review motion-reduce:transition-none"
+              :class="[tickClass(stop), stop.at === index && 'scale-[1.6] shadow-[0_0_0_2px_var(--ui-bg)]']"
+              :style="tickStyle(stop, stop.at === index)"
+            >
               <VerdictIcon v-if="stop.verdict" :verdict="stop.verdict" :class="stop.verdict === 'approved' ? 'size-2.5' : 'size-3.5'" />
             </span>
             <span
@@ -287,11 +299,6 @@ useEventListener(document, 'scroll', (event: Event) => {
               <template v-if="stop.others.length">also in <FlowBullet v-for="other in stop.others" :key="other.id" :line="other" mini /></template>
             </span>
           </button>
-          <span
-            class="pointer-events-none absolute top-[22px] size-[30px] rounded-full border-3 border-(--ui-text) shadow-[0_0_0_3px_var(--ui-bg)] transition-transform duration-[380ms] ease-review motion-reduce:transition-none"
-            :style="{ left: `${STOP_WIDTH / 2 - 15}px`, transform: `translateX(${index * STOP_WIDTH}px)` }"
-            aria-hidden="true"
-          />
         </div>
         <span class="map-hint end" aria-hidden="true" />
       </nav>
@@ -301,11 +308,11 @@ useEventListener(document, 'scroll', (event: Event) => {
           Legend
         </summary>
         <p class="m-0 flex flex-wrap items-center gap-4 pt-2 text-meta text-muted">
-          <span><span class="legend-dot mr-1.5 inline-block size-3.5 rounded-full border-2 border-(--ui-text) align-[-3px]" />current hunk</span>
+          <span><span class="legend-dot mr-1.5 inline-block size-4 rounded-full border-3 border-(--line) align-[-3px]" />current hunk (bigger)</span>
           <span><span class="legend-dot mr-1.5 inline-block size-2.5 rounded-full border-2 border-(--line) align-[-1px]" />not read</span>
           <span><span class="legend-dot mr-1.5 inline-block size-2.5 rounded-full border-2 border-primary bg-primary align-[-1px]" />read</span>
           <span v-for="(label, verdict) in { approved: 'you approved', changes: 'you request changes', comment: 'you comment' }" :key="verdict">
-            <span class="legend-dot mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 align-[-4px] text-inverted" :class="VERDICT_TICKS[verdict]">
+            <span class="legend-dot mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 border-(--tick) bg-(--tick) align-[-4px] text-inverted" :style="{ '--tick': TICK_COLORS[verdict] }">
               <VerdictIcon :verdict="verdict" :class="verdict === 'approved' ? 'size-2' : 'size-3'" />
             </span>{{ label }}
           </span>
