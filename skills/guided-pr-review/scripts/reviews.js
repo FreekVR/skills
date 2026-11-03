@@ -74,19 +74,23 @@ function watchEvents(file, onLine, interval = 300) {
 
 // While the review server keeps a `paused` file in the review directory, the agent gets no events: check events are
 // dropped, because they only poll GitHub, and the others wait until the reviewer presses play.
-function watchReview(dir, print, interval = 300) {
+// onPause tells the agent when a pause starts and ends, so a quiet page does not look like a closed one.
+function watchReview(dir, print, onPause, interval = 300) {
   const held = [];
-  const paused = () => fs.existsSync(path.join(dir, 'paused'));
-  const release = () => held.splice(0).forEach(print);
+  let wasPaused = false;
+  // Both the timer and a new event check the pause here, so the agent always reads RESUMED before the events it lets go.
+  const sync = () => {
+    const paused = fs.existsSync(path.join(dir, 'paused'));
+    if (paused !== wasPaused) onPause(paused);
+    wasPaused = paused;
+    if (!paused) held.splice(0).forEach(print);
+    return paused;
+  };
   const stopEvents = watchEvents(path.join(dir, 'events.jsonl'), (line) => {
-    if (!paused()) {
-      release();
-      print(line);
-    } else if (JSON.parse(line).type !== 'check') {
-      held.push(line);
-    }
+    if (!sync()) print(line);
+    else if (JSON.parse(line).type !== 'check') held.push(line);
   }, interval);
-  const timer = setInterval(() => { if (held.length && !paused()) release(); }, interval);
+  const timer = setInterval(sync, interval);
   return () => {
     stopEvents();
     clearInterval(timer);

@@ -136,7 +136,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 
 `node scripts/review-data.js watch <review-dir> [--worktree <path>]` writes `session.json` and keeps running as the watch. `sessionId` comes from `CLAUDE_CODE_SESSION_ID`, and `watcherPid` is the watch process. While that process runs, an agent is connected to the review. The review page lists every review directory in a switch in its header. For a review without a connected agent, it shows the command that resumes its session.
 
-The reviewer can pause and resume the agent in that switch. The review server then creates or deletes the empty file `paused` in the review directory. While it exists, the watch prints no events and drops `check` events, so the agent does not poll GitHub; the other events wait until the reviewer resumes the agent. A new watch keeps the pause, but the events that the old watch held are gone: a watch only reads events added after it started.
+The reviewer can pause and resume the agent in that switch. The review server then creates or deletes the empty file `paused` in the review directory. While it exists, the watch prints `PAUSED` once and then no events: it drops `check` events, so the agent does not poll GitHub, and the other events wait until the reviewer resumes the agent and the watch prints `RESUMED`. A watch that starts during a pause prints `PAUSED` at once. A new watch keeps the pause, but the events that the old watch held are gone: a watch only reads events added after it started.
 
 The review server records itself in `server.json` in the state directory itself, not in a review directory: `{ "url": "http://127.0.0.1:4317/", "pid": 4242 }`. `scripts/review-server.js` writes it when it starts the server.
 

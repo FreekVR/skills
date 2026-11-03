@@ -188,8 +188,9 @@ test('watchReview holds events while the review is paused, drops check events, a
   const pause = (paused) => (paused ? fs.writeFileSync(path.join(dir, 'paused'), '') : fs.rmSync(path.join(dir, 'paused'), { force: true }));
   const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
   const lines = [];
+  const states = [];
   pause(false);
-  const stop = watchReview(dir, (line) => lines.push(line), 20);
+  const stop = watchReview(dir, (line) => lines.push(line), (paused) => states.push(paused ? 'PAUSED' : 'RESUMED'), 20);
   t.after(stop);
   fs.appendFileSync(file, '{"type":"ask","n":1}\n');
   await wait();
@@ -202,4 +203,15 @@ test('watchReview holds events while the review is paused, drops check events, a
   fs.appendFileSync(file, '{"type":"check"}\n');
   await wait();
   assert.deepStrictEqual(lines, ['{"type":"ask","n":1}', '{"type":"ask","n":2}', '{"type":"post","n":3}', '{"type":"check"}']);
+  assert.deepStrictEqual(states, ['PAUSED', 'RESUMED']);
+});
+
+test('watchReview says at once that a review is paused when the watch starts during a pause', async (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-'));
+  fs.writeFileSync(path.join(dir, 'paused'), '');
+  const states = [];
+  const stop = watchReview(dir, () => {}, (paused) => states.push(paused), 20);
+  t.after(stop);
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  assert.deepStrictEqual(states, [true]);
 });

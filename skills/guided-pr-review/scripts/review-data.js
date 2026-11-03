@@ -11,7 +11,8 @@
 //   node review-data.js watch <review-dir> [--worktree <path>]
 //                                                        Record this session in session.json, then print each new
 //                                                        event in events.jsonl as an "EVENT <json>" line until stopped.
-//                                                        While the review is paused, it prints nothing.
+//                                                        While the review is paused, it prints only "PAUSED" when the
+//                                                        pause starts and "RESUMED" when it ends.
 'use strict';
 
 const fs = require('fs');
@@ -166,7 +167,7 @@ function main([command, ...args]) {
   }
   if (command === 'watch' && (args.length === 1 || (args.length === 3 && args[1] === '--worktree'))) {
     writeSession(args[0], args[2] || null, process.pid);
-    watchReview(args[0], (line) => console.log(`EVENT ${line}`));
+    watchReview(args[0], (line) => console.log(`EVENT ${line}`), (paused) => console.log(paused ? 'PAUSED' : 'RESUMED'));
     return undefined;
   }
   if (command === 'list' && args.length === 0) {
