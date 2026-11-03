@@ -245,3 +245,10 @@ test('shows your remarks in the hunk view as markdown, as GitHub will show them'
   await expect(remark.locator('kbd')).toHaveText('Ctrl');
   await expect(remark.locator('code')).toHaveText('MAX');
 });
+
+test('shows a single line break in a comment as a new line, as GitHub does', async ({ page }) => {
+  await openReview(page, { mutate: (data) => { data.reviewComments[0].body = 'First line\nSecond line'; } });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = page.getByRole('main').locator('.thread').filter({ hasText: 'First line' });
+  await expect(thread.locator('p').filter({ hasText: 'First line' }).locator('br')).toHaveCount(1);
+});
