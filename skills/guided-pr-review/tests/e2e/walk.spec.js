@@ -49,6 +49,25 @@ test('a hunk says you saw it in another flow only after you saw it there', async
   await expect(sawIt).toBeVisible();
 });
 
+test('opening a flow again returns to the hunk you had open in it', async ({ page }) => {
+  await openReview(page);
+  await openFlow(page, 'Show the forecast');
+  await stop(page, 'A3').click();
+  await page.getByRole('button', { name: 'Home' }).click();
+  await openFlow(page, 'Show the forecast');
+  await expect(stop(page, 'A3')).toHaveAttribute('aria-current', 'step');
+});
+
+// A saved position from before the flow changed, or from before the page saved the flow's hunks with it.
+test('a flow that changed since you left it opens at its first unseen hunk', async ({ page }) => {
+  await openReview(page, { reviewer: { seen: [H.client], flowPositions: { 'forecast-read': { hunkId: H.client, stops: [H.client, 'an-older-hunk', H.card] }, 'forecast-store': H.lock } } });
+  await openFlow(page, 'Store the forecast');
+  await expect(stop(page, 'B1')).toHaveAttribute('aria-current', 'step');
+  await page.getByRole('button', { name: 'Home' }).click();
+  await openFlow(page, 'Show the forecast');
+  await expect(stop(page, 'A3')).toHaveAttribute('aria-current', 'step');
+});
+
 test('keyboard: j, k and n move between hunks', async ({ page }) => {
   await openReview(page);
   await page.keyboard.press('j');

@@ -25,7 +25,7 @@ export function go(lineId, index) {
   // Entrances play once, for the move that caused them.
   state.ui.enter = state.view.kind === 'station' && stopOrder(target) !== stopOrder(state.view) ? (stopOrder(target) > stopOrder(state.view) ? 'next' : 'prev') : null
   state.view = target
-  state.reviewer.flowPositions = { ...state.reviewer.flowPositions, [line.id]: line.stops[bounded].hunkId }
+  state.reviewer.flowPositions = { ...state.reviewer.flowPositions, [line.id]: { hunkId: line.stops[bounded].hunkId, stops: line.stops.map((stop) => stop.hunkId) } }
   state.ui.composer = null
   state.ui.askOpen = false
   state.ui.criteriaOpen = undefined
@@ -63,10 +63,13 @@ export function goTerminus() {
 
 export function goFirst() { return go(lines()[0].id, 0) }
 
-// Back to the hunk the reviewer last had open in this flow; a flow not opened yet starts at its first unseen hunk.
+// Back to the hunk the reviewer last had open in this flow. A flow not opened yet, or one whose hunks changed since,
+// starts at its first unseen hunk. A position saved before the page kept the flow's hunks with it counts as changed.
 export function openFlow(lineId) {
   const line = lineById(lineId)
-  const remembered = line.stops.findIndex((stop) => stop.hunkId === state.reviewer.flowPositions?.[line.id])
+  const saved = state.reviewer.flowPositions?.[line.id]
+  const unchanged = saved?.stops?.join() === line.stops.map((stop) => stop.hunkId).join()
+  const remembered = unchanged ? line.stops.findIndex((stop) => stop.hunkId === saved.hunkId) : -1
   const unseen = line.stops.findIndex((stop) => !isSeen(stop.hunkId))
   return go(line.id, remembered !== -1 ? remembered : unseen === -1 ? 0 : unseen)
 }
