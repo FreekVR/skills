@@ -9,9 +9,7 @@ defineProps<{ result: { status: string, text: string, url?: string } }>()
     class="mb-1.5 rounded-md border px-3 py-2 text-ui"
     :class="result.status === 'posted' ? 'border-success' : result.status === 'pending' ? 'border-default' : 'border-error text-error'"
   >
-    <span v-if="result.status === 'pending'" class="inline-flex items-center gap-2 text-label text-dimmed">
-      <span class="size-2 motion-safe:animate-pulse rounded-full bg-warning" aria-hidden="true" />{{ result.text }}
-    </span>
+    <AgentPending v-if="result.status === 'pending'" :text="result.text" />
     <template v-else>
       {{ result.text }}<template v-if="result.url">
         {{ ' ' }}<a :href="result.url" target="_blank" rel="noopener" class="text-info underline underline-offset-3">Open on GitHub</a>

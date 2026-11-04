@@ -27,9 +27,12 @@ const banners = computed(() => updates())
           <p v-else-if="banner.kind === 'state'" class="m-0">
             <strong>This PR is {{ banner.state }}.</strong> {{ banner.finishing ? 'The agent asks in the chat whether to delete the review data.' : 'A review has little effect now.' }}
           </p>
-          <p v-else-if="banner.kind === 'head'" class="m-0">
-            <strong>New commits on this PR.</strong> {{ banner.updating ? 'The agent is loading the new commits…' : 'Some hunks may have changed since this review was prepared.' }}
-          </p>
+          <div v-else-if="banner.kind === 'head'">
+            <p class="m-0">
+              <strong>New commits on this PR.</strong> <template v-if="!banner.updating">Some hunks may have changed since this review was prepared.</template>
+            </p>
+            <AgentPending v-if="banner.updating" text="The agent is loading the new commits…" class="mt-1" />
+          </div>
           <p v-else-if="banner.kind === 'refreshed' && banner.status === 'error'" class="m-0">
             <strong>The agent could not load the new commits: {{ banner.message }}</strong>
           </p>
@@ -62,7 +65,7 @@ const banners = computed(() => updates())
             <UButton color="neutral" variant="ghost" @click="closeRefreshResult(banner.eventId)">Close</UButton>
           </template>
           <UButton v-if="banner.kind === 'comments'" color="neutral" variant="soft" @click="showNewComments()">Show</UButton>
-          <UButton v-if="banner.kind === 'paused'" color="neutral" variant="soft" icon="i-lucide-play" @click="setPaused(banner.review, false)">Resume</UButton>
+          <UButton v-if="banner.kind === 'paused'" color="neutral" variant="soft" icon="i-lucide-play" @click="resumeAgent">Resume</UButton>
         </template>
       </UAlert>
     </TransitionGroup>

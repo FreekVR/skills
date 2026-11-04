@@ -1,5 +1,7 @@
 'use strict';
 const { test, expect } = require('@playwright/test');
+const fs = require('fs');
+const path = require('path');
 const { openReview, eventOf } = require('./helpers.js');
 const { H } = require('./fixture.js');
 
@@ -62,6 +64,7 @@ const loadNewCommits = async (page, review) => {
 
 test('loading new commits: the banner keeps saying the agent is loading, also after a reload', async ({ page }) => {
   const review = await openReview(page);
+  fs.writeFileSync(path.join(review.dir, 'session.json'), JSON.stringify({ sessionId: 'sample-session', cwd: review.dir, watcherPid: process.pid }));
   await loadNewCommits(page, review);
   await expect(main(page).getByText('The agent is loading the new commits…')).toBeVisible();
   await review.saved((state) => state.sent?.some((sent) => sent.type === 'refresh'));

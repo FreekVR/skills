@@ -84,6 +84,9 @@ test('shows no stack switch for a PR that is in no stack, or alone in it', async
 });
 
 // A review directory without review.json has no page yet (the page answers 404), so the row has no link.
+// The test runner stands in for the watch process of the agent that runs this page's review.
+const liveAgent = (review) => fs.writeFileSync(path.join(review.dir, 'session.json'), JSON.stringify({ sessionId: 'abc-123', cwd: '/work', worktree: null, watcherPid: process.pid }));
+
 const reviewDirOf = async (page, review, number, file, content) => {
   const dir = path.join(path.dirname(review.dir), String(number));
   fs.mkdirSync(dir, { recursive: true });
@@ -103,6 +106,7 @@ test('shows a PR whose review another session runs, without a link or Start a re
 
 test('shows a PR whose review the agent prepares, without a link or Start a review', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  liveAgent(review);
   await reviewDirOf(page, review, 16, 'preparing', '');
   await expect(row(page, 16)).toContainText('Preparing the review…');
   await expect(row(page, 16).getByRole('link')).toHaveCount(0);
@@ -225,6 +229,7 @@ test('a criterion this PR places in another PR is expected there, even without s
 
 test('Start a review sends a start-review event and shows that the agent prepares it', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  liveAgent(review);
   await button(page).click();
   await row(page, 16).getByRole('button', { name: 'Start a review' }).click();
   expect(await eventOf(review, 'start-review')).toMatchObject({ type: 'start-review', number: 16 });
@@ -321,6 +326,7 @@ test('with #17 posted the Next button targets the PR below', async ({ page }) =>
 
 test('after Start a review, the row shows Preparing and offers no second start, also after a reload', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  liveAgent(review);
   await button(page).click();
   await row(page, 16).getByRole('button', { name: 'Start a review' }).click();
   await eventOf(review, 'start-review');

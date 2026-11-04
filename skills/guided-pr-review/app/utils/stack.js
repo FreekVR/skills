@@ -1,5 +1,6 @@
 import { state } from './state.js'
 import { ticketCriteria } from './review.js'
+import { agentState } from './posting.js'
 
 // A stack of one PR is no stack, and a stack without this PR is not its stack: the page shows no stack switch for them.
 export function hasStack() {
@@ -31,7 +32,7 @@ export function stackRowLabel(row) {
   if (row.approved) return 'Approved by you'
   if (row.state === 'merged') return 'Merged'
   if (row.status?.posted) return 'Review posted'
-  if (row.status?.preparing || row.asked) return 'Preparing the review…'
+  if (row.status?.preparing || row.asked) return agentState() === 'none' ? 'Waits for an agent' : 'Preparing the review…'
   if (row.status?.hasReview) {
     const { seen, hunks, remarks } = row.status
     return remarks ? `${seen} of ${hunks} hunks seen · ${remarks} remarks` : `${seen} of ${hunks} hunks seen`

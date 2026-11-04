@@ -18,9 +18,7 @@ const tools = computed(() => summaryTools())
       </div>
     </div>
     <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-      <span v-if="tools.waiting" class="inline-flex items-center gap-2 text-label text-dimmed">
-        <span class="size-2 motion-safe:animate-pulse rounded-full bg-warning" aria-hidden="true" />The agent is writing a summary…
-      </span>
+      <AgentPending v-if="tools.waiting" text="The agent is writing a summary…" />
       <UButton v-else color="neutral" variant="ghost" icon="i-lucide-sparkles" class="-ml-2.5 text-toned" :disabled="!tools.count" @click="summarize()">
         {{ state.reviewer.summary.trim() ? 'Write a new summary from your remarks' : 'Write a summary from your remarks' }}
       </UButton>

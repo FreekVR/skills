@@ -27,9 +27,7 @@ function onToggle(event: Event) {
           <SafeMarkdown :value="hunk.explanationMore" />
         </div>
       </details>
-      <span v-else-if="pending" class="inline-flex items-center gap-2 text-label text-muted">
-        <span class="size-2 motion-safe:animate-pulse rounded-full bg-warning" aria-hidden="true" />The AI is writing a longer explanation…
-      </span>
+      <AgentPending v-else-if="pending" text="The AI is writing a longer explanation…" />
       <UButton v-else color="neutral" variant="ghost" icon="i-lucide-message-square-text" class="text-toned" title="Ask the AI for a longer explanation of this hunk" @click="explainMore(hunk.id)">Explain more</UButton>
     </div>
   </section>
