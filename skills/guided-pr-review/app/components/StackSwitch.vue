@@ -3,13 +3,6 @@ const position = computed(() => stackPosition())
 const rows = computed(() => stackRows())
 const label = computed(() => `Stack · ${position.value.index} of ${position.value.size}`)
 
-// A merged or approved PR is done, so its stop is green; this page's stop is bigger, like the current hunk on the flow map.
-function dotClass(row: { current: boolean, state: string, approved: boolean }) {
-  if (row.current) return 'size-4 border-(--line) bg-(--line) shadow-[0_0_0_2px_var(--ui-bg)]'
-  if (row.state === 'merged' || row.approved) return 'size-3.5 border-success bg-success'
-  return 'size-3.5 border-(--line) bg-default'
-}
-
 // This page's row needs no link. A merged or closed PR without a review links to GitHub.
 function linkOf(row: { current: boolean, action: string, url: string, status: { page: string } | null }) {
   if (row.action === 'open' && !row.current) return { href: row.status?.page }
@@ -41,7 +34,7 @@ function linkOf(row: { current: boolean, action: string, url: string, status: { 
               aria-hidden="true"
             />
             <span class="relative grid w-[21px] shrink-0 place-items-center pt-0.5" aria-hidden="true">
-              <span class="block rounded-full border-3" :class="dotClass(row)" />
+              <span class="block rounded-full border-3" :class="stackDotClass(row)" />
             </span>
             <div class="min-w-0 flex-1">
               <span class="flex flex-wrap items-center gap-x-1.5">

@@ -86,7 +86,7 @@ export const FIX_LABELS = { fixed: 'fixed', 'not-fixed': 'not fixed yet', unclea
 
 export const SEVERITY_TONES = ['info', 'info', 'warn', 'bad']
 
-export const AC_VERDICTS = { met: 'Met', 'not-met': 'Not met', unclear: 'Unclear' }
+export const AC_VERDICTS = { met: 'Met', 'not-met': 'Not met', unclear: 'Unclear', elsewhere: 'In another PR' }
 
 export const POST_NOUNS = { final: 'review', draft: 'draft' }
 

@@ -2,7 +2,6 @@
 // Width of one stop on the flow map, in pixels. The filled bar moves by this much per hunk.
 const STOP_WIDTH = 132
 const THEME_ICONS: Record<string, string> = { system: 'i-lucide-monitor', light: 'i-lucide-sun', dark: 'i-lucide-moon' }
-const AC_COLORS: Record<string, 'success' | 'error' | 'warning'> = { 'met': 'success', 'not-met': 'error', 'unclear': 'warning' }
 
 const header = useTemplateRef<HTMLElement>('header')
 const map = useTemplateRef<HTMLElement>('map')
@@ -236,7 +235,7 @@ useEventListener(document, 'scroll', (event: Event) => {
           <span class="criteria-keys flex flex-wrap gap-x-3.5 gap-y-1.5">
             <span v-for="{ id, criterion } in criteria" :key="id" class="inline-flex items-center gap-1.5 font-mono text-label font-semibold text-toned">
               {{ id }}
-              <UBadge v-if="criterion.verdict" :color="AC_COLORS[criterion.verdict]" variant="solid" size="sm" class="font-sans font-bold">{{ AC_VERDICTS[criterion.verdict] }}</UBadge>
+              <UBadge v-if="criterion.verdict" :color="AC_VERDICT_COLORS[criterion.verdict]" variant="solid" size="sm" class="font-sans font-bold">{{ criterionVerdictLabel(criterion) }}</UBadge>
             </span>
           </span>
         </summary>
@@ -249,8 +248,8 @@ useEventListener(document, 'scroll', (event: Event) => {
               :class="{ italic: criterionSource(criterion).kind === 'description' }"
               :title="criterionSource(criterion).title || undefined"
             >{{ criterionSource(criterion).label }}</span>
-            <UBadge v-if="criterion.verdict" :color="AC_COLORS[criterion.verdict]" variant="solid" size="sm" class="ml-2.5 align-[2px] font-sans font-bold" :title="criterion.note || undefined">
-              {{ AC_VERDICTS[criterion.verdict] }}
+            <UBadge v-if="criterion.verdict" :color="AC_VERDICT_COLORS[criterion.verdict]" variant="solid" size="sm" class="ml-2.5 align-[2px] font-sans font-bold" :title="criterion.note || undefined">
+              {{ criterionVerdictLabel(criterion) }}
             </UBadge>
           </li>
         </ul>

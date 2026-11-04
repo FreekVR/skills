@@ -144,11 +144,21 @@ export function flowFindingsPill(line) {
 export function criteriaStatus() {
   const criteria = ticketCriteria()
   const notMet = criteria.filter((criterion) => criterion.verdict === 'not-met').length
-  const open = criteria.filter((criterion) => !['met', 'not-met'].includes(criterion.verdict)).length
+  const open = criteria.filter((criterion) => !['met', 'not-met', 'elsewhere'].includes(criterion.verdict)).length
+  const elsewhere = criteria.some((criterion) => criterion.verdict === 'elsewhere')
   if (!criteria.length) return { tone: 'quiet', icon: 'none', label: 'No acceptance criteria' }
   if (notMet) return { tone: 'bad', icon: 'bad', label: `${notMet} of ${plural(criteria.length, 'criterion', 'criteria')} not met` }
   if (open) return { tone: 'warn', icon: 'warn', label: `${plural(open, 'criterion', 'criteria')} unclear or not checked` }
-  return { tone: 'ok', icon: 'ok', label: `All ${plural(criteria.length, 'criterion', 'criteria')} met` }
+  return { tone: 'ok', icon: 'ok', label: `All ${plural(criteria.length, 'criterion', 'criteria')} met${elsewhere ? ' in the stack' : ''}` }
+}
+
+// The badge colour of each criterion verdict, in the criteria rows and in a flow's criteria.
+export const AC_VERDICT_COLORS = { 'met': 'success', 'not-met': 'error', 'unclear': 'warning', 'elsewhere': 'info' }
+
+// A criterion that another PR of the stack meets names that PR.
+export function criterionVerdictLabel(criterion) {
+  if (criterion.verdict === 'elsewhere' && criterion.pr) return `In #${criterion.pr}`
+  return AC_VERDICTS[criterion.verdict || ''] || 'Not checked'
 }
 
 export function findingsStatus() {
@@ -225,8 +235,8 @@ export function flowCriteria(line) {
 export function criteriaCheck() {
   const criteria = ticketCriteria()
   if (!criteria.length) return { done: true, counts: 'none in the linked tickets', criteria }
-  const counts = Object.entries(AC_VERDICTS).map(([id, label]) => [criteria.filter((criterion) => criterion.verdict === id).length, label.toLowerCase()]).filter(([count]) => count).map(([count, label]) => `${count} ${label}`)
-  return { done: criteria.every((criterion) => criterion.verdict === 'met'), counts: [criteria.length, ...counts].join(' · '), criteria }
+  const counts = Object.entries(AC_VERDICTS).map(([id, label]) => [criteria.filter((criterion) => criterion.verdict === id).length, label[0].toLowerCase() + label.slice(1)]).filter(([count]) => count).map(([count, label]) => `${count} ${label}`)
+  return { done: criteria.every((criterion) => ['met', 'elsewhere'].includes(criterion.verdict)), counts: [criteria.length, ...counts].join(' · '), criteria }
 }
 
 // The findings on hunks that the reviewer left open. They are not posted, and leaving them open is a valid call.

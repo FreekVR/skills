@@ -1,9 +1,8 @@
 <script setup lang="ts">
 // One row per acceptance criterion: the agent's verdict, its note, and the flows that cover it.
 // `framed` puts the rows in a bordered box, as in Submit review; on Home they sit in a panel without one.
-defineProps<{ criteria: { id: string, text: string, verdict?: string, note?: string, source?: string }[], framed?: boolean }>()
+defineProps<{ criteria: { id: string, text: string, verdict?: string, pr?: number, note?: string, source?: string }[], framed?: boolean }>()
 
-const VERDICT_COLORS: Record<string, 'success' | 'error' | 'warning'> = { 'met': 'success', 'not-met': 'error', 'unclear': 'warning' }
 </script>
 
 <template>
@@ -12,12 +11,12 @@ const VERDICT_COLORS: Record<string, 'success' | 'error' | 'warning'> = { 'met':
       <!-- One line of the criterion text high, so the badge sits centred on its first line. -->
       <span class="flex h-lh items-center self-start text-body">
         <UBadge
-          :color="VERDICT_COLORS[criterion.verdict || ''] || 'neutral'"
+          :color="AC_VERDICT_COLORS[criterion.verdict || ''] || 'neutral'"
           variant="solid"
           class="w-full justify-center rounded-md px-2 py-1.5 text-meta font-bold"
-          :class="!VERDICT_COLORS[criterion.verdict || ''] && 'bg-(--ui-text-muted) text-inverted'"
+          :class="!AC_VERDICT_COLORS[criterion.verdict || ''] && 'bg-(--ui-text-muted) text-inverted'"
         >
-          {{ AC_VERDICTS[criterion.verdict || ''] || 'Not checked' }}
+          {{ criterionVerdictLabel(criterion) }}
         </UBadge>
       </span>
       <span class="text-body">
