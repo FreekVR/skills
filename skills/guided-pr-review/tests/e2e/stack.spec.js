@@ -172,14 +172,15 @@ test('Home shows the stack with one AI line per PR', async ({ page }) => {
 
 test('the coverage table marks criteria confirmed, expected, not met and in no PR', async ({ page }) => {
   await openReview(page, { mutate: onHome, others: [mergedWithCriteria()] });
-  const table = homeStack(page).getByRole('table', { name: 'Does the stack cover WX-42?' });
-  const cell = (id, number) => table.getByRole('row').filter({ hasText: id }).getByRole('cell').nth([14, 15, 16, 17].indexOf(number) + 1);
+  const table = homeStack(page).getByRole('list', { name: 'Does the stack cover WX-42?' });
+  const cell = (id, number) => coverageCell(page, id, number);
   await expect(cell('WX-42#1', 14)).toHaveText(/confirmed/);
   await expect(cell('WX-42#2', 15)).toHaveText(/not met/);
   await expect(cell('WX-42#3', 16)).toHaveText(/expected/);
-  await expect(table.getByRole('row').filter({ hasText: 'WX-42#4' })).toContainText('no PR');
-  await expect(table.getByRole('row').filter({ hasText: 'WX-42#2' })).not.toContainText('no PR');
-  await expect(cell('WX-42#1', 16)).toHaveText('');
+  await expect(criterionRow(page, 'WX-42#4')).toContainText('In no PR of the stack');
+  await expect(criterionRow(page, 'WX-42#2')).not.toContainText('In no PR');
+  await expect(table.getByRole('listitem').filter({ hasText: 'WX-42#1' }).getByRole('listitem')).toHaveCount(1);
+  await expect(cell('WX-42#1', 16)).toHaveCount(0);
 });
 
 test('a criterion another PR meets shows In #16 in this PR\'s criteria', async ({ page }) => {
@@ -210,7 +211,8 @@ test("changes outside the stack's tickets name their PR", async ({ page }) => {
   await expect(outside.getByRole('link', { name: '#17' })).toBeVisible();
 });
 
-const coverageCell = (page, id, number) => homeStack(page).getByRole('table').getByRole('row').filter({ hasText: id }).getByRole('cell').nth([14, 15, 16, 17].indexOf(number) + 1);
+const criterionRow = (page, id) => homeStack(page).getByRole('list', { name: /^Does the stack cover/ }).getByRole('listitem').filter({ has: page.getByText(id, { exact: true }) }).first();
+const coverageCell = (page, id, number) => homeStack(page).getByRole('list', { name: `Where ${id} is met` }).getByRole('listitem').filter({ hasText: `#${number}` });
 
 test("another PR's own review that does not meet a criterion shows not met in that PR's column", async ({ page }) => {
   const other = mergedWithCriteria();
@@ -224,7 +226,7 @@ test("another PR's own review that does not meet a criterion shows not met in th
 test('a criterion this PR places in another PR is expected there, even without stack coverage', async ({ page }) => {
   await openReview(page, { mutate: (data) => { onHome(data); data.stack.coverage = []; }, others: [mergedWithCriteria()] });
   await expect(coverageCell(page, 'WX-42#3', 16)).toHaveText(/expected/);
-  await expect(homeStack(page).getByRole('table').getByRole('row').filter({ hasText: 'WX-42#3' })).not.toContainText('no PR');
+  await expect(criterionRow(page, 'WX-42#3')).not.toContainText('In no PR');
 });
 
 test('Start a review sends a start-review event and shows that the agent prepares it', async ({ page }) => {

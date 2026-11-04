@@ -6,18 +6,18 @@ const coverage = computed(() => coverageRows())
 const outside = computed(() => outsideTicketRows())
 const ticketKeys = computed(() => (state.review.context.tickets || []).map((ticket: { key: string }) => ticket.key).join(', '))
 
+// Each state has a drawn icon and a word, so the state does not depend on colour alone.
 const CELLS: Record<string, { icon: string, label: string, color: string }> = {
-  'confirmed': { icon: '✓', label: 'confirmed', color: 'text-success' },
-  'expected': { icon: '○', label: 'expected', color: 'text-warning' },
-  'not-met': { icon: '✕', label: 'not met', color: 'text-error' },
+  'confirmed': { icon: 'i-lucide-check', label: 'confirmed', color: 'text-success' },
+  'expected': { icon: 'i-lucide-circle-dashed', label: 'expected', color: 'text-warning' },
+  'not-met': { icon: 'i-lucide-x', label: 'not met', color: 'text-error' },
 }
 
-// Each PR column of a criterion row, with the cell and how it looks.
-function cellsOf(criterion: { cells: Record<number, { status: string, note?: string }> }) {
-  return rows.value.map(({ number }: { number: number }) => {
-    const cell = criterion.cells[number]
-    return { number, cell, look: cell && CELLS[cell.status] }
-  })
+// The PRs that say something about a criterion, bottom to top; a stack of many PRs leaves most of them out.
+function placesOf(criterion: { cells: Record<number, { status: string, note?: string }> }) {
+  return rows.value
+    .filter(({ number }: { number: number }) => criterion.cells[number] && CELLS[criterion.cells[number].status])
+    .map(({ number, current }: { number: number, current: boolean }) => ({ number, current, cell: criterion.cells[number], look: CELLS[criterion.cells[number].status] }))
 }
 </script>
 
@@ -59,43 +59,32 @@ function cellsOf(criterion: { cells: Record<number, { status: string, note?: str
       <h4 id="home-stack-coverage" class="mt-5 mb-2 text-ui font-semibold">
         Does the stack cover {{ ticketKeys }}?
       </h4>
-      <div class="overflow-x-auto">
-        <table aria-labelledby="home-stack-coverage" class="w-full border-collapse text-label">
-          <thead>
-            <tr class="border-b border-default text-left text-muted">
-              <th class="py-2 pr-3 font-semibold">
-                Acceptance criterion
-              </th>
-              <th v-for="row in rows" :key="row.number" class="px-3 py-2 text-center font-semibold whitespace-nowrap">
-                #{{ row.number }}<template v-if="row.current">
-                  · this
-                </template>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="criterion in coverage" :key="criterion.id" class="border-b border-default">
-              <td class="py-2 pr-3">
-                <span class="mr-1.5 font-mono font-semibold"><MarkupText :text="criterion.id" /></span><MarkupText :text="criterion.text" />
-              </td>
-              <td v-if="criterion.none" :colspan="rows.length" class="px-3 py-2 text-right font-semibold text-error">
-                no PR
-              </td>
-              <template v-else>
-                <td v-for="{ number, cell, look } in cellsOf(criterion)" :key="number" class="px-3 py-2 text-center">
-                  <template v-if="look">
-                    <span class="whitespace-nowrap" :class="look.color">{{ look.icon }} {{ look.label }}</span>
-                    <span v-if="cell.note" class="block text-muted"><MarkupText :text="cell.note" /></span>
-                  </template>
-                </td>
-              </template>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <p class="mt-2 mb-0 text-meta text-muted">
-        <span class="text-warning">○ expected</span>: from the PR's title, description and files; not read.
-        <span class="text-success">✓ confirmed</span>: from that PR's full review.
+      <ul role="list" aria-labelledby="home-stack-coverage" class="m-0 grid list-none p-0">
+        <li
+          v-for="criterion in coverage"
+          :key="criterion.id"
+          class="grid grid-cols-[minmax(0,1fr)_minmax(0,15rem)] gap-x-6 gap-y-1.5 border-b border-default py-2.5 text-label last:border-b-0 max-md:grid-cols-1"
+        >
+          <p class="m-0 max-w-[68ch] text-default">
+            <span class="mr-1.5 font-mono font-semibold whitespace-nowrap"><MarkupText :text="criterion.id" /></span><MarkupText :text="criterion.text" />
+          </p>
+          <p v-if="criterion.none" class="m-0 inline-flex items-start gap-1.5 font-semibold text-error">
+            <UIcon name="i-lucide-circle-alert" class="mt-0.5 size-3.5 shrink-0" aria-hidden="true" />In no PR of the stack
+          </p>
+          <ul v-else role="list" :aria-label="`Where ${criterion.id} is met`" class="m-0 grid list-none gap-1 p-0">
+            <li v-for="place in placesOf(criterion)" :key="place.number" class="grid grid-cols-[14px_minmax(0,1fr)] gap-x-1.5">
+              <UIcon :name="place.look.icon" class="mt-0.5 size-3.5" :class="place.look.color" aria-hidden="true" />
+              <span>
+                <span class="font-semibold"><MarkupText :text="`#${place.number}`" /></span><span v-if="place.current" class="text-muted">{{ ' (this PR)' }}</span><span class="text-muted">{{ ' · ' }}</span><span :class="place.look.color">{{ place.look.label }}</span>
+                <span v-if="place.cell.note" class="block text-muted"><MarkupText :text="place.cell.note" /></span>
+              </span>
+            </li>
+          </ul>
+        </li>
+      </ul>
+      <p class="mt-2 mb-0 flex flex-wrap gap-x-4 gap-y-1 text-meta text-muted">
+        <span class="inline-flex items-center gap-1"><UIcon name="i-lucide-circle-dashed" class="size-3.5 text-warning" aria-hidden="true" /><span><b class="font-semibold text-warning">Expected</b>: from the PR's title, description and files; the code is not read yet.</span></span>
+        <span class="inline-flex items-center gap-1"><UIcon name="i-lucide-check" class="size-3.5 text-success" aria-hidden="true" /><span><b class="font-semibold text-success">Confirmed</b>: from that PR's full review.</span></span>
       </p>
     </template>
 
