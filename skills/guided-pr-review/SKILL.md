@@ -12,16 +12,20 @@ The end goal is a GitHub review of one pull request (PR), written and approved b
 
 The reviewer stays in control. You prepare, explain and answer. You MUST NOT write the review for the reviewer, post anything they did not press a button for, or dump your findings in the chat instead of the review page.
 
+A stack is a chain of PRs in one repository: each PR's base branch is the head branch of the PR below it. A PR in a stack is still reviewed alone, with its own review directory and review page; the other PRs in the stack are context. Everything about stacks in this skill applies only when the PR is in a stack with at least one other PR. Otherwise, skip every rule about stacks, and `review.json` gets no `stack` field.
+
 ## Preflight
 
 You MUST complete these checks in order and mark each one done before you continue.
 
-1. [ ] The user named a PR (URL, or number plus repository) or a Jira ticket key. If not, ask. Do not guess a PR from the current branch.
-2. [ ] This session is not already running a guided review for another PR. If it is, stop and ask the user to start this review in a new session: one session MUST run only one guided review at a time.
+1. [ ] The user named a PR (URL, or number plus repository), a stack (number plus repository) or a Jira ticket key. If not, ask. Do not guess a PR from the current branch.
+2. [ ] This session is not already running a guided review for another PR, except the reviews of one stack that this session started. If it is, stop and ask the user to start this review in a new session: one session MUST run only the reviews of one PR or one stack. It MUST NOT handle a review that another live session watches.
 3. [ ] `git` is available, and `node --version` matches `^22.22.3 || ^24.15.0 || >=26`. If not, stop and tell the user.
 4. [ ] You can read the PR and post reviews on GitHub, through the `gh` CLI or a GitHub tool. If not, stop and tell the user. Only GitHub is supported.
 5. [ ] You can run a background process and act on each line it prints while the user works, and the user has a browser on this computer. If not, stop and tell the user that this skill needs both.
 6. [ ] You know the one PR to review. For a Jira ticket: read its development links with a tool that can read Jira. If you have no such tool, or the ticket links no PR, stop and ask for a PR URL. If it links several PRs, list them with repository, title and state, and ask the user to pick one. Keep the others as linked PRs for the context step.
+   Then run `node scripts/review-data.js stack <owner>/<repo> <pr-number>`. For a stack number, run it for the bottom PR of `GET /repos/{owner}/{repo}/stacks/<number>`. It prints the stack as JSON, bottom to top. It prints `null` when the PR is in no stack or alone in it. When it exits 3, open PRs split above `split.base`. List the PRs in `split.prs` with title and state, and ask which one to follow. Then run it again for that PR.
+   When the user named a stack or a ticket that links PRs of one stack, ask which PR to review. Suggest the lowest PR in the stack that is neither merged nor approved by the user. The user can pick another one. A PR is approved when the user's latest review on it in `GET /repos/{owner}/{repo}/pulls/{n}/reviews` is `APPROVED`. Ignore `COMMENTED` reviews.
 7. [ ] You know the PR size. The PR is big when it has more than 10 changed files or more than 1000 changed lines (additions plus deletions). Otherwise it is small. If GitHub does not report the counts, count them in the diff.
 8. [ ] Big PR only: you have a local clone of the repository. If you do not know where it is, ask the user for the path. If the user's instructions or memory name a location for clones, suggest that path. If there is no clone, stop. Ask the user before you create a worktree for the PR head in that clone. You MUST NOT change the branch or the working tree of the clone itself.
 9. [ ] The review directory exists: run `node scripts/review-data.js dir <owner>/<repo> <pr-number>`. It prints the path: `$XDG_STATE_HOME/guided-pr-review/<owner>/<repo>/<pr-number>/`, or `~/.local/state/…` when `XDG_STATE_HOME` is not set. It holds the PR diff, `review.json`, `reviewer.json` and `events.jsonl`. It is deleted only when the user agrees in step 8; otherwise it stays for a later resume. If it already holds `review.json`, this is a resume: follow Resume below. If the command fails, stop and tell the user.
@@ -40,6 +44,13 @@ Read these, and only these. Fetch each PR, issue and ticket once; skip a link to
 - Open tickets about the code this PR changes, in the trackers of the linked tickets. Search by the changed file paths, the module and component names, and the key terms of the PR title. Put the ten most relevant in `context.relatedTickets`, or leave it empty when none match. Without a tool that can search a tracker, add that to `context.skipped`.
 
 Do not follow links found in linked PRs.
+
+In a stack, also:
+
+- Read every ticket that any PR in the stack links, and use them as this PR's tickets.
+- Read the other PRs only as highlights: title, description, changed files with line counts, and linked tickets. You MUST NOT read their full diffs here.
+- When an earlier review in this stack has a `review.json`, reuse its tickets, related tickets, linked PRs and conventions, and do not read them again.
+- Write `stack` as described in `references/review-data.md`: one line per PR on what it does and how it relates to the PRs next to it, the criteria that another PR is expected to meet, and the changes that no ticket asks for.
 
 ### 2. Get the hunks
 
@@ -68,7 +79,7 @@ Find how the changed code fits together, using change untangling and ordering re
 
 Write a short `explanation` for each flow and each hunk, for a reviewer who does not know this code. Name the concepts the code uses; do not invent new terms.
 
-Then run `node scripts/review-data.js check <review-dir>/review.json`. Fix every line it prints and run it again until it prints `ok`.
+Then run `node scripts/review-data.js check <review-dir>/review.json`. Fix every line it prints and run it again until it prints `ok`. It also rejects a `stack` field that breaks the rules in `references/review-data.md`.
 
 ### 4. Read the conventions
 
@@ -79,7 +90,7 @@ Read the target repository's contribution guide and agent instruction files, if 
 
 ### 5. Run the AI reviews
 
-First let the user choose. Look through the skills available to you for ones that review code. Use skills only, not agent types. Keep the ones that fit this PR's language, platform and kind of change, and drop a skill that duplicates another one or a check below. Then ask the user in two rounds, all options selected at the start. First the angles, which group the checks below: spec (acceptance criteria and scope), code standards (conventions, new concepts and new terms), sources (hardcoded values and factual claims), and tests and breaking changes; each with one line on what it checks. Then, for the angles the user kept, the review skills you would use for each angle: each skill by its exact name, with its angle and one line on why it fits. An angle with no fitting skill runs its checks only; a skill that fits no angle gets an option of its own. Say how many subagents you would start; the test coverage check runs in this session and does not count. If you can ask the user a structured multiple-choice question, use it for both rounds, so the user can confirm or change the selection; otherwise ask in the chat. Run only what the user chose, once, before you open the review page. If you can start a subagent, run the chosen checks there, in no more subagents than the user agreed to. Otherwise, run them yourself.
+First let the user choose. Look through the skills available to you for ones that review code. Use skills only, not agent types. Keep the ones that fit this PR's language, platform and kind of change, and drop a skill that duplicates another one or a check below. Then ask the user in two rounds, all options selected at the start. First the angles, which group the checks below: spec (acceptance criteria and scope), code standards (conventions, new concepts and new terms), sources (hardcoded values and factual claims), and tests and breaking changes; each with one line on what it checks. Then, for the angles the user kept, the review skills you would use for each angle: each skill by its exact name, with its angle and one line on why it fits. An angle with no fitting skill runs its checks only; a skill that fits no angle gets an option of its own. Say how many subagents you would start; the test coverage check runs in this session and does not count. If you can ask the user a structured multiple-choice question, use it for both rounds, so the user can confirm or change the selection; otherwise ask in the chat. In a stack, ask both rounds again for each PR. While a review page of this session is open, run `waiting` before you ask, as step 7 says. Run only what the user chose, once for each PR, before you open its review page. If you can start a subagent, run the chosen checks there, in no more subagents than the user agreed to. Otherwise, run them yourself.
 
 Give each subagent a brief with these parts, and nothing more:
 
@@ -107,6 +118,14 @@ Attach each finding to the hunk and line it is about, or set `hunkId` to null fo
 - Verify every factual claim in new or changed comments, docblocks and documentation against the source it names.
 - Verify that every new term and abbreviation is defined where it first appears, and is the word that the platform, the libraries it uses or the API use for that thing.
 
+In a stack, also:
+
+- A finding goes to the PR that adds or changes the line. You MUST NOT repeat a finding that another review in this stack already has; name that PR instead.
+- For each finding, decide how far to read in the other PRs. For a local problem, such as a wrong value or a missing check, read only their changes to the same file and lines. For a flow that this PR does not finish, follow that flow into the later PRs, and read only the files and functions on its path.
+- Add a paragraph that starts with `In the stack:` to the finding's `body`. It says whether another PR fixes the problem or makes it worse, and names the PRs and files you read. When you only expect it from the highlights, say so and mark it "not checked". Write no such paragraph when no other PR touches the finding's code. The finding keeps its severity when another PR fixes it or makes it worse.
+- Use the acceptance criteria IDs and texts of the first review in this stack. Check a criterion in the highest PR that completes it. In a lower PR, give it the verdict `elsewhere` with `pr` set to that PR's number, and no finding.
+- Work in this PR that belongs to another PR's ticket is a finding.
+
 Always verify the existing review comments from step 1, whatever the user chose above:
 
 - Reviews: add every submitted review, by the user and by others, to `reviews`, with its body verbatim and its `commit_id` as `commitId`. You MUST leave out a `COMMENTED` review that has no body and no comments of its own.
@@ -118,36 +137,42 @@ Always verify the existing review comments from step 1, whatever the user chose 
 Write `review.json` as described in `references/review-data.md`. In every text you write for the review page (explanations, findings, answers), refer to tickets, issues and PRs by key or number only, for example `ABC-123` or `#123`, never with their URL: the review page links them and shows their title. Then:
 
 - Run `node scripts/review-server.js`. It starts the review server, or finds the one that runs, and prints `READY <url>`. The review page of this PR is at `<url><owner>/<repo>/<pr-number>`. Give the user that URL. One review server serves every review on this computer, and it stops itself 10 minutes after the last agent stopped watching. It keeps `server.json` (its URL and process ID) and `server.log` in the state directory itself; they stay until the user deletes that directory.
-- From the directory this session runs in, run `node scripts/review-data.js watch <review-dir>` as a background process, with `--worktree <path>` for a big PR. It records this session in `session.json`, so the review page can tell the user how to come back to this session, and it prints each event from the review page as an `EVENT` line. While it runs, the review page shows that an agent is connected. When the user pauses the agent in the review page, the watch prints `PAUSED` and then no events until it prints `RESUMED`; keep it running.
+- From the directory this session runs in, run `node scripts/review-data.js watch <review-dir>` as a background process, with `--worktree <path>` for a big PR. It records this session in `session.json`, so the review page can tell the user how to come back to this session, and it prints each event from the review page as an `EVENT` line. While it runs, the review page shows that an agent is connected. When it exits 4, another live process watches this review: stop and tell the user to continue the review in that session. When the user pauses the agent in the review page, the watch prints `PAUSED` and then no events until it prints `RESUMED`; keep it running.
 
 Tell the user in two or three sentences what the PR does and how many flows and hunks there are. Do not list findings in the chat; they are in the review page.
 
 ### 7. Respond to the review page
 
-Each event from the review page is one request. Its `review` field names the PR; handle it only in that PR's review directory. If an event names another PR than the one this session reviews, do not handle it, and tell the user once that the review page of that PR is sending its events to this session. The watch prints it as an `EVENT` line; it is also in `events.jsonl`. Handle each event when it arrives as the events table in `references/review-data.md` says, update `review.json`, and keep watching until the final review is posted.
+Each event from the review page is one request. Its `review` field names the PR; handle it only in that PR's review directory. In a stack, the events of every review in this stack that this session started are this session's. If an event names another PR, do not handle it, and tell the user once that the review page of that PR is sending its events to this session. The watch prints it as an `EVENT` line; it is also in `events.jsonl`. Handle each event when it arrives as the events table in `references/review-data.md` says, update `review.json`, and keep watching until the final review is posted.
 
 - Base answers to `ask` events on the code and the context you read. Write them in markdown.
 - For a `summarize` event, write the review summary from the remarks in the event only, in plain text the reviewer can edit. Follow the user's review conventions. Do not add the disclosure; the review page adds it.
 - No events for a long time is normal: the user paused the agent (the watch printed `PAUSED`), the review page is in a hidden tab, or the user stepped away. You MUST NOT restart the watch, ask the user to finish or end the review because no events came; only `finish` or the user in the chat ends it.
 - The review page sends a `check` event when it opens and every 5 minutes after that. Handle it as the events table says: it updates reviews and comments and writes `remote`, but never changes hunks, flows or findings. Only a `refresh` event does that. When a `check` finds one of the user's comments newly resolved by someone else, write a new `fix` for it, as in step 5.
 - After a `refresh` event that loaded a new head commit, also write a new `fix` for each open posted comment, the user's and others', and for each of the user's comments that someone else resolved, as in step 5. Report the result of every `refresh` in `refreshes` and `changesSince`, not in the chat.
+- In a stack, every `check` and `refresh` also runs `node scripts/review-data.js stack` again and updates the `stack` field, so a PR that was added, merged or moved shows on the review page.
+- For a `start-review` event: first run `dir` for PR `number` and create an empty `preparing` file in its review directory, before you ask anything. Then run Preflight items 7 to 9 and steps 1 to 6 for that PR, with a separate watch for it. Then remove `preparing`. Keep handling the events of the other reviews in between.
+- Before every question you ask the user in the chat while a review page of this session is open, run `node scripts/review-data.js waiting "<question>" <review-dir>...` with the review directory of every review this session handles. Each of those review pages then shows that you wait. After the answer, run `node scripts/review-data.js answered <review-dir>...` with the same directories.
 - For a `post` event, post the payload exactly as it is: no extra text, no changed words, no other comments. Read `references/posting.md` for the GitHub requests. The button press is the reviewer's approval. You MUST NOT post at any other moment, and you MUST NOT ask for a second approval in the chat.
 
 Handle every event in silence: the review page shows the result, so you MUST NOT write anything in the chat for it, not even a short confirmation. The exceptions are the final `post` and `finish`: after those, do step 8. When the user asks you something in the chat instead, answer there too.
 
-You MUST write the result of each event to `review.json` before you write anything in the chat. Until `finish`, you MUST NOT use a tool that waits for the user's answer, such as a question with choices. Ask in plain chat text, so you keep handling events.
+You MUST write the result of each event to `review.json` before you write anything in the chat. Until `finish`, you MUST NOT use a tool that waits for the user's answer, such as a question with choices. Ask in plain chat text, so you keep handling events. The one exception is the angle and skill questions of a review that `start-review` started. For those, first run `waiting` for every review directory this session handles, then ask the structured multiple-choice question. While it is open, the events of the other reviews wait; the review pages show the reviewer that you wait. After the answer, run `answered`, then handle the events that came in.
 
 ### 8. Finish
 
-- While the PR is open, you MUST keep the review directory and, for a big PR, the worktree. You MUST NOT offer to delete them. After a final `post`, keep the watch running. After `finish`, stop the watch and tell the user in one line that the review is kept and that this skill resumes it for the PR.
+- While the PR is open, you MUST keep the review directory and, for a big PR, the worktree. You MUST NOT offer to delete them. After a final `post`, keep the watch running. After `finish`, stop the watch and tell the user in one line that the review is kept and that this skill resumes it for the PR. In a stack, `finish` ends the review of that PR only; the task is done when no review of this session is still open.
 - When the PR is merged or closed, ask the user before you delete the review directory and the worktree.
 
 ## Resume
 
 A review directory with a `review.json` means the reviewer stopped earlier.
 
+- Before you open the review pages again, run `node scripts/review-data.js answered <every review dir of this session>`, because a session that died may have left a `waiting` question. Remove a leftover `preparing` file from any review directory that has no `review.json` yet, or start that review again when a `start-review` event for it is still waiting.
 - If the PR head commit is the same as `pr.headSha`: open the review page again (step 6).
 - If it changed: write `changesSince` (see `references/review-data.md`), then run steps 1 and 2 again. Hunk IDs depend on the hunk content, so unchanged hunks keep their ID, explanation and "seen" state, and changed hunks get a new ID and show as not reviewed. Run steps 3 to 5 for the new hunks only, keep the findings of unchanged hunks with their IDs, and run the flow check again. Then open the review page again.
+- In a stack, a rebase of a lower PR gives every PR above it a new head commit. Update the reviews of this session from the bottom up. To compare with what the reviewer saw, run `node scripts/review-data.js own-diff <clone> <old-head> "<subject of the PR's first own commit>"`. `<clone>` is the local clone from Preflight item 8, and `<old-head>` is the previous `pr.headSha`. It prints the PR's own diff at the old head. Run `hunks` on that diff with a copy of `review.json` to get the old hunk IDs. Then run steps 2 to 5 as above: a finding whose hunk ID comes back in the new hunks stays as it is. A finding whose hunk is gone is dropped, or written again for the new hunk when the problem is still there. A posted comment gets a new `fix`, as in step 5. When there is no clone, or `own-diff` fails for any reason (for example `no commit with subject`, `subject matches more than one commit`, or `bad revision` when the old head is not in the clone), compare the full new diff instead.
+- In a stack, a `start-review` event that the review page sent after `finish`, while no agent watched, still waits: handle it as step 7 says when you resume.
 
 ## Self-healing
 

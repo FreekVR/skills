@@ -9,6 +9,8 @@ The review page, the review server and the agent share these files in the review
 | `events.jsonl` | review page | agent | One JSON object per line: questions, "explain more" requests, post requests |
 | `session.json` | agent, through `review-data.js watch` | review server | The agent session that runs the review, and its watch process |
 | `paused` | review server | the watch, review server | Empty; exists while the reviewer has paused the agent |
+| `waiting` | agent, through `review-data.js waiting` and `answered` | review page | `{ "question", "since" }`; exists while the agent waits for the user's answer in the chat |
+| `preparing` | agent | review page | Empty; exists while the agent prepares the review of a PR after `start-review` |
 
 Only the writer in the table MAY write a file. The review page reloads `review.json` every few seconds, so the agent's changes show up without a page reload.
 
@@ -32,6 +34,12 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
     "linkedPrs": [ { "repo": "example-org/sample-api", "number": 8, "url": "<url>", "title": "<title>", "state": "MERGED", "summary": "<one line>" } ],
     "skipped": [ "<what was not read and why, for example: Jira: no tool can read Jira>" ],
     "coverage": { "source": "<CI check or bot comment, with link>", "summary": "<one line>" }
+  },
+  "stack": {
+    "number": 31, "source": "github", "base": "main",
+    "prs": [ { "number": 14, "title": "<title>", "url": "<url>", "state": "merged", "approved": true, "summary": "<one line from title, description and files>" } ],
+    "coverage": [ { "criterion": "WX-42#3", "pr": 16, "status": "expected" } ],
+    "outsideTickets": [ { "pr": 17, "text": "<one line: the change that no ticket asks for>", "status": "expected" } ]
   },
   "conventions": {
     "severities": ["nit", "minor", "medium", "major"],
@@ -86,8 +94,9 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - A flow's `entry` and `end` are fully qualified code names with their namespace or module path, such as `App\Weather\ForecastClient::fetch()` or `src/api/weatherClient.ts:fetchForecast()`, not sentences.
 - `layout` is `flows` or `directory`. With `directory`, `flows` is empty and the review page lists hunks by directory, then alphabetically.
 - A flow with no acceptance criteria has `noCriteria`, which says why. The review page shows it where the flow's criteria would be.
-- An acceptance criterion has `source` `ticket` when the ticket lists it, or `description` when the agent took it from the description because the ticket lists none. Do not repeat that in `text`. `verdict` is `met`, `not-met` or `unclear`, with a one-line `note`.
+- An acceptance criterion has `source` `ticket` when the ticket lists it, or `description` when the agent took it from the description because the ticket lists none. Do not repeat that in `text`. `verdict` is `met`, `not-met` or `unclear`, with a one-line `note`. In a stack, `verdict` is `elsewhere` with `pr` set to the number of the higher PR that completes the criterion; it gives no finding.
 - `context.summary` ends with a line of its own that names each ticket in `tickets` with its key and title, for example `Fixes WX-42 (Three-day forecast).` Quote a short title as it is. Shorten long titles, or sum up the titles when there are many tickets, so the line stays one line. Leave the line out when `tickets` is empty.
+- `stack` is only for a PR in a stack of 2 or more PRs. Leave it out for a PR in no stack or alone in its stack. `number` (null for a stack read from the branches), `source` (`github` or `branches`), `base` and each PR's `number`, `title`, `url` and `state` (`open`, `merged` or `closed`) come from `node scripts/review-data.js stack`, with `prs` bottom to top. `approved` is true when the user's latest review of that PR on GitHub is `APPROVED`. `summary` says in one line what the PR does and how it relates to the PRs next to it. `coverage` lists, per acceptance criterion, the other PR that is expected to meet it; `outsideTickets` lists changes in the stack that no ticket asks for, with the PR that adds each one. `status` is `confirmed` when that PR's own review in this skill checked it, else `expected`. Leave `coverage` and `outsideTickets` out when they are empty. `check` rejects a `stack` that breaks these rules.
 - `relatedTickets` holds open tickets that concern the same code, found by searching the tracker. Each one has `key`, `url` and `title`, and no criteria. The review page links their keys like the linked tickets; a related ticket's project prefix also makes other keys with that prefix linkable. They do not count as acceptance criteria.
 - `tickets` holds Jira tickets (`key` like `WX-42`) and GitHub issues (`key` like `example-org/sample-api#12`), each with `url` and `title`. The review page links every reference it can resolve in any text, with the title as tooltip.
 - `reviews` are the submitted reviews on the PR, by the user and by others, without pending ones and without the empty `COMMENTED` reviews GitHub makes for thread replies. `state` is GitHub's: `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED` or `DISMISSED`. `commitId` is GitHub's `commit_id` of the review: the head commit when it was submitted. The Existing reviews tab shows them, the user's own first, each with its commit next to the commit the page shows.
@@ -157,8 +166,9 @@ Every event has `id`, `at`, `type` and `review`, the pull request it belongs to 
 | `explain` | `hunkId` | Fill `explanationMore` of that hunk. |
 | `summarize` | `verdict` (null while hunks wait for a verdict), `remarks` (each `severity`, `where`, `body`) | Write a review summary from these remarks, in the user's words and conventions: what the PR does well and what the author must do, without repeating each remark. Add it to `answers` with `hunkId` null and the summary as `answer`. |
 | `post` | `kind` (`draft` or `final`), `body`, `comments`, and for final only `verdict`, `unresolve`, `replies` and `resolve` | Post exactly this payload, then add an entry to `posts`. |
-| `check` | none | Read the PR's head commit, state, reviews and comments on GitHub. Write `remote`. Update `reviews`, `reviewComments` and `ownRemarks`, as in step 5: new ones, new replies, `resolved` and `resolvedBy`. For a user's comment that someone else resolved since the last `check`, write a new `fix`. Change nothing else. |
+| `check` | none | Read the PR's head commit, state, reviews and comments on GitHub. Write `remote`. Update `reviews`, `reviewComments` and `ownRemarks`, as in step 5: new ones, new replies, `resolved` and `resolvedBy`. For a user's comment that someone else resolved since the last `check`, write a new `fix`. In a stack, also read the stack again and update `stack` (step 7 of `SKILL.md`). Change nothing else. |
 | `refresh` | none | Run the Resume steps for a changed head commit, set `pr.headSha` to the new head, write `changesSince`, and add an entry with status `done` to `refreshes`. When the head commit is still `pr.headSha`, for example because an earlier `refresh` already loaded it, handle it as a `check` and add a `done` entry with the same `from` and `to`. When loading fails, add an `error` entry with the reason. |
+| `start-review` | `number` | Run the steps of a new review for PR `number` of this stack in this session, as step 7 of `SKILL.md` says. |
 | `finish` | none | Go to step 8. |
 
 `comments` in a `post` event:
