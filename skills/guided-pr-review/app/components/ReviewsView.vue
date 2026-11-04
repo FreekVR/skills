@@ -25,7 +25,7 @@ async function nextToDecide() {
     </p>
     <div v-else class="mb-2 grid gap-1.5 text-ui text-toned">
       <p class="m-0">
-        This page shows commit <code class="font-mono">{{ shortSha(state.review.pr.headSha) }}</code>.
+        This page shows commit <CommitLink :sha="state.review.pr.headSha" />.
       </p>
       <p v-if="toCheck" class="m-0 flex flex-wrap items-center gap-x-2 gap-y-1">
         <span><b class="font-semibold text-warning">{{ toCheck }} of your comments {{ toCheck === 1 ? 'needs' : 'need' }} your decision</b>: choose Resolve or Leave open.</span>

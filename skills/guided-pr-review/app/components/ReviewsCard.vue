@@ -21,7 +21,7 @@ function onToggle(event: Event) {
         <VerdictIcon :verdict="card.kind.icon" class="size-3.5" />{{ card.kind.label }}
       </span>
       <span v-if="review.submittedAt" class="text-label text-dimmed">{{ timeLabel(review.submittedAt) }}</span>
-      <span v-if="card.commit" class="text-label text-dimmed">{{ card.commit }}</span>
+      <span v-if="card.commitWhere" class="text-label text-dimmed">on <CommitLink :sha="review.commitId" /> · {{ card.commitWhere }}</span>
       <span class="ml-auto text-ui text-toned">{{ plural(card.comments.length, 'comment') }}<span v-if="card.toCheck" class="font-semibold text-warning"> · {{ needsDecisionLabel(card.toCheck) }}</span></span>
     </summary>
     <div class="border-t border-default px-4 pb-4">

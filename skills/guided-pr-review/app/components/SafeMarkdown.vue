@@ -2,8 +2,9 @@
 import breaks from 'comark/plugins/breaks'
 import html from 'comark/plugins/html'
 
-// One set of plugins for every comment on the page. GitHub shows a single line break in a comment as a new line.
-const PLUGINS = [html(), githubHtml(), breaks()]
+// One set of plugins for every comment on the page. GitHub shows a single line break in a comment as a new line,
+// and links references to issues, pull requests and commits.
+const PLUGINS = [html(), githubHtml(), breaks(), githubLinks(linkReferences)]
 </script>
 
 <script setup lang="ts">

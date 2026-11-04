@@ -52,7 +52,7 @@ export function refreshState() {
 // What changed since the reviewer's last review, while the page shows the commit the summary is about.
 export function changesSince() {
   const changes = state.review.changesSince
-  return changes?.summary && changes.to === state.review.pr.headSha ? { ...changes, range: `${shortSha(changes.from)} → ${shortSha(changes.to)}` } : null
+  return changes?.summary && changes.to === state.review.pr.headSha ? changes : null
 }
 
 // The advice follows from the findings and the repo's own severity cutoff, so it never contradicts them.
@@ -326,14 +326,11 @@ export function threadCallCounts() {
 // Under the reviewer's newest review: their decisions and replies wait for the next review they post.
 function hasPendingThreadWork() { return openOwnThreads().length > 0 || pendingReplies().length > 0 }
 
-// The commit a review on GitHub was made on, next to the commit this page shows.
-export function commitLabel(sha) {
+// Which commit a review on GitHub was made on, compared with the commit this page shows.
+export function commitWhere(sha) {
   if (!sha) return null
-  const where = sha === state.review.pr.headSha ? 'the commit on this page' : sha === state.review.remote?.headSha ? 'a newer commit than this page' : 'an older commit'
-  return `on ${shortSha(sha)} · ${where}`
+  return sha === state.review.pr.headSha ? 'the commit on this page' : sha === state.review.remote?.headSha ? 'a newer commit than this page' : 'an older commit'
 }
-
-export function shortSha(sha) { return sha.slice(0, 7) }
 
 // The reviews on GitHub, newest first, split into the reviewer's own and those of others.
 export function existingReviews() {
@@ -352,7 +349,7 @@ export function reviewCard(review, current) {
     mine,
     comments,
     toCheck,
-    commit: commitLabel(review.commitId),
+    commitWhere: commitWhere(review.commitId),
     key,
     // After an update, the comments still open sit in an older review; that review stays open so they are in reach.
     open: state.ui.terminusOpen?.[key] ?? (current || (mine ? toCheck > 0 : review.state !== 'APPROVED')),

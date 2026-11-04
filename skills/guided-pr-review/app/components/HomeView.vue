@@ -52,7 +52,7 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
     <section v-if="changes" class="mt-5 max-w-[70ch] rounded-lg border border-default bg-elevated/60 px-4 py-3 text-body" aria-labelledby="changes-since">
       <h3 id="changes-since" class="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-ui font-semibold">
         Changed since your last review
-        <span class="font-mono text-label font-normal text-muted">{{ changes.range }}</span>
+        <span class="text-label font-normal text-muted"><CommitLink :sha="changes.from" /> → <CommitLink :sha="changes.to" /></span>
         <AiTag label="AI summary" />
       </h3>
       <div class="mt-1.5 text-toned [&>:first-child]:mt-0 [&>:last-child]:mb-0">

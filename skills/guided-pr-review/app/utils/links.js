@@ -3,12 +3,12 @@ import { criterionById } from './review.js'
 
 // A part is { type: 'text', text }, { type: 'code', text } or { type: 'link', text, url, title }.
 
-// Split text into parts: inline code between backticks, references to tickets and pull requests, and plain text.
+// Split text into parts: inline code between backticks, references to tickets, pull requests and commits, and plain text.
 export function inlineMarkup(text) {
   return String(text ?? '').split(/(`[^`]+`)/).flatMap((part) => (/^`[^`]+`$/.test(part) ? [{ type: 'code', text: part.slice(1, -1) }] : linkReferences(part)))
 }
 
-const REFERENCE = /([\w.-]+\/[\w.-]+)#(\d+)|\b([A-Z][A-Z0-9]+-\d+)(#\d+)?\b|(^|[^\w/&])#(\d+)\b/g
+const REFERENCE = /([\w.-]+\/[\w.-]+)#(\d+)|\b([A-Z][A-Z0-9]+-\d+)(#\d+)?\b|(^|[^\w/&])#(\d+)\b|(^|[^\w./-])([0-9a-f]{7,40})(?![\w/-]|\.\w)/g
 
 // Jira keys only link for projects the review read a ticket of, so text like UTF-8 stays plain.
 export function linkReferences(text) {
@@ -21,7 +21,7 @@ export function linkReferences(text) {
   const addText = (value) => { if (value) parts.push({ type: 'text', text: value }) }
   let last = 0
   for (const match of text.matchAll(REFERENCE)) {
-    const [whole, repo, number, key, criterion, prefix, bareNumber] = match
+    const [whole, repo, number, key, criterion, prefix, bareNumber, shaPrefix, sha] = match
     let link = null
     let before = ''
     if (repo) link = githubLink(`${repo}#${number}`, repo, number)
@@ -29,6 +29,12 @@ export function linkReferences(text) {
     else if (bareNumber && thisRepo) {
       before = prefix
       link = githubLink(`#${bareNumber}`, thisRepo, bareNumber)
+    }
+    // A commit ID needs a digit and a letter, so words like "deadbeef" and plain numbers stay text.
+    // The pattern skips hex that is part of a UUID, a file name or a URL.
+    else if (sha && thisRepo && /\d/.test(sha) && /[a-f]/.test(sha)) {
+      before = shaPrefix
+      link = commitLink(sha, sha)
     }
     if (!link) continue
     addText(text.slice(last, match.index) + before)
@@ -62,6 +68,13 @@ export function githubLink(label, repo, number) {
   const known = pr || issue || own
   return { type: 'link', text: label, url: known?.url || `https://github.com/${repo}/issues/${number}`, title: known ? `${label}: ${known.title}` : label }
 }
+
+// Get the link part for a commit in the reviewed repository, labelled with `text`.
+export function commitLink(sha, text) {
+  return { type: 'link', text, url: `https://github.com/${state.review.pr.owner}/${state.review.pr.repo}/commit/${sha}`, title: `Commit ${sha}` }
+}
+
+export function shortSha(sha) { return sha.slice(0, 7) }
 
 // A long qualified name may wrap after a namespace or path separator, never inside a name.
 // The parts end at those separators, so the view can put a <wbr> between them.

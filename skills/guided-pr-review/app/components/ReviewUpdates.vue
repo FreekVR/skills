@@ -37,7 +37,7 @@ const banners = computed(() => updates())
             <p class="m-0">
               <strong>{{ banner.from === banner.to ? 'No new commits.' : 'Loaded the new commits' }}</strong>
               <template v-if="banner.from !== banner.to">
-                ({{ shortSha(banner.from) }} → {{ shortSha(banner.to) }}). {{ banner.counts }}.
+                (<CommitLink :sha="banner.from" /> → <CommitLink :sha="banner.to" />). {{ banner.counts }}.
               </template>
               The page is up to date; no reload needed.
             </p>
