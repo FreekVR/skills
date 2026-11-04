@@ -6,6 +6,8 @@
 //                                                        the explanations of hunks that did not change. Each file
 //                                                        passed with --whole becomes one hunk.
 //   node review-data.js check <review-file>              Check that every hunk is in a flow or in "notInAnyFlow".
+//   node review-data.js stack <owner>/<repo> <pr-number> Print the stack of a PR as JSON, or "null" when it is in no stack.
+//                                                        Exit 3 and print the split when the branches above it split.
 //   node review-data.js list                             Print the reviews that are not deleted, with their page URL
 //                                                        while the review server runs.
 //   node review-data.js watch <review-dir> [--worktree <path>]
@@ -18,6 +20,8 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execFileSync } = require('child_process');
+const { fromGitHubStack, fromBranches } = require('./stack.js');
 
 const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews } = require('./reviews.js');
 
@@ -118,6 +122,19 @@ function mergeHunks(hunks, previous) {
 
 function count(hunk, sign) { return hunk.lines.filter((line) => line[0] === sign).length; }
 
+function checkStack(review) {
+  const { stack } = review;
+  if (!stack) return [];
+  const problems = [];
+  const { prs } = stack;
+  if (prs.length < 2) problems.push('stack has fewer than 2 PRs, leave the stack field out');
+  if (prs.length >= 2 && !prs.some((pr) => Number(pr.number) === Number(review.pr?.number))) problems.push(`stack.prs does not hold PR ${review.pr?.number}`);
+  for (const field of ['coverage', 'outsideTickets']) {
+    if (stack[field] && !stack[field].length) problems.push(`stack.${field} is empty, leave it out`);
+  }
+  return problems;
+}
+
 function checkFlows(review) {
   const hunkIds = new Set(review.hunks.map((hunk) => hunk.id));
   const placed = new Set(review.notInAnyFlow || []);
@@ -129,10 +146,25 @@ function checkFlows(review) {
     }
   }
   return {
+    stack: checkStack(review),
     missing: [...hunkIds].filter((id) => !placed.has(id)),
     unknown: [...placed].filter((id) => !hunkIds.has(id)),
     withoutWhy,
   };
+}
+
+function gh(...args) {
+  return JSON.parse(execFileSync('gh', ['api', ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
+}
+
+function readStack(repository, number) {
+  const pull = gh(`repos/${repository}/pulls/${number}`);
+  if (pull.stack) {
+    const stack = gh(`repos/${repository}/stacks/${pull.stack.number}`);
+    const pulls = stack.pull_requests.map((pr) => (pr.number === pull.number ? pull : gh(`repos/${repository}/pulls/${pr.number}`)));
+    return fromGitHubStack(stack, pulls);
+  }
+  return fromBranches(Number(number), gh('--paginate', '--slurp', `repos/${repository}/pulls?state=open&per_page=100`).flat());
 }
 
 function main([command, ...args]) {
@@ -155,11 +187,12 @@ function main([command, ...args]) {
   }
   if (command === 'check' && args.length === 1) {
     const [reviewFile] = args;
-    const { missing, unknown, withoutWhy } = checkFlows(JSON.parse(fs.readFileSync(reviewFile, 'utf8')));
+    const { missing, unknown, withoutWhy, stack } = checkFlows(JSON.parse(fs.readFileSync(reviewFile, 'utf8')));
     missing.forEach((id) => console.log(`missing: ${id} is not in any flow and not in notInAnyFlow`));
     unknown.forEach((id) => console.log(`unknown: ${id} is not a hunk of this PR`));
     withoutWhy.forEach((step) => console.log(`no why: step ${step} does not say why it comes there`));
-    if (missing.length || unknown.length || withoutWhy.length) {
+    stack.forEach((problem) => console.log(`stack: ${problem}`));
+    if (missing.length || unknown.length || withoutWhy.length || stack.length) {
       return 1;
     }
     console.log('ok: every hunk is placed');
@@ -170,6 +203,11 @@ function main([command, ...args]) {
     watchReview(args[0], (line) => console.log(`EVENT ${line}`), (paused) => console.log(paused ? 'PAUSED' : 'RESUMED'));
     return undefined;
   }
+  if (command === 'stack' && args.length === 2) {
+    const stack = readStack(args[0], args[1]);
+    console.log(JSON.stringify(stack));
+    return stack && stack.split ? 3 : 0;
+  }
   if (command === 'list' && args.length === 0) {
     const server = readJson(path.join(stateRoot(), 'server.json'));
     const base = server && isRunning(server.pid) ? server.url : null;
@@ -179,7 +217,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] | stack <owner>/<repo> <pr-number> | list');
   return 2;
 }
 

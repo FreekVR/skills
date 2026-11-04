@@ -89,7 +89,7 @@ test('checkFlows reports hunks that are not placed and IDs that are not hunks', 
     flows: [{ id: 'cache', steps: [{ hunkId: 'a', why: 'Start here.' }, { hunkId: 'z', why: '' }] }],
     notInAnyFlow: ['b'],
   };
-  assert.deepStrictEqual(checkFlows(review), { missing: ['c'], unknown: ['z'], withoutWhy: ['cache:z'] });
+  assert.deepStrictEqual(checkFlows(review), { missing: ['c'], unknown: ['z'], withoutWhy: ['cache:z'], stack: [] });
 });
 
 test('checkFlows passes when every hunk is placed, also in several flows', () => {
@@ -100,7 +100,20 @@ test('checkFlows passes when every hunk is placed, also in several flows', () =>
       { id: 'write', steps: [{ hunkId: 'a', why: 'Data is saved.' }] },
     ],
   };
-  assert.deepStrictEqual(checkFlows(review), { missing: [], unknown: [], withoutWhy: [] });
+  assert.deepStrictEqual(checkFlows(review), { missing: [], unknown: [], withoutWhy: [], stack: [] });
+});
+
+test('check rejects a stack field that a single PR should not have', () => {
+  const pr = (number) => ({ number, title: `PR ${number}`, url: '', state: 'open', draft: false, head: 'h', base: 'b' });
+  const base = { pr: { number: 15 }, hunks: [], flows: [] };
+  const one = checkFlows({ ...base, stack: { prs: [pr(15)] } }).stack;
+  const empty = checkFlows({ ...base, stack: { prs: [pr(15), pr(16)], coverage: [], outsideTickets: [] } }).stack;
+  const foreign = checkFlows({ ...base, stack: { prs: [pr(16), pr(17)] } }).stack;
+  assert.ok(one.length === 1 && one[0].includes('fewer than 2'));
+  assert.strictEqual(empty.length, 2);
+  assert.ok(foreign.length === 1 && foreign[0].includes('15'));
+  assert.deepStrictEqual(checkFlows({ ...base, stack: { prs: [pr(15), pr(16)] } }).stack, []);
+  assert.deepStrictEqual(checkFlows(base).stack, []);
 });
 
 test('reviewDir uses XDG_STATE_HOME with one folder per repository and PR', (t) => {
