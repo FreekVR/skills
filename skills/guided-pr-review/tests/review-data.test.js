@@ -555,3 +555,44 @@ test('check exits 1 and prints the criteria problems', (t) => {
   assert.strictEqual(result.status, 1);
   assert.match(result.stdout, /criteria: WX-42#2 is not met but has no finding for the whole PR/);
 });
+
+function runReviewData(t, files, ...args) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-diff-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  for (const [name, content] of Object.entries(files)) fs.writeFileSync(path.join(dir, name), content);
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), ...args.map((arg) => arg.replace(/^@/, dir + path.sep))], { encoding: 'utf8' });
+  return { ...result, dir };
+}
+
+test('check --diff passes when review.json holds exactly the hunks of the diff', (t) => {
+  const hunks = runReviewData(t, { 'pr.diff': DIFF }, 'hunks', '@pr.diff', '@review.json');
+  assert.strictEqual(hunks.status, 0);
+  const review = JSON.parse(fs.readFileSync(path.join(hunks.dir, 'review.json'), 'utf8'));
+  review.notInAnyFlow = review.hunks.map((hunk) => hunk.id);
+  const result = runReviewData(t, { 'pr.diff': DIFF, 'review.json': JSON.stringify(review) }, 'check', '@review.json', '--diff', '@pr.diff');
+  assert.strictEqual(result.status, 0);
+  assert.match(result.stdout, /^ok/m);
+});
+
+test('check --diff reports a hunk that review.json dropped and a hunk that is not in the diff', (t) => {
+  const hunks = parseDiff(DIFF);
+  const dropped = hunks[0];
+  const review = { hunks: [...hunks.slice(1), { id: 'zzzzzzzz', file: 'src/extra.ts' }], notInAnyFlow: [...hunks.slice(1).map((hunk) => hunk.id), 'zzzzzzzz'] };
+  const result = runReviewData(t, { 'pr.diff': DIFF, 'review.json': JSON.stringify(review) }, 'check', '@review.json', '--diff', '@pr.diff');
+  assert.strictEqual(result.status, 1);
+  assert.ok(result.stdout.includes(`diff: hunk ${dropped.id} of ${dropped.file} is not in review.json`));
+  assert.ok(result.stdout.includes('diff: hunk zzzzzzzz is not in the diff'));
+});
+
+test('hunks writes the --whole files, and check --diff reads them so a whole file keeps one ID', (t) => {
+  const hunks = runReviewData(t, { 'pr.diff': DIFF }, 'hunks', '@pr.diff', '@review.json', '--whole', 'src/cache.ts');
+  const review = JSON.parse(fs.readFileSync(path.join(hunks.dir, 'review.json'), 'utf8'));
+  assert.deepStrictEqual(review.wholeFiles, ['src/cache.ts']);
+  assert.strictEqual(review.hunks.filter((hunk) => hunk.file === 'src/cache.ts').length, 1);
+  review.notInAnyFlow = review.hunks.map((hunk) => hunk.id);
+  const result = runReviewData(t, { 'pr.diff': DIFF, 'review.json': JSON.stringify(review) }, 'check', '@review.json', '--diff', '@pr.diff');
+  assert.strictEqual(result.status, 0);
+  delete review.wholeFiles;
+  const without = runReviewData(t, { 'pr.diff': DIFF, 'review.json': JSON.stringify(review) }, 'check', '@review.json', '--diff', '@pr.diff');
+  assert.strictEqual(without.status, 1);
+});

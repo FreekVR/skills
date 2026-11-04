@@ -5,7 +5,10 @@
 //                                                        Write the hunks of a unified diff into review.json, keeping
 //                                                        the explanations of hunks that did not change. Each file
 //                                                        passed with --whole becomes one hunk.
-//   node review-data.js check <review-file>              Check that every hunk is in a flow or in "notInAnyFlow".
+//   node review-data.js check <review-file> [--diff <diff-file>]
+//                                                        Check that every hunk is in a flow or in "notInAnyFlow".
+//                                                        With --diff, also check that the hunks of review.json are
+//                                                        the hunks of that diff.
 //   node review-data.js stack <owner>/<repo> <pr-number> Print the stack of a PR as JSON, or "null" when it is in no stack.
 //                                                        Exit 3 and print the split when the branches above it split.
 //   node review-data.js own-diff <clone> <old-head> <first-subject>
@@ -192,6 +195,17 @@ function checkFlows(review) {
   };
 }
 
+// Compare the hunk IDs of review.json with those of the diff, split in hunks the way `hunks` splits it.
+function checkDiff(review, diffText) {
+  const expected = parseDiff(diffText, new Set(review.wholeFiles || []));
+  const have = new Set((review.hunks || []).map((hunk) => hunk.id));
+  const want = new Set(expected.map((hunk) => hunk.id));
+  return [
+    ...expected.filter((hunk) => !have.has(hunk.id)).map((hunk) => `hunk ${hunk.id} of ${hunk.file} is not in review.json`),
+    ...[...have].filter((id) => !want.has(id)).map((id) => `hunk ${id} is not in the diff`),
+  ];
+}
+
 function gh(...args) {
   return JSON.parse(execFileSync('gh', ['api', ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }));
 }
@@ -234,19 +248,22 @@ function main([command, ...args]) {
   if (command === 'hunks' && reviewFile && !options.length) {
     const review = fs.existsSync(reviewFile) ? JSON.parse(fs.readFileSync(reviewFile, 'utf8')) : {};
     review.hunks = mergeHunks(parseDiff(fs.readFileSync(diffFile, 'utf8'), whole), review.hunks || []);
+    review.wholeFiles = [...whole];
     fs.writeFileSync(reviewFile, JSON.stringify(review) + '\n');
     review.hunks.forEach((hunk) => console.log(`${hunk.id} ${hunk.file} ${hunk.explanation ? 'kept' : 'new'} +${count(hunk, '+')} -${count(hunk, '-')}`));
     return 0;
   }
-  if (command === 'check' && args.length === 1) {
-    const [reviewFile] = args;
-    const { missing, unknown, withoutWhy, stack, criteria } = checkFlows(JSON.parse(fs.readFileSync(reviewFile, 'utf8')));
+  if (command === 'check' && (args.length === 1 || (args.length === 3 && args[1] === '--diff'))) {
+    const review = JSON.parse(fs.readFileSync(args[0], 'utf8'));
+    const { missing, unknown, withoutWhy, stack, criteria } = checkFlows(review);
+    const diff = args.length === 3 ? checkDiff(review, fs.readFileSync(args[2], 'utf8')) : [];
     missing.forEach((id) => console.log(`missing: ${id} is not in any flow and not in notInAnyFlow`));
     unknown.forEach((id) => console.log(`unknown: ${id} is not a hunk of this PR`));
     withoutWhy.forEach((step) => console.log(`no why: step ${step} does not say why it comes there`));
     stack.forEach((problem) => console.log(`stack: ${problem}`));
     criteria.forEach((problem) => console.log(`criteria: ${problem}`));
-    if (missing.length || unknown.length || withoutWhy.length || stack.length || criteria.length) {
+    diff.forEach((problem) => console.log(`diff: ${problem}`));
+    if (missing.length || unknown.length || withoutWhy.length || stack.length || criteria.length || diff.length) {
       return 1;
     }
     console.log('ok: every hunk is placed');
@@ -306,7 +323,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> [--diff <diff-file>] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
   return 2;
 }
 
