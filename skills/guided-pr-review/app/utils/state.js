@@ -12,6 +12,7 @@ export const state = reactive({
   seen: new Set(),
   reviews: null,
   waiting: null,
+  stackStatus: [],
   offline: false,
   bootError: null,
 })

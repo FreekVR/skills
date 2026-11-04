@@ -6,6 +6,7 @@ import { answerFor, applySummaryDraft, buildPost, importOwnReview, newComments, 
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, restorePosition } from './navigation.js'
 import { composerKey } from './panels.js'
+import { hasStack } from './stack.js'
 
 let saveTimer = null
 let pollTimer = null
@@ -63,6 +64,11 @@ export async function loadReviews() {
   } catch {
     // Without the list the page works as before, only without the switch.
   }
+}
+
+// The stack switch is optional: when this call fails, the page keeps what it had. A PR in no stack sends no request.
+export async function loadStack() {
+  if (hasStack()) state.stackStatus = await transport.loadStack().catch(() => state.stackStatus)
 }
 
 // Pause or play the agent of a review. Play sends one check, so the page catches up with GitHub.
@@ -369,8 +375,8 @@ export async function poll() {
       applySummaryDraft()
       markCurrentSeen()
     }
-    // The overlay is optional: when this call fails, the page keeps what it had.
-    state.waiting = await transport.loadWaiting().catch(() => state.waiting)
+    // The overlay and the stack switch are optional: when a call fails, the page keeps what it had.
+    await Promise.all([transport.loadWaiting().then((waiting) => { state.waiting = waiting }, () => {}), loadStack()])
     if (state.offline) state.offline = false
   } catch (error) {
     if (!error.serverGone) notify(`Cannot reach the agent: ${error.message}`, true)
@@ -412,6 +418,7 @@ export async function boot() {
     markCurrentSeen()
     // The switch is optional, so the page does not wait for the list.
     loadReviews()
+    loadStack()
   } catch (error) {
     state.bootError = `The review data did not load: ${error.message}. Check that the agent is still running and reload this page.`
   }

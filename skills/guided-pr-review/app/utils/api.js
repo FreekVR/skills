@@ -24,6 +24,10 @@ export const transport = {
   loadWaiting() {
     return $fetch(`${base}/waiting`)
   },
+  // The review state of each PR in this review's stack.
+  loadStack() {
+    return $fetch(`${base}/stack`)
+  },
   loadReviews() {
     return $fetch('/api/reviews')
   },
