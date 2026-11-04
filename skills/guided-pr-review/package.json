@@ -27,6 +27,7 @@
     "@comark/nuxt": "0.8.1",
     "@iconify-json/lucide": "1.2.149",
     "@nuxt/eslint": "1.17.0",
+    "@nuxt/fonts": "1.2.0",
     "@nuxt/test-utils": "4.3.4",
     "@nuxt/ui": "4.12.0",
     "@playwright/test": "1.64.1",

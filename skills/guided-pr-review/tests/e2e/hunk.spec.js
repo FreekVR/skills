@@ -12,14 +12,14 @@ test('shows the file path, the status and the function of the hunk', async ({ pa
   await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
   const main = page.getByRole('main');
   await expect(main.getByText('src/cache.ts').first()).toBeVisible();
-  await expect(main.getByText('modified')).toBeVisible();
-  await expect(main.getByText('export class Cache {').first()).toBeVisible();
+  await expect(page.getByRole('banner').getByText('modified')).toBeVisible();
+  await expect(page.getByRole('banner').getByText('export class Cache {').first()).toBeVisible();
 });
 
 test('shows where a renamed file came from', async ({ page }) => {
   await openReview(page);
   await openHunk(page, 'Moved and added files', /^C1 /);
-  await expect(page.getByRole('main').getByText('renamed from src/old/legacy.ts')).toBeVisible();
+  await expect(page.getByRole('banner').getByText('renamed from src/old/legacy.ts')).toBeVisible();
 });
 
 test('shows old and new line numbers in the diff', async ({ page }) => {

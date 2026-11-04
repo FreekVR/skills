@@ -28,7 +28,7 @@ test('shows the flows and Home, without the agent features', async ({ page }) =>
   await expect(page.getByRole('button', { name: /^Post as draft/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Home' }).click();
   const main = page.getByRole('main');
-  await expect(main.getByRole('heading', { name: 'feat: add three-day forecast' })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('heading', { name: 'feat: add three-day forecast' })).toBeVisible();
   await expect(main.getByRole('button', { name: /^Show the forecast ./ })).toBeVisible();
 });
 

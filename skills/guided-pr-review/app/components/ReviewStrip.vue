@@ -10,6 +10,13 @@ const line = computed(() => (state.view.kind === 'station' ? lineById(state.view
 const index = computed(() => Math.max(0, state.view.index || 0))
 const seenCount = computed(() => line.value?.stops.filter((stop: { hunkId: string }) => isSeen(stop.hunkId)).length ?? 0)
 const criteria = computed(() => (line.value ? flowCriteria(line.value) : []))
+// The hunk of the current stop, named in the band above the map.
+const hunk = computed(() => (line.value ? hunkById(line.value.stops[index.value]?.hunkId) : null))
+const code = computed(() => (line.value ? stationCode(line.value, index.value) : ''))
+const folder = computed(() => {
+  const file: string = hunk.value?.file || ''
+  return file.includes('/') ? file.slice(0, file.lastIndexOf('/')) : ''
+})
 const criteriaOpen = computed(() => state.ui.criteriaOpen ?? state.view.index === 0)
 
 const stops = computed(() => {
@@ -45,14 +52,13 @@ const theme = computed(() => state.reviewer.theme || 'system')
 const TICK_COLORS: Record<string, string> = { approved: 'var(--ui-success)', changes: 'var(--ui-error)', comment: 'var(--ui-text-toned)' }
 
 function tickClass(stop: { verdict?: string, seen: boolean, stamp: boolean }) {
-  if (stop.verdict) return ['-mt-px grid size-5 place-items-center border-(--tick) bg-(--tick) text-inverted', stop.stamp && 'stamp']
-  return ['mt-0.5 size-3.5 border-(--tick)', stop.seen ? 'bg-(--tick)' : 'bg-default']
+  if (stop.verdict) return ['-mt-px grid size-5 place-items-center border-white bg-(--tick) text-white', stop.stamp && 'stamp']
+  return ['mt-0.5 size-3.5 border-white', stop.seen ? 'bg-white' : 'bg-(--line)']
 }
 
-// The stops other than the current one get a faded colour; it stays opaque, so the line does not show through.
-function tickStyle(stop: { verdict?: string, seen: boolean }, current: boolean) {
-  const color = stop.verdict ? TICK_COLORS[stop.verdict] : stop.seen ? 'var(--ui-primary)' : 'var(--line)'
-  return { '--tick': current ? color : `color-mix(in srgb, ${color} 80%, var(--ui-bg))` }
+// On the band every tick is white; a verdict keeps its colour inside a white ring. The current one is bigger.
+function tickStyle(stop: { verdict?: string }) {
+  return { '--tick': stop.verdict ? TICK_COLORS[stop.verdict] : 'white' }
 }
 
 function onCriteriaToggle(event: Event) {
@@ -123,18 +129,18 @@ useEventListener(document, 'scroll', (event: Event) => {
 <template>
   <header
     ref="header"
-    class="relative z-5 border-b border-default bg-default"
-    :class="{ compact: line && state.ui.compactMap }"
+    class="band relative z-5"
+    :class="{ 'compact': line && state.ui.compactMap, 'band-line': line }"
     :style="line ? { '--line': `var(--color-${line.color})` } : undefined"
   >
-    <div class="strip-top flex items-center gap-5 px-gutter pt-4.5 max-md:flex-wrap" :class="{ 'pb-3': !line }">
-      <div class="flex min-w-0 flex-1 items-start gap-3 max-md:basis-full">
-        <FlowBullet v-if="line" :line="line" />
+    <div class="strip-top flex items-center gap-5 px-gutter pt-5 max-md:flex-wrap" :class="{ 'pb-4': !line }">
+      <div class="flex min-w-0 flex-1 items-center gap-3 max-md:basis-full">
+        <FlowBullet v-if="line" :line="line" on-band class="size-9! text-lead!" />
         <div class="min-w-0">
-          <h1 tabindex="-1" class="m-0 text-title outline-none leading-tight font-bold tracking-[-0.015em]">
-            <FlowIcon :icon="line?.icon" class="mr-[.4em] size-[1.05em] align-[-.15em] text-(--line)" />{{ line ? line.name : viewTitle() }}
+          <h1 tabindex="-1" class="m-0 font-display outline-none leading-none" :class="line ? 'text-title' : 'text-lead'">
+            <FlowIcon :icon="line?.icon" class="mr-[.4em] size-[1.05em] align-[-.15em]" />{{ line ? line.name : viewTitle() }}
           </h1>
-          <p v-if="line" class="compact-hide m-0 mt-1 truncate text-label text-muted max-md:hidden">
+          <p v-if="line" class="compact-hide m-0 mt-1.5 truncate text-label text-muted max-md:hidden">
             {{ seenCount }} of {{ plural(line.stops.length, 'hunk') }} seen
           </p>
         </div>
@@ -146,21 +152,21 @@ useEventListener(document, 'scroll', (event: Event) => {
           {{ waitingCount === 1 ? '1 request waits for the agent' : `${waitingCount} requests wait for the agent` }}
         </span>
         <UPopover v-if="reviews.length" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
-          <UButton color="neutral" variant="outline" class="font-semibold" :label="plural(reviews.length, 'session')" :aria-label="`${plural(reviews.length, 'session')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
+          <UButton color="neutral" variant="soft" class="font-bold" icon="i-lucide-monitor-dot" :label="plural(reviews.length, 'session')" :aria-label="`${plural(reviews.length, 'session')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
           <template #content>
             <ul role="list" class="m-0 grid w-[min(420px,calc(100vw-32px))] list-none gap-0.5 p-1.5">
               <li
                 v-for="review in reviews"
                 :key="reviewRef(review)"
                 class="flex items-start gap-1 rounded-md text-label"
-                :class="isCurrentReview(review) ? 'mb-1 bg-elevated px-2.5 py-2 ring-1 ring-accented' : 'has-[a:hover]:bg-elevated'"
+                :class="isCurrentReview(review) ? 'mb-1 bg-accented px-2.5 py-2' : 'has-[a:hover]:bg-elevated'"
                 :aria-current="isCurrentReview(review) ? 'page' : undefined"
               >
                 <div class="min-w-0 flex-1">
                   <template v-if="isCurrentReview(review)">
                     <span class="flex flex-wrap items-center gap-x-1.5 font-semibold">
                       <UIcon name="i-lucide-check" class="size-3.5 text-success" aria-hidden="true" /><a :href="state.review.pr.url" target="_blank" rel="noopener" class="text-info underline-offset-3">{{ reviewRef(review) }}</a>{{ review.state === 'open' ? '' : ` · ${review.state}` }}
-                      <span class="rounded-sm px-1.5 text-tag font-normal text-muted ring-1 ring-accented">this page</span>
+                      <span class="rounded-sm bg-(--ui-text) px-1.5 text-tag font-semibold text-inverted">this page</span>
                     </span>
                     <span class="block text-muted">{{ review.title }}</span>
                     <span v-if="review.paused" class="block text-warning">Agent paused</span>
@@ -193,9 +199,9 @@ useEventListener(document, 'scroll', (event: Event) => {
 
         <UButton
           v-if="!postedReview() && !state.static"
-          color="warning"
-          variant="outline"
-          class="font-semibold"
+          color="neutral"
+          variant="solid"
+          class="font-bold"
           :aria-label="draftLabel"
           :title="draftLabel"
           @click="post('draft')"
@@ -206,7 +212,7 @@ useEventListener(document, 'scroll', (event: Event) => {
           </UBadge>
         </UButton>
 
-        <div class="inline-flex rounded-lg border border-accented p-0.5" role="group" aria-label="Colour theme">
+        <div class="inline-flex rounded-lg bg-elevated p-0.5" role="group" aria-label="Colour theme">
           <UTooltip v-for="option in THEMES" :key="option.id" :text="option.label">
             <UButton
               :icon="THEME_ICONS[option.id]"
@@ -228,14 +234,16 @@ useEventListener(document, 'scroll', (event: Event) => {
       </div>
     </div>
     <!-- On a phone the rail with the PR's name sits below the page, so the header names the PR. -->
-    <p class="compact-hide m-0 truncate px-gutter pt-2 text-label text-muted md:hidden" :class="{ 'pb-3': !line }">
+    <p v-if="state.view.kind !== 'home'" class="compact-hide m-0 truncate px-gutter pt-2 text-label text-muted md:hidden" :class="{ 'pb-3': !line }">
       <a :href="state.review.pr.url" target="_blank" rel="noopener" class="font-mono text-info underline-offset-3">{{ reviewRef(state.review.pr) }}</a> · <MarkupText :text="state.review.pr.title" />
     </p>
 
+    <HomeHero v-if="state.view.kind === 'home'" />
+
     <template v-if="line">
-      <details v-if="criteria.length" class="criteria compact-hide mx-gutter mt-3 mb-0.5 max-w-[110ch] rounded-card border px-3.5 py-2" :open="criteriaOpen" @toggle="onCriteriaToggle">
+      <details v-if="criteria.length" class="criteria compact-hide mx-gutter mt-4 mb-0.5 max-w-[110ch] rounded-card bg-elevated px-3.5 py-2.5" :open="criteriaOpen" @toggle="onCriteriaToggle">
         <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1.5">
-          <span class="text-meta font-extrabold tracking-[.08em] text-(--line) uppercase">This flow should</span>
+          <span class="font-display text-meta tracking-[.1em] uppercase">This line should</span>
           <AiTag v-if="criteriaHaveVerdicts(line)" label="checked by AI" />
           <span class="criteria-keys flex flex-wrap gap-x-3.5 gap-y-1.5">
             <span v-for="{ id, criterion } in criteria" :key="id" class="inline-flex items-center gap-1.5 font-mono text-label font-semibold text-toned">
@@ -245,7 +253,7 @@ useEventListener(document, 'scroll', (event: Event) => {
           </span>
         </summary>
         <ul role="list" class="mt-2.5 mb-1.5 grid list-none gap-2.5 p-0">
-          <li v-for="{ id, criterion } in criteria" :key="id" class="text-lead font-semibold">
+          <li v-for="{ id, criterion } in criteria" :key="id" class="text-lead font-bold">
             <span class="mr-2.5 font-mono text-label"><MarkupText :text="id" /></span><MarkupText :text="criterion.text" />
             <span
               v-if="criterionSource(criterion)"
@@ -259,9 +267,24 @@ useEventListener(document, 'scroll', (event: Event) => {
           </li>
         </ul>
       </details>
-      <div v-else-if="line.noCriteria" class="criteria compact-hide mx-gutter mt-3 mb-0.5 flex max-w-[110ch] flex-wrap items-baseline gap-x-3 gap-y-1 rounded-card border px-3.5 py-2">
-        <span class="text-meta font-extrabold tracking-[.08em] text-(--line) uppercase">This flow should</span>
+      <div v-else-if="line.noCriteria" class="criteria compact-hide mx-gutter mt-4 mb-0.5 flex max-w-[110ch] flex-wrap items-baseline gap-x-3 gap-y-1 rounded-card bg-elevated px-3.5 py-2.5">
+        <span class="font-display text-meta tracking-[.1em] uppercase">This line should</span>
         <p class="m-0 text-ui text-toned">No acceptance criteria to check. <MarkupText :text="line.noCriteria" /></p>
+      </div>
+
+      <div v-if="hunk" class="compact-hide mx-gutter mt-6 flex flex-wrap items-end gap-x-5 gap-y-2">
+        <span class="font-display text-code tracking-[-.04em] font-black">{{ code }}</span>
+        <div class="min-w-0 pb-1">
+          <h2 class="m-0 font-mono text-title leading-[1.2] font-semibold break-all">{{ fileName(hunk.file) }}</h2>
+          <p class="m-0 mt-1.5 flex flex-wrap items-baseline gap-x-2 font-mono text-label text-toned">
+            <span class="inline-flex items-baseline gap-1" :title="folder ? `Folder: ${folder}` : 'The file is in the root of the repository'">
+              <UIcon name="i-lucide-folder" class="size-3.5 shrink-0 self-center" aria-hidden="true" />
+              <span class="sr-only">in folder</span>
+              <span class="break-all">{{ folder || 'repository root' }}</span>
+            </span>
+            <span>· {{ hunk.status }}{{ hunk.oldFile && hunk.oldFile !== hunk.file ? ` from ${hunk.oldFile}` : '' }}<template v-if="hunk.context"> · in {{ hunk.context }}</template></span>
+          </p>
+        </div>
       </div>
 
       <nav
@@ -274,32 +297,32 @@ useEventListener(document, 'scroll', (event: Event) => {
       >
         <span class="map-hint start" aria-hidden="true" />
         <div :key="line.id" class="relative flex w-max max-md:mr-gutter">
-          <div class="absolute top-[34px] right-[66px] left-[66px] h-1.5 rounded-[3px] bg-[color-mix(in_srgb,var(--line)_45%,var(--ui-bg))]" />
-          <div class="absolute top-[34px] left-[66px] h-1.5 rounded-[3px] bg-(--line) transition-[width] duration-[380ms] ease-review motion-reduce:transition-none" :style="{ width: `${index * STOP_WIDTH}px` }" />
+          <div class="absolute top-[34px] right-[66px] left-[66px] h-1.5 rounded-[3px] bg-white/40" />
+          <div class="absolute top-[34px] left-[66px] h-1.5 rounded-[3px] bg-white transition-[width] duration-[380ms] ease-review motion-reduce:transition-none" :style="{ width: `${index * STOP_WIDTH}px` }" />
           <button
             v-for="stop in stops"
             :key="stop.at"
-            class="stop group relative w-[132px] flex-[0_0_132px] cursor-[inherit] pb-1.5 text-center text-toned"
+            class="stop group relative w-[132px] flex-[0_0_132px] cursor-[inherit] rounded-md pb-1.5 text-center text-toned focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
             :aria-label="stop.label"
             :aria-current="stop.at === index ? 'step' : undefined"
             @click="drag?.moved || go(line.id, stop.at)"
           >
-            <span class="block h-7 pt-1 font-mono text-tag leading-none font-semibold tracking-[.02em] text-muted">{{ stop.code }}</span>
+            <span class="block h-7 pt-1 font-mono text-tag leading-none font-bold tracking-[.02em] text-toned">{{ stop.code }}</span>
             <!-- The current stop is bigger and the others are faded, so the eye finds the current one first. -->
             <span
               class="relative mx-auto block rounded-full border-3 transition-[scale] duration-[380ms] ease-review motion-reduce:transition-none"
-              :class="[tickClass(stop), stop.at === index && 'scale-[1.6] shadow-[0_0_0_2px_var(--ui-bg)]']"
-              :style="tickStyle(stop, stop.at === index)"
+              :class="[tickClass(stop), stop.at === index && 'scale-[1.7] shadow-[0_0_0_2px_var(--line)]']"
+              :style="tickStyle(stop)"
             >
               <VerdictIcon v-if="stop.verdict" :verdict="stop.verdict" :class="stop.verdict === 'approved' ? 'size-2.5' : 'size-3.5'" />
             </span>
             <span
               class="compact-hide mt-3 block truncate px-1 text-meta leading-tight group-hover:text-default group-hover:underline group-hover:underline-offset-3"
-              :class="stop.at === index ? 'font-semibold text-default' : 'text-muted'"
+              :class="stop.at === index ? 'font-bold text-default' : 'text-toned'"
               :data-path="stop.file"
             >{{ stop.name }}</span>
             <span class="compact-hide mt-0.5 block h-[22px] truncate px-1 text-tag leading-[22px] text-toned">
-              <span v-if="stop.fresh" class="font-semibold text-default">changed</span>
+              <span v-if="stop.fresh" class="rounded-sm bg-white px-1 font-bold text-(--line)">changed</span>
               <template v-if="stop.fresh && stop.others.length"> · </template>
               <template v-if="stop.others.length">also in <FlowBullet v-for="other in stop.others" :key="other.id" :line="other" mini /></template>
             </span>
@@ -313,11 +336,11 @@ useEventListener(document, 'scroll', (event: Event) => {
           Legend
         </summary>
         <p class="m-0 flex flex-wrap items-center gap-4 pt-2 text-meta text-muted">
-          <span><span class="legend-dot mr-1.5 inline-block size-4 rounded-full border-3 border-(--line) align-[-3px]" />current hunk (bigger)</span>
-          <span><span class="legend-dot mr-1.5 inline-block size-2.5 rounded-full border-2 border-(--line) align-[-1px]" />not read</span>
-          <span><span class="legend-dot mr-1.5 inline-block size-2.5 rounded-full border-2 border-primary bg-primary align-[-1px]" />read</span>
+          <span><span class="mr-1.5 inline-block size-4 rounded-full border-3 border-current align-[-3px]" />current hunk (bigger)</span>
+          <span><span class="mr-1.5 inline-block size-2.5 rounded-full border-2 border-current align-[-1px]" />not read</span>
+          <span><span class="mr-1.5 inline-block size-2.5 rounded-full border-2 border-current bg-current align-[-1px]" />read</span>
           <span v-for="(label, verdict) in { approved: 'you approved', changes: 'you request changes', comment: 'you comment' }" :key="verdict">
-            <span class="legend-dot mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 border-(--tick) bg-(--tick) align-[-4px] text-inverted" :style="{ '--tick': TICK_COLORS[verdict] }">
+            <span class="mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 border-current bg-(--tick) align-[-4px]" :style="{ '--tick': TICK_COLORS[verdict] }">
               <VerdictIcon :verdict="verdict" :class="verdict === 'approved' ? 'size-2' : 'size-3'" />
             </span>{{ label }}
           </span>
@@ -329,11 +352,6 @@ useEventListener(document, 'scroll', (event: Event) => {
 </template>
 
 <style scoped>
-.criteria {
-  border-color: color-mix(in srgb, var(--line) 55%, transparent);
-  background: color-mix(in srgb, var(--line) 7%, var(--ui-bg));
-}
-:root[data-theme="dark"] .criteria { background: color-mix(in srgb, var(--line) 12%, var(--ui-bg)); }
 .criteria[open] .criteria-keys { display: none; }
 summary::-webkit-details-marker { display: none; }
 summary::before {
@@ -346,15 +364,14 @@ summary::before {
   transition: transform .15s var(--ease-review);
 }
 details[open] > summary::before { transform: rotate(45deg); }
-.criteria summary::before { color: var(--line); }
 .legend-wrap summary::before { width: 5px; height: 5px; }
 
 .map-hint { position: sticky; flex: 0 0 0; align-self: stretch; z-index: 2; pointer-events: none; opacity: 0; transition: opacity .2s var(--ease-review); }
 .map-hint.start { left: 0; }
 .map-hint.end { right: 0; }
 .map-hint::before { content: ""; position: absolute; top: 0; bottom: 0; width: calc(2 * var(--spacing-gutter)); }
-.map-hint.start::before { left: calc(-1 * var(--spacing-gutter)); background: linear-gradient(to right, var(--ui-bg), transparent); }
-.map-hint.end::before { right: calc(-1 * var(--spacing-gutter)); background: linear-gradient(to left, var(--ui-bg), transparent); }
+.map-hint.start::before { left: calc(-1 * var(--spacing-gutter)); background: linear-gradient(to right, var(--band), transparent); }
+.map-hint.end::before { right: calc(-1 * var(--spacing-gutter)); background: linear-gradient(to left, var(--band), transparent); }
 @supports (container-type: scroll-state) {
   .map { container-type: scroll-state; }
   @container scroll-state(scrollable: left) { .map-hint.start { opacity: 1; } }
@@ -372,6 +389,7 @@ details[open] > summary::before { transform: rotate(45deg); }
 }
 @media (width >= 48rem) {
   .compact .strip-top { padding-top: 10px; }
+  .compact .strip-top h1 { font-size: var(--text-lead); }
   .compact .compact-hide { display: none; }
   /* The compact map scrolls with the wheel and by dragging, so it needs no scroll bar under its dots. */
   .compact .map { padding-top: 6px; padding-bottom: 10px; scrollbar-width: none; }

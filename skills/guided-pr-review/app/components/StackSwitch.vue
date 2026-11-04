@@ -1,7 +1,7 @@
 <script setup lang="ts">
 const position = computed(() => stackPosition())
 const rows = computed(() => stackRows())
-const label = computed(() => `Stack · ${position.value.index} of ${position.value.size}`)
+const label = computed(() => `${position.value.index} of ${position.value.size}`)
 
 // This page's row needs no link. A merged or closed PR without a review links to GitHub.
 function linkOf(row: { current: boolean, action: string, url: string, status: { page: string } | null }) {
@@ -13,7 +13,7 @@ function linkOf(row: { current: boolean, action: string, url: string, status: { 
 
 <template>
   <UPopover :content="{ align: 'end', sideOffset: 6 }">
-    <UButton color="neutral" variant="outline" class="font-semibold" :label="label" :aria-label="`${label}: switch to another PR of the stack`" trailing-icon="i-lucide-chevron-down" />
+    <UButton color="neutral" variant="soft" class="font-bold" icon="i-lucide-layers" :label="label" :aria-label="`Stack · ${label}: switch to another PR of the stack`" trailing-icon="i-lucide-chevron-down" />
     <template #content>
       <div class="w-[min(440px,calc(100vw-32px))] p-1.5 [--line:var(--ui-primary)]">
         <p class="m-0 px-2.5 pt-1.5 pb-2 text-meta font-extrabold tracking-[.08em] text-muted uppercase">
@@ -24,7 +24,7 @@ function linkOf(row: { current: boolean, action: string, url: string, status: { 
             v-for="(row, at) in rows"
             :key="row.number"
             class="relative flex items-start gap-3 rounded-md px-2.5 py-2 text-label"
-            :class="row.current && 'bg-elevated ring-1 ring-accented'"
+            :class="row.current && 'bg-accented'"
             :aria-current="row.current ? 'page' : undefined"
           >
             <!-- The line runs from the first stop to the last; each row draws its own part of it. -->
@@ -43,8 +43,8 @@ function linkOf(row: { current: boolean, action: string, url: string, status: { 
                   v-bind="linkOf(row)"
                   :class="linkOf(row) ? 'text-default no-underline hover:underline hover:underline-offset-3' : row.current && 'font-semibold'"
                 ><span class="text-info">#{{ row.number }}</span> {{ row.title }}</component>
-                <span v-if="row.current" class="rounded-sm px-1.5 text-tag text-muted ring-1 ring-accented">this page</span>
-                <span v-if="row.state === 'merged'" class="rounded-sm px-1.5 text-tag text-muted ring-1 ring-accented">merged</span>
+                <span v-if="row.current" class="rounded-sm bg-(--ui-text) px-1.5 text-tag font-semibold text-inverted">this page</span>
+                <span v-if="row.state === 'merged'" class="rounded-sm bg-accented px-1.5 text-tag font-semibold text-default">merged</span>
               </span>
               <span class="block" :class="row.approved ? 'text-success' : 'text-muted'">
                 {{ stackRowLabel(row) }}<template v-if="row.action === 'start' && !state.static"> · <UButton variant="link" color="info" size="sm" class="p-0 align-baseline text-label" label="Start a review" @click="startReview(row.number)" /></template>

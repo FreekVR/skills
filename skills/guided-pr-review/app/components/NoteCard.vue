@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { SEVERITY_CLASSES } from './DiffSeverity.vue'
+import { NOTE_BLOCK, SEVERITY_CLASSES, SEVERITY_EDGES } from './DiffSeverity.vue'
 
 // An AI finding or a remark of the reviewer, with the buttons to decide on it and to edit it in place.
 interface NoteItem {
@@ -40,20 +40,20 @@ function save() {
 }
 
 const struck = computed(() => decision.value === 'dismissed' && 'text-muted line-through decoration-1')
+
+// The edge of the note carries its severity; a dismissed finding loses it.
+const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented' : SEVERITY_EDGES[severityLevel(props.item.severity)]))
 </script>
 
 <template>
-  <div
-    class="relative border-y border-default px-5 pt-4 pb-4.5 font-sans whitespace-normal"
-    :class="(decision === 'accepted' || !isFinding) && 'bg-[color-mix(in_srgb,var(--ui-success)_7%,var(--ui-bg))]'"
-  >
+  <div :class="[NOTE_BLOCK, edge]">
     <div class="flex flex-wrap items-center gap-2.5">
       <template v-if="select">
-        <span class="text-ui font-semibold" :class="struck"><MarkupText :text="item.title" /></span>
+        <span class="font-display text-lead" :class="struck"><MarkupText :text="item.title" /></span>
         <span class="relative inline-flex items-center">
           <select
             :value="select.current"
-            class="cursor-pointer appearance-none rounded border py-1 pr-4.5 pl-1.5 font-mono text-meta leading-none font-semibold lowercase hover:border-(--ui-text)"
+            class="cursor-pointer appearance-none rounded border py-1 pr-4.5 pl-1.5 font-mono text-meta leading-none font-bold lowercase hover:opacity-85"
             :class="selectClasses"
             :aria-label="select.title"
             :title="select.title"
@@ -66,8 +66,8 @@ const struck = computed(() => decision.value === 'dismissed' && 'text-muted line
         <span v-if="select.changed" class="text-meta text-muted">AI said {{ select.suggested }}</span>
         <AiTag label="AI finding" />
         <span v-if="item.rule" class="text-meta whitespace-nowrap text-muted">{{ item.rule }}</span>
-        <span v-if="decision === 'accepted'" class="text-meta font-semibold text-success">Accepted</span>
-        <span v-else-if="decision === 'dismissed'" class="text-meta font-semibold text-muted">Dismissed</span>
+        <UBadge v-if="decision === 'accepted'" color="success" variant="solid" size="sm" class="rounded-full font-bold">Accepted</UBadge>
+        <UBadge v-else-if="decision === 'dismissed'" color="neutral" variant="soft" size="sm" class="rounded-full font-bold">Dismissed</UBadge>
         <StatusBadge v-if="decision === 'accepted'" :id="item.id" :body="text" />
       </template>
       <template v-else>
@@ -98,7 +98,7 @@ const struck = computed(() => decision.value === 'dismissed' && 'text-muted line
       <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" own />
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
         <template v-if="isFinding">
-          <UButton v-if="decision !== 'accepted'" color="success" variant="outline" @click="decideFinding(item.id, 'accepted')">Accept</UButton>
+          <UButton v-if="decision !== 'accepted'" color="success" variant="solid" class="font-bold" @click="decideFinding(item.id, 'accepted')">Accept</UButton>
           <UButton v-if="decision !== 'dismissed'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'dismissed')">Dismiss</UButton>
           <UButton v-if="decision !== 'open'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'open')">Undo</UButton>
           <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit text</UButton>

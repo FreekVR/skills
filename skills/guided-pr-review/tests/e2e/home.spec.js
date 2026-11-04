@@ -11,8 +11,9 @@ async function openHome(page, options) {
 test('shows the PR title, author, description and AI summary', async ({ page }) => {
   await openHome(page);
   const main = page.getByRole('main');
-  await expect(main.getByRole('heading', { name: 'feat: add three-day forecast' })).toBeVisible();
-  await expect(main.getByText('by sample-author')).toBeVisible();
+  const banner = page.getByRole('banner');
+  await expect(banner.getByRole('heading', { name: 'feat: add three-day forecast' })).toBeVisible();
+  await expect(banner.getByText('by sample-author')).toBeVisible();
   await expect(main.getByText('The PR fetches a three-day forecast and shows it in a card.')).toBeVisible();
   await main.getByText('PR description').click();
   await expect(main.getByText('forecast card.')).toBeVisible();
@@ -29,7 +30,7 @@ test('names the PR in the page title, on the first view and on Home', async ({ p
 test('shows unmet criteria and folds the met ones', async ({ page }) => {
   await openHome(page);
   const main = page.getByRole('main');
-  await expect(main.getByText('1 of 2 criteria not met').first()).toBeVisible();
+  await expect(main.getByRole('button', { name: '1 of 2 criteria not met' })).toBeVisible();
   await expect(main.getByText('Caches the forecast for one hour.')).toBeVisible();
   await expect(main.getByText('Shows three days with min and max temperature.')).toBeHidden();
   await main.getByText('Show the 1 met criterion').click();
@@ -39,7 +40,7 @@ test('shows unmet criteria and folds the met ones', async ({ page }) => {
 test('folds the criteria panel when every criterion is met', async ({ page }) => {
   await openHome(page, { mutate: (data) => { data.context.tickets[0].acceptanceCriteria[1].verdict = 'met'; } });
   const main = page.getByRole('main');
-  await expect(main.getByText('All 2 criteria met').first()).toBeVisible();
+  await expect(main.getByRole('button', { name: 'All 2 criteria met' })).toBeVisible();
   await expect(main.getByText('Caches the forecast for one hour.')).toBeHidden();
   await expect(main.getByText('Shows three days with min and max temperature.')).toBeHidden();
   await main.getByText('Show the 2 criteria').click();
@@ -91,6 +92,6 @@ test('lists the flows with findings and seen counts, and your review so far', as
   await expect(flow('Not in a flow')).toContainText('0/1 seen');
   await expect(main.getByRole('heading', { name: /Your review so far/ })).toBeVisible();
   await expect(main.getByText('Hunks seen', { exact: true })).toBeVisible();
-  await expect(main.getByText('0 of 7', { exact: true })).toBeVisible();
-  await expect(main.getByText('1 · 0 on GitHub, 1 local only')).toBeVisible();
+  await expect(main.locator('#home-progress').getByText('0/7', { exact: true })).toBeVisible();
+  await expect(main.getByText('remarks to post · 0 on GitHub, 1 local only')).toBeVisible();
 });

@@ -7,8 +7,8 @@ const outside = computed(() => outsideTicketRows())
 </script>
 
 <template>
-  <section class="mt-5 rounded-lg border border-default bg-elevated/60 px-4 py-3.5 text-body [--line:var(--ui-primary)]" aria-labelledby="home-stack">
-    <h3 id="home-stack" class="m-0 text-ui font-semibold">
+  <section class="mt-5 rounded-card bg-elevated px-4.5 py-4 text-body [--line:var(--ui-primary)]" aria-labelledby="home-stack">
+    <h3 id="home-stack" class="m-0 font-display text-lead">
       This PR in its stack <span class="text-label font-normal text-muted">· stack<template v-if="stack.number"> #{{ stack.number }}</template>, {{ stack.prs.length }} PRs, base {{ stack.base }}</span>
     </h3>
     <ul role="list" aria-label="PRs in this stack, bottom to top" class="m-0 mt-3 grid list-none p-0">
@@ -16,7 +16,7 @@ const outside = computed(() => outsideTicketRows())
         v-for="(row, at) in rows"
         :key="row.number"
         class="relative grid grid-cols-[21px_1fr_minmax(0,180px)] items-start gap-3 rounded-md px-2.5 py-2 text-label max-md:grid-cols-[21px_1fr]"
-        :class="row.current && 'bg-elevated ring-1 ring-accented'"
+        :class="row.current && 'bg-default'"
         :aria-current="row.current ? 'page' : undefined"
       >
         <!-- The line runs from the first stop to the last; each row draws its own part of it, as in the stack switch. -->
@@ -31,7 +31,7 @@ const outside = computed(() => outsideTicketRows())
         <div class="min-w-0">
           <span class="flex flex-wrap items-center gap-x-1.5" :class="row.current && 'font-semibold'">
             <span><MarkupText :text="`#${row.number}`" /> {{ row.title }}</span>
-            <span v-if="row.current" class="rounded-sm px-1.5 text-tag font-normal text-muted ring-1 ring-accented">this page</span>
+            <span v-if="row.current" class="rounded-sm bg-(--ui-text) px-1.5 text-tag font-semibold text-inverted">this page</span>
             <AiTag v-else-if="stack.prs[at]?.summary" />
           </span>
           <span v-if="stack.prs[at]?.summary" class="block text-toned"><MarkupText :text="stack.prs[at].summary" /></span>

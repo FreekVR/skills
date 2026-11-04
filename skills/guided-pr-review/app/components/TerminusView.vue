@@ -36,7 +36,7 @@ async function showThem() {
   <section class="page-column pt-9 pb-24">
     <TerminusPosted v-if="view.posted" :sent="view.posted" :finishing="view.finishing" :pr-open="view.prOpen" />
     <template v-else>
-      <p v-if="draft" class="mt-0 mb-3.5 flex items-center gap-2 rounded-lg border border-default px-3 py-2 text-ui text-toned">
+      <p v-if="draft" class="mt-0 mb-3.5 flex items-center gap-2 rounded-lg bg-elevated px-3.5 py-2.5 text-ui text-toned">
         <VerdictIcon verdict="comment" class="size-3.5" />
         <span>Draft on GitHub{{ draft.at ? `, updated ${timeLabel(draft.at)}` : '' }}.<template v-if="draft.url">
           {{ ' ' }}<a :href="draft.url" target="_blank" rel="noopener" class="text-info underline underline-offset-3">View</a>
@@ -55,10 +55,10 @@ async function showThem() {
       </p>
 
       <div class="mt-10">
-        <h2 class="m-0 mb-1.5 text-lead tracking-[-0.01em]">
+        <h2 class="m-0 mb-4 font-display text-title">
           Before you post
         </h2>
-        <ol role="list" class="m-0 list-none border-t border-default p-0">
+        <ol role="list" class="m-0 list-none p-0">
           <TerminusCheckItem :number="1" :done="criteria.done" section="criteria" title="Acceptance criteria" :counts="criteria.counts">
             <template #title>
               <AiTag label="checked by AI" />
@@ -137,10 +137,10 @@ async function showThem() {
       </div>
 
       <div class="mt-10">
-        <h2 class="m-0 mb-1.5 text-lead tracking-[-0.01em]">
+        <h2 class="m-0 mb-4 font-display text-title">
           Your review
         </h2>
-        <ol role="list" class="m-0 list-none border-t border-default p-0">
+        <ol role="list" class="m-0 list-none p-0">
           <TerminusCheckItem :number="1" title="Summary">
             <template #title>
               <StatusBadge v-if="summary" id="summary" :body="summary" />
@@ -196,15 +196,15 @@ async function showThem() {
                 v-for="option in VERDICTS"
                 :key="option.id"
                 type="button"
-                class="verdict flex cursor-pointer flex-col justify-start rounded-lg border border-accented bg-default px-3.5 py-3 text-left hover:border-(--ui-text-dimmed) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info aria-pressed:border-(--ui-text) aria-pressed:shadow-[inset_0_0_0_1px_var(--ui-text)]"
+                class="verdict flex cursor-pointer flex-col justify-start rounded-card bg-default px-4 py-3.5 text-left hover:bg-accented/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info aria-pressed:bg-(--ui-text) aria-pressed:text-inverted aria-pressed:[&_.text-dimmed]:text-inverted/75"
                 :class="{ muted: view.proposal && option.id !== view.proposal }"
                 :aria-pressed="view.verdict === option.id"
                 @click="setVerdict(option.id)"
               >
-                <strong class="block text-body">
-                  <VerdictIcon :verdict="option.icon" class="mr-1 size-4 align-[-3px]" :class="VERDICT_ICON_COLORS[option.id]" />{{ option.label }}<span
+                <strong class="block font-display text-lead">
+                  <VerdictIcon :verdict="option.icon" class="mr-1 size-4.5 align-[-3px]" :class="VERDICT_ICON_COLORS[option.id]" />{{ option.label }}<span
                     v-if="option.id === view.proposal"
-                    class="ml-1.5 inline-block rounded-sm border border-(--ui-text) px-1.5 py-0.5 align-[2px] font-mono text-tag leading-none font-semibold text-default"
+                    class="proposed ml-1.5 inline-block rounded-sm bg-accented px-1.5 py-0.5 align-[3px] font-mono text-tag leading-none font-semibold text-default"
                   >proposed</span>
                 </strong>
                 <span class="mt-0.5 block text-label text-dimmed">{{ option.hint }}</span>
@@ -271,5 +271,6 @@ async function showThem() {
 
 <style scoped>
 .verdict.muted:not([aria-pressed="true"]):not(:hover):not(:focus-visible) strong,
-.verdict.muted:not([aria-pressed="true"]):not(:hover):not(:focus-visible) strong svg { color: var(--ui-text-dimmed); font-weight: 600; }
+.verdict.muted:not([aria-pressed="true"]):not(:hover):not(:focus-visible) strong svg { color: var(--ui-text-dimmed); }
+.verdict[aria-pressed="true"] .proposed { background: var(--ui-bg); color: var(--ui-text); }
 </style>

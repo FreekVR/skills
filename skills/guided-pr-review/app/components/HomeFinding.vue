@@ -4,7 +4,6 @@ type Finding = { id: string, title: string, body: string, severity: string, rule
 const props = defineProps<{ finding: Finding }>()
 
 // The four severity levels, from quiet to loud.
-const SEVERITY_VARIANTS = ['outline', 'outline', 'soft', 'solid'] as const
 
 const key = computed(() => `finding:${props.finding.id}`)
 const decision = computed(() => decisionOf(props.finding))
@@ -21,9 +20,7 @@ function toggle(event: Event) {
       <summary class="flex cursor-pointer list-none items-baseline gap-2.5 py-2.5 text-body font-semibold [&::-webkit-details-marker]:hidden">
         <!-- One line of the title high, so the badge sits centred on the first line of a title that wraps. -->
         <span class="flex h-lh shrink-0 items-center self-start">
-          <UBadge color="neutral" :variant="SEVERITY_VARIANTS[severityLevel(finding.severity)]" size="sm" class="font-mono lowercase">
-            {{ finding.severity }}
-          </UBadge>
+          <DiffSeverity :severity="finding.severity" />
         </span>
         <span class="min-w-0"><MarkupText :text="finding.title" /></span>
         <span v-if="decision !== 'open'" class="text-meta font-semibold" :class="decision === 'accepted' ? 'text-success' : 'text-dimmed'">{{ decision === 'accepted' ? 'Accepted' : 'Dismissed' }}</span>

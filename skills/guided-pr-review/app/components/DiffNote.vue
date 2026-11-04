@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { NOTE_BLOCK, SEVERITY_EDGES } from './DiffSeverity.vue'
+
 // A note on the diff: a comment by someone else, an AI finding, a remark of the reviewer, or a remark they posted earlier.
 interface NoteItem {
   id: string
@@ -22,14 +24,16 @@ interface NoteItem {
 const props = defineProps<{ note: { type: 'comment' | 'finding' | 'remark' | 'posted', item: NoteItem } }>()
 
 const item = computed(() => props.note.item)
-const BLOCK = 'relative border-y border-default px-5 pt-4 pb-4.5 font-sans whitespace-normal'
+const BLOCK = NOTE_BLOCK
+// A posted remark keeps the severity edge of a note; a comment by someone else has a quiet edge.
+const edge = computed(() => (props.note.type === 'posted' ? SEVERITY_EDGES[severityLevel(props.note.item.severity)] : 'border-r-accented'))
 // A comment opened from the Existing reviews tab gets the focus, and the outline shows which one it is.
 const TARGET = 'scroll-mt-24 outline-none focus:outline-2 focus:-outline-offset-2 focus:outline-info'
 </script>
 
 <template>
   <!-- Comment by someone else -->
-  <div v-if="note.type === 'comment'" :id="`note-${item.id}`" tabindex="-1" :class="[BLOCK, TARGET]">
+  <div v-if="note.type === 'comment'" :id="`note-${item.id}`" tabindex="-1" :class="[BLOCK, TARGET, edge]">
     <div class="flex flex-wrap items-baseline gap-2.5">
       <UAvatar :src="avatar(item.author)" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
       <span class="text-meta text-muted">
@@ -57,7 +61,7 @@ const TARGET = 'scroll-mt-24 outline-none focus:outline-2 focus:-outline-offset-
   </div>
 
   <!-- A remark the reviewer posted in an earlier round -->
-  <div v-else-if="note.type === 'posted'" :id="`note-${item.id}`" tabindex="-1" :class="[BLOCK, TARGET]">
+  <div v-else-if="note.type === 'posted'" :id="`note-${item.id}`" tabindex="-1" :class="[BLOCK, TARGET, edge]">
     <div class="flex flex-wrap items-baseline gap-2.5">
       <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
       <DiffSeverity :severity="item.severity" />

@@ -46,7 +46,7 @@ const row = (page, number) => page.getByRole('dialog').getByRole('listitem').fil
 
 test("shows the PR's place in the stack and the stack as a line from the bottom PR", async ({ page }) => {
   await openReview(page, { mutate: onPage, others: [merged()] });
-  await expect(button(page)).toHaveText(/Stack · 2 of 4/);
+  await expect(button(page)).toHaveText(/2 of 4/);
   await button(page).click();
   const rows = page.getByRole('dialog').getByRole('list', { name: 'PRs in this stack, bottom to top' }).getByRole('listitem');
   await expect(rows).toHaveCount(4);

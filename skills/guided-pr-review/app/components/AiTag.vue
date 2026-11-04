@@ -10,9 +10,9 @@ withDefaults(defineProps<{ label?: string }>(), { label: 'AI' })
        Without a label it keeps the font size of the line, so its centre is the centre of that text. -->
   <UBadge
     color="neutral"
-    variant="outline"
+    variant="soft"
     size="sm"
-    class="inline-block shrink-0 rounded-full py-1 whitespace-nowrap text-toned"
+    class="inline-block shrink-0 rounded-full py-1 whitespace-nowrap text-default"
     :class="label ? 'text-tag leading-3 font-semibold' : 'px-1 text-[1em] leading-3'"
     title="Written by the AI agent"
   >

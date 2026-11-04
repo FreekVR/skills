@@ -12,7 +12,7 @@ function onToggle(event: Event) {
 </script>
 
 <template>
-  <details class="mt-3 rounded-card border border-default bg-default" :open="card.open" @toggle="onToggle">
+  <details class="mt-3 rounded-card bg-elevated" :open="card.open" @toggle="onToggle">
     <summary class="flex cursor-pointer list-none flex-wrap items-center gap-x-2.5 gap-y-2 px-4 py-3">
       <UAvatar :src="avatar(review.author)" alt="" size="xs" loading="lazy" class="shrink-0 ring-1 ring-default" />
       <b>{{ card.mine ? 'You' : `@${review.author}` }}</b>
@@ -24,7 +24,7 @@ function onToggle(event: Event) {
       <span v-if="card.commitWhere" class="text-label text-dimmed">on <CommitLink :sha="review.commitId" /> · {{ card.commitWhere }}</span>
       <span class="ml-auto text-ui text-toned">{{ plural(card.comments.length, 'comment') }}<span v-if="card.toCheck" class="font-semibold text-warning"> · {{ needsDecisionLabel(card.toCheck) }}</span></span>
     </summary>
-    <div class="border-t border-default px-4 pb-4">
+    <div class="px-4 pb-4">
       <div v-if="review.body" class="mt-3">
         <SafeMarkdown :value="review.body" />
       </div>
@@ -32,7 +32,7 @@ function onToggle(event: Event) {
         <a :href="review.url" target="_blank" rel="noopener" class="text-info underline underline-offset-3">Open on GitHub</a>
       </p>
       <ThreadCard v-for="comment in card.comments" :key="comment.id" :comment="comment" :mine="card.mine" />
-      <p v-if="card.pending" class="mt-4.5 mb-0 flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-default pt-3.5 text-ui text-toned">
+      <p v-if="card.pending" class="mt-4.5 mb-0 flex flex-wrap items-center gap-x-3 gap-y-2 text-ui text-toned">
         Your decisions and replies go to GitHub with your next review.
         <UButton color="neutral" variant="outline" class="font-semibold" @click="goTerminus()">
           Submit review

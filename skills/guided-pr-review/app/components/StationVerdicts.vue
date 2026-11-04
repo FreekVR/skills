@@ -27,10 +27,12 @@ function title(verdict: string, label: string) {
       v-for="button in BUTTONS"
       :key="button.verdict"
       :color="button.color"
-      :variant="mine === button.verdict ? 'solid' : 'outline'"
+      :variant="mine === button.verdict ? 'solid' : button.verdict === suggested ? 'subtle' : 'ghost'"
+      size="lg"
       :aria-pressed="mine === button.verdict"
       :title="title(button.verdict, button.label)"
-      :class="button.verdict !== suggested && mine !== button.verdict && 'not-hover:not-focus-visible:text-muted not-hover:not-focus-visible:ring-accented'"
+      class="font-display text-ui"
+      :class="button.verdict !== suggested && mine !== button.verdict && 'not-hover:not-focus-visible:text-toned'"
       @click="setHunkVerdict(hunkId, button.verdict)"
     >
       <VerdictIcon :verdict="button.verdict" class="size-3.5" />{{ button.label }}<span v-if="button.verdict === suggested" class="sr-only"> (suggested)</span>

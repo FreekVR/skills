@@ -1,5 +1,5 @@
 export default defineNuxtConfig({
-  modules: ['@nuxt/ui', '@comark/nuxt', '@vueuse/nuxt', '@nuxt/eslint', '@nuxt/test-utils/module'],
+  modules: ['@nuxt/ui', '@nuxt/fonts', '@comark/nuxt', '@vueuse/nuxt', '@nuxt/eslint', '@nuxt/test-utils/module'],
   ssr: false,
   devtools: { enabled: false },
   // The build is committed, so it carries no source maps.
@@ -9,8 +9,8 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-10-30',
   // Icons ship inside the build, so the page needs no network for them.
   icon: { serverBundle: { collections: ['lucide'] }, clientBundle: { scan: true } },
-  // Fonts would be fetched from Google at build time; the page uses system fonts.
-  ui: { fonts: false },
+  // Overpass is fetched at build time and ships inside the build, so the page needs no network for it.
+  fonts: { families: [{ name: 'Overpass', provider: 'google', weights: [700, 800, 900] }], defaults: { weights: [700, 800, 900] } },
   // The theme tokens in main.css follow data-theme, as on the single-file page.
   colorMode: { dataValue: 'theme', classSuffix: '' },
   eslint: { config: { stylistic: false } },

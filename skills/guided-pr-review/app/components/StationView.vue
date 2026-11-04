@@ -5,15 +5,8 @@ interface Line { id: string, letter: string, name: string, color: string, shape?
 const line = computed(() => lineById(state.view.line) as Line)
 const stop = computed(() => line.value.stops[state.view.index])
 const hunk = computed(() => (stop.value ? hunkById(stop.value.hunkId) : null))
-const code = computed(() => stationCode(line.value, state.view.index))
 const isFirst = computed(() => line.value === lines()[0] && state.view.index === 0)
 const showIntro = computed(() => state.view.index === 0 && Boolean(line.value.explanation || line.value.entry))
-
-// The folder of the file, so two files with the same name are easy to tell apart.
-const folder = computed(() => {
-  const file: string = hunk.value?.file || ''
-  return file.includes('/') ? file.slice(0, file.lastIndexOf('/')) : ''
-})
 
 // The other flows that pass this hunk, each with the stop where they do.
 const others = computed(() => (hunk.value ? (linesOf(hunk.value.id) as Line[]).filter((other) => other.id !== line.value.id) : []).map((other) => {
@@ -30,15 +23,14 @@ const others = computed(() => (hunk.value ? (linesOf(hunk.value.id) as Line[]).f
   <article
     v-else
     :key="`${line.id}:${state.view.index}`"
-    class="station page-column min-w-0 pt-9 pb-30 wrap-anywhere"
+    class="station page-column min-w-0 pt-7 pb-30 wrap-anywhere"
     :class="state.ui.enter && `enter-${state.ui.enter}`"
     :style="{ '--line': `var(--color-${line.color})` }"
   >
-    <section v-if="showIntro" class="mb-8 rounded-xl border border-[color-mix(in_srgb,var(--line)_45%,transparent)] bg-[color-mix(in_srgb,var(--line)_7%,var(--ui-bg))] px-5.5 pt-4.5 pb-5 dark:bg-[color-mix(in_srgb,var(--line)_12%,var(--ui-bg))]" aria-label="About this flow">
+    <section v-if="showIntro" class="mb-8 rounded-card bg-[color-mix(in_srgb,var(--line)_9%,var(--ui-bg))] px-5.5 pt-4.5 pb-5 dark:bg-[color-mix(in_srgb,var(--line)_16%,var(--ui-bg))]" aria-label="About this flow">
       <div class="flex flex-wrap items-center gap-2.5">
-        <FlowBullet :line="line" />
-        <h2 class="m-0 flex items-center gap-[.4em] text-title tracking-[-0.01em]">
-          <FlowIcon :icon="line.icon" class="size-[1.05em] shrink-0 text-(--line)" />{{ line.name }}
+        <h2 class="m-0 flex items-center gap-[.4em] font-display text-title">
+          <FlowIcon :icon="line.icon" class="size-[1.05em] shrink-0 text-(--line)" />Line {{ line.letter }}: {{ line.name }}
         </h2>
         <AiTag label="AI summary" />
       </div>
@@ -52,28 +44,17 @@ const others = computed(() => (hunk.value ? (linesOf(hunk.value.id) as Line[]).f
       </ul>
     </section>
 
-    <div class="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-      <span class="rounded border-2 border-(--line) bg-default px-1.5 py-1 font-mono text-label leading-none font-bold text-default">{{ code }}</span>
-      <h2 class="m-0 font-mono text-lead leading-[1.3] font-semibold break-all">{{ fileName(hunk.file) }}</h2>
-      <span class="inline-flex min-w-0 items-baseline gap-1 font-mono text-label text-muted" :title="folder ? `Folder: ${folder}` : 'The file is in the root of the repository'">
-        <UIcon name="i-lucide-folder" class="size-3.5 shrink-0 self-center" aria-hidden="true" />
-        <span class="sr-only">in folder</span>
-        <span class="break-all">{{ folder || 'repository root' }}</span>
-      </span>
-      <span class="text-label text-muted">{{ hunk.status }}{{ hunk.oldFile && hunk.oldFile !== hunk.file ? ` from ${hunk.oldFile}` : '' }}<template v-if="hunk.context"> · in <code class="font-mono text-label">{{ hunk.context }}</code></template></span>
-    </div>
+    <p v-if="state.freshHunks.has(hunk.id)" class="mt-0 mb-2.5 inline-block rounded-md bg-warning px-2.5 py-1.5 text-label font-semibold text-inverted">This hunk is new or changed since your last session.</p>
 
-    <p v-if="state.freshHunks.has(hunk.id)" class="mt-2.5 mb-0 inline-block rounded-md border border-warning px-2.5 py-1.5 text-label text-default">This hunk is new or changed since your last session.</p>
-
-    <div v-if="others.length" class="mt-2.5 flex flex-wrap items-center gap-2 text-label text-toned">
+    <div v-if="others.length" class="mb-2.5 flex flex-wrap items-center gap-2 text-label text-toned">
       Also in
       <UButton
         v-for="other in others"
         :key="other.line.id"
         color="neutral"
-        variant="outline"
+        variant="soft"
         size="sm"
-        class="gap-1.5 font-normal whitespace-normal text-default ring-accented hover:ring-(--ui-text-muted)"
+        class="gap-1.5 font-normal whitespace-normal text-default"
         :title="`Open this hunk in the flow ${other.line.name}`"
         @click="go(other.line.id, other.index)"
       >
@@ -89,8 +70,8 @@ const others = computed(() => (hunk.value ? (linesOf(hunk.value.id) as Line[]).f
     <StationAdvice :hunk="hunk" />
     <StationAsk v-if="!state.static" :hunk="hunk" />
 
-    <div class="mt-8.5 flex items-start justify-between gap-3 border-t border-default pt-4">
-      <UButton color="primary" variant="outline" class="shrink-0 whitespace-nowrap" :disabled="isFirst" @click="step(-1)">Previous hunk</UButton>
+    <div class="mt-10 flex items-start justify-between gap-3 rounded-card bg-elevated px-4 py-3.5">
+      <UButton color="neutral" variant="ghost" class="shrink-0 whitespace-nowrap" :disabled="isFirst" @click="step(-1)">Previous hunk</UButton>
       <StationVerdicts :hunk-id="hunk.id" />
     </div>
 

@@ -66,8 +66,8 @@ useEventListener(document, 'pointerup', () => {
 </script>
 
 <template>
-  <section class="mt-7 overflow-hidden rounded-lg border border-default" aria-label="Diff">
-    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 border-b border-default bg-elevated px-3 py-2 font-mono text-label text-muted">
+  <section class="mt-7 overflow-hidden rounded-card bg-muted" aria-label="Diff">
+    <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 bg-elevated px-4 py-2.5 font-mono text-label text-toned">
       <span class="min-w-0 flex-auto wrap-anywhere">{{ hunk.file }}</span>
       <StationFileTools :hunk="hunk" whole />
       <span v-if="rows.length" class="whitespace-nowrap" :title="diff.ranges">
@@ -137,7 +137,7 @@ useEventListener(document, 'pointerup', () => {
 <style>
 /* The table rules of the single-file page. They are global, so the whole-file dialog uses them too. */
 .station-diff td { padding: 0 10px; vertical-align: top; white-space: pre; }
-.station-diff td.num { width: 1%; min-width: 48px; padding: 0 8px; text-align: right; color: var(--ui-text-muted); user-select: none; border-right: 1px solid var(--ui-border); }
+.station-diff td.num { width: 1%; min-width: 48px; padding: 0 8px; text-align: right; color: var(--ui-text-dimmed); user-select: none; }
 .station-diff td.num button { all: unset; touch-action: pan-y; cursor: pointer; display: block; width: 100%; text-align: right; }
 .station-diff td.num button:hover, .station-diff td.num button:focus-visible { color: var(--ui-info); text-decoration: underline; }
 .station-diff td.num button:focus-visible { outline: 2px solid var(--ui-primary); outline-offset: 2px; }
@@ -155,4 +155,5 @@ useEventListener(document, 'pointerup', () => {
 .station-diff .add-line svg { width: 12px; height: 12px; }
 .station-diff tr:hover .add-line, .station-diff .add-line:focus-visible { opacity: 1; transform: none; }
 .station-diff tr.note td { padding: 0; white-space: normal; background: var(--ui-bg); font-family: var(--font-sans); }
+.station-diff tr.note + tr:not(.note) td, .station-diff tr:has(+ tr.note) td { padding-top: 0; }
 </style>

@@ -12,12 +12,12 @@ function onToggle(event: Event) {
 </script>
 
 <template>
-  <section class="mt-4.5 rounded-card border border-default bg-[color-mix(in_srgb,var(--ui-bg-elevated)_45%,transparent)] px-4.5 pt-3.5 pb-3" aria-label="Context written by the AI">
+  <section class="mt-5 max-w-[80ch]" aria-label="Context written by the AI">
     <AiTag label="AI context" />
     <p v-if="why" class="mt-1.5 mb-0 text-ui text-muted"><b class="font-semibold text-toned">Why here:</b> <MarkupText :text="why" /></p>
     <div class="mt-3.5 max-w-[70ch] text-body">
       <p v-if="hunk.explanation" class="mt-0 mb-3"><MarkupText :text="hunk.explanation" /></p>
-      <details v-if="hunk.explanationMore" class="explain-more group mt-1 rounded-lg border border-default bg-[color-mix(in_srgb,var(--ui-bg-elevated)_60%,transparent)] text-body" :open="open" @toggle="onToggle">
+      <details v-if="hunk.explanationMore" class="explain-more group mt-1 rounded-lg bg-elevated text-body" :open="open" @toggle="onToggle">
         <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-label font-semibold text-default">
           <AiTag label="" />
           Longer explanation from the AI

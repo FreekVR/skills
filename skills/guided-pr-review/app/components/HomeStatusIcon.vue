@@ -15,18 +15,19 @@ const ICONS: Record<string, string> = {
   link: 'i-lucide-link',
   comment: 'i-lucide-message-square',
 }
+// A filled disc: the tone is the fill, the icon is white on it.
 const ICON_TONES: Record<string, string> = {
-  ok: 'text-success bg-success/15 ring-success/10',
-  warn: 'text-warning bg-warning/15 ring-warning/10',
-  bad: 'text-error bg-error/15 ring-error/10',
-  info: 'text-info bg-info/15 ring-info/10',
-  quiet: 'text-muted bg-elevated ring-(--ui-bg-elevated)/50',
+  ok: 'bg-success text-inverted',
+  warn: 'bg-warning text-inverted',
+  bad: 'bg-error text-inverted',
+  info: 'bg-info text-inverted',
+  quiet: 'bg-(--ui-text-muted) text-inverted',
 }
 </script>
 
 <template>
   <UIcon v-if="bare" :name="ICONS[icon] || ICONS.none" class="size-4" aria-hidden="true" />
-  <span v-else class="grid shrink-0 place-items-center rounded-full ring-4" :class="[ICON_TONES[tone], small ? 'size-7' : 'size-8.5']" aria-hidden="true">
-    <UIcon :name="ICONS[icon] || ICONS.none" :class="small ? 'size-4' : 'size-4.5'" />
+  <span v-else class="grid shrink-0 place-items-center rounded-full" :class="[ICON_TONES[tone], small ? 'size-7' : 'size-9']" aria-hidden="true">
+    <UIcon :name="ICONS[icon] || ICONS.none" :class="small ? 'size-4' : 'size-5'" />
   </span>
 </template>
