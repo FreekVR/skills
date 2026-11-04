@@ -1,3 +1,5 @@
+import { STATIC_REVIEW } from './state.js'
+
 // The server only accepts a POST or PUT with this header (server/middleware/guard.ts).
 const GUARD = { 'X-Guided-Review': '1' }
 
@@ -68,4 +70,29 @@ export const transport = {
       throw new Error(`${error.statusCode}`)
     })
   },
+}
+
+const noAgent = () => Promise.reject(new Error('a static review page has no agent'))
+const storageKey = () => `guided-pr-review:${path.owner}/${path.repo}#${path.number}`
+
+// A static page reads the review from the page itself and keeps the reviewer state in this browser.
+if (STATIC_REVIEW) {
+  Object.assign(transport, {
+    loadReview: async () => STATIC_REVIEW,
+    async loadReviewer() {
+      try { return JSON.parse(localStorage.getItem(storageKey())) || {} }
+      catch { return {} }
+    },
+    async saveReviewer(reviewer) {
+      localStorage.setItem(storageKey(), JSON.stringify(reviewer))
+    },
+    loadAgent: async () => null,
+    loadStack: async () => [],
+    loadReviews: async () => [],
+    setPaused: noAgent,
+    startReview: noAgent,
+    sendEvent: noAgent,
+    loadFile: noAgent,
+    openFolder: noAgent,
+  })
 }

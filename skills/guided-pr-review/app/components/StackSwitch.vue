@@ -47,7 +47,7 @@ function linkOf(row: { current: boolean, action: string, url: string, status: { 
                 <span v-if="row.state === 'merged'" class="rounded-sm px-1.5 text-tag text-muted ring-1 ring-accented">merged</span>
               </span>
               <span class="block" :class="row.approved ? 'text-success' : 'text-muted'">
-                {{ stackRowLabel(row) }}<template v-if="row.action === 'start'"> · <UButton variant="link" color="info" size="sm" class="p-0 align-baseline text-label" label="Start a review" @click="startReview(row.number)" /></template>
+                {{ stackRowLabel(row) }}<template v-if="row.action === 'start' && !state.static"> · <UButton variant="link" color="info" size="sm" class="p-0 align-baseline text-label" label="Start a review" @click="startReview(row.number)" /></template>
               </span>
             </div>
           </li>

@@ -1,3 +1,6 @@
+// The review data that `review-data.js static` puts in the page. The page then runs without the server and the agent.
+export const STATIC_REVIEW = import.meta.client ? window.__GUIDED_REVIEW_STATIC__ || null : null
+
 // The page state of one review. Vue draws the page again when it changes.
 export const state = reactive({
   review: null,
@@ -18,6 +21,8 @@ export const state = reactive({
   bootError: null,
   // The PR of a page whose review.json the agent has not written yet.
   preparing: null,
+  // A static page has no agent: it hides the questions, the posts and the agent banners.
+  static: Boolean(STATIC_REVIEW),
 })
 
 // Colour tokens of the flows. The view maps each one to a colour.

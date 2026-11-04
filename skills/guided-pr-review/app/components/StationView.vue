@@ -87,7 +87,7 @@ const others = computed(() => (hunk.value ? (linesOf(hunk.value.id) as Line[]).f
     <StationContext :hunk="hunk" :why="stop.why" />
     <DiffView :hunk="hunk" />
     <StationAdvice :hunk="hunk" />
-    <StationAsk :hunk="hunk" />
+    <StationAsk v-if="!state.static" :hunk="hunk" />
 
     <div class="mt-8.5 flex items-start justify-between gap-3 border-t border-default pt-4">
       <UButton color="primary" variant="outline" class="shrink-0 whitespace-nowrap" :disabled="isFirst" @click="step(-1)">Previous hunk</UButton>

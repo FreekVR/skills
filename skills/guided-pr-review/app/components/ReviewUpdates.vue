@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Each kind of change on GitHub comes with the one action that deals with it. The live region reads out a new banner.
-const banners = computed(() => updates())
+// A static page has no agent, so it shows no banners about the agent or GitHub.
+const banners = computed(() => (state.static ? [] : updates()))
 </script>
 
 <template>

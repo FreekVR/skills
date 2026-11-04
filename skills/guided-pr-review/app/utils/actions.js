@@ -2,7 +2,7 @@ import { state, POLL_MS, CHECK_MS } from './state.js'
 import { reviewPath, transport } from './api.js'
 import { notify } from './notify.js'
 import { acceptedItems, agentPr, decisionOf, emptyReviewer, firstStationOf, hunkById, isCurrentReview, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
-import { answerFor, applySummaryDraft, buildPost, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
+import { answerFor, applySummaryDraft, buildPost, ghCommand, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, restorePosition } from './navigation.js'
 import { composerKey } from './panels.js'
@@ -135,17 +135,18 @@ export function showNewComments() {
   return at ? go(at.line.id, at.index) : goHome()
 }
 
+// The reason the page cannot post this yet, shown to the reviewer, or null.
+function postProblem(kind, event, contents) {
+  if (kind === 'draft' && contents.length === 0) return 'There is nothing to put in a draft yet. Accept a finding, write a remark or a summary first.'
+  if (kind === 'final' && event.verdict !== 'APPROVE' && !event.body) return 'Write a summary first. GitHub needs a review body for request changes and comment.'
+  return null
+}
+
 // Post the review ('final') or a draft to GitHub, through the agent.
 export async function post(kind) {
   const { event, contents } = buildPost(kind)
-  if (kind === 'draft' && contents.length === 0) {
-    notify('There is nothing to put in a draft yet. Accept a finding, write a remark or a summary first.', true)
-    return
-  }
-  if (kind === 'final' && event.verdict !== 'APPROVE' && !event.body) {
-    notify('Write a summary first. GitHub needs a review body for request changes and comment.', true)
-    return
-  }
+  const problem = postProblem(kind, event, contents)
+  if (problem) return notify(problem, true)
   const payload = { body: event.body, comments: event.comments, verdict: event.verdict, replies: event.replies, resolve: event.resolve }
   const id = await sendEvent(event, { contents, at: new Date().toISOString(), headSha: state.review.pr.headSha, payload })
   if (!id) return
@@ -153,6 +154,20 @@ export async function post(kind) {
   for (const reply of event.replies || []) state.reviewer.threadReplies[reply.threadId] = ''
   saveReviewer()
   notify(kind === 'final' ? 'The review is on its way to GitHub.' : 'The draft is on its way to GitHub.')
+}
+
+// Show the gh command that posts the final review and put it on the clipboard, for a static page that has no agent to post it.
+export async function copyGhCommand() {
+  const { event, contents } = buildPost('final')
+  const problem = postProblem('final', event, contents)
+  if (problem) return notify(problem, true)
+  state.ui.ghCommand = ghCommand(event)
+  try {
+    await navigator.clipboard.writeText(state.ui.ghCommand)
+    notify('The gh command is on your clipboard.')
+  } catch {
+    notify('The browser did not let the page use the clipboard. Copy the command below.', true)
+  }
 }
 
 export function setTheme(choice) {
@@ -483,9 +498,12 @@ export async function boot() {
     const first = lines()[0]
     const index = first.stops.findIndex((stop) => !isSeen(stop.hunkId))
     state.view = { kind: 'station', line: first.id, index: index === -1 ? 0 : index }
-    polling = true
-    pollTimer = setTimeout(poll, POLL_MS)
-    checkGitHub()
+    // A static page has no server to poll and no agent to check GitHub.
+    if (!state.static) {
+      polling = true
+      pollTimer = setTimeout(poll, POLL_MS)
+      checkGitHub()
+    }
     if (!restorePosition()) state.view = { kind: 'home' }
     markCurrentSeen()
     // The switch is optional, so the page does not wait for the list.

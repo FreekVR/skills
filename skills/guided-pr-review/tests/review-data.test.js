@@ -661,3 +661,21 @@ test('hunks writes the --whole files, and check --diff reads them so a whole fil
   const without = runReviewData(t, { 'pr.diff': DIFF, 'review.json': JSON.stringify(review) }, 'check', '@review.json', '--diff', '@pr.diff');
   assert.strictEqual(without.status, 1);
 });
+
+test('static writes one page with review.json in it and a < in the review escaped', () => {
+  const { review: fixture } = require('./e2e/fixture.js');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-static-'));
+  const data = fixture();
+  data.context.summary = 'Ends the script early: </script><b>bold</b> and $& stays text.';
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify(data));
+  const out = path.join(dir, 'review.html');
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), 'static', dir, out], { encoding: 'utf8', env: { ...process.env, NITRO_PORT: '1' } });
+  assert.strictEqual(result.status, 0, result.stderr);
+  const html = fs.readFileSync(out, 'utf8');
+  const embedded = html.match(/<script>window\.__GUIDED_REVIEW_STATIC__=(.*?)<\/script>/)[1];
+  assert.ok(!embedded.includes('<'));
+  assert.deepStrictEqual(JSON.parse(embedded), data);
+  // The page loads nothing from the server: no script or stylesheet points to /_nuxt/.
+  assert.ok(!/(?:src|href)="\/_nuxt\//.test(html));
+  fs.rmSync(dir, { recursive: true, force: true });
+});

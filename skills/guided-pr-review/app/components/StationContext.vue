@@ -28,7 +28,7 @@ function onToggle(event: Event) {
         </div>
       </details>
       <AgentPending v-else-if="pending" text="The AI is writing a longer explanation…" />
-      <UButton v-else color="neutral" variant="ghost" icon="i-lucide-message-square-text" class="text-toned" title="Ask the AI for a longer explanation of this hunk" @click="explainMore(hunk.id)">Explain more</UButton>
+      <UButton v-else-if="!state.static" color="neutral" variant="ghost" icon="i-lucide-message-square-text" class="text-toned" title="Ask the AI for a longer explanation of this hunk" @click="explainMore(hunk.id)">Explain more</UButton>
     </div>
   </section>
 </template>

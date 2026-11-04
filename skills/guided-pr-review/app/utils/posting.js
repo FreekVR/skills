@@ -56,6 +56,14 @@ export function buildPost(kind) {
   return { event, contents }
 }
 
+// Get the gh command that posts the final review, for a static page that has no agent to post it.
+// The payload holds the fields of the reviews endpoint (references/posting.md); a ' in it is closed, escaped and opened again for the shell.
+export function ghCommand(event) {
+  const { owner, repo, number, headSha } = state.review.pr
+  const payload = JSON.stringify({ commit_id: headSha, body: event.body, event: event.verdict, comments: event.comments })
+  return `printf '%s\\n' '${payload.replaceAll("'", "'\\''")}' | gh api --method POST repos/${owner}/${repo}/pulls/${number}/reviews --input -`
+}
+
 // GitHub keeps every submitted review, but a new draft replaces the previous one, so only the latest draft counts.
 export function githubStatus(id, body) {
   const done = sentEvents('post').filter((sent) => postFor(sent.id)?.status === 'posted')

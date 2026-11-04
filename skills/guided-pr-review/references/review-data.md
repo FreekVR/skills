@@ -49,6 +49,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
     "disclosure": { "comment": "<text appended to each comment the AI wrote, or empty>", "review": "<text appended to the review body when it holds AI findings, or empty>" }
   },
   "layout": "flows",
+  "wholeFiles": ["<path passed with --whole>"],
   "hunks": [
     { "id": "3f2a9c1d0b7e", "file": "src/cache.ts", "status": "modified", "oldStart": 1, "oldLines": 3, "newStart": 1, "newLines": 3,
       "context": "export class Cache {", "lines": ["-const TTL = 60;", "+const TTL = 60 * 1000;"],
@@ -158,6 +159,16 @@ The reviewer can pause and resume the agent in that switch. The review server th
 
 The review server records itself in `server.json` in the state directory itself, not in a review directory: `{ "url": "http://127.0.0.1:4317/", "pid": 4242 }`. `scripts/review-server.js` writes it when it starts the server.
 
+## Static review page
+
+`node scripts/review-data.js static <review-dir> <out-file>` writes the review page with the `review.json` of `<review-dir>` as one HTML file, for an agent that cannot run the watch. The file opens from `file://` without the review server: the built scripts and CSS are in the file. The file is about 5 MB. The page has no agent: it shows no Ask, no Explain more, no Post as draft, no summary from the AI, no sessions and no banners from the agent. It keeps the reviewer state in the browser's `localStorage` under `guided-pr-review:<owner>/<repo>#<number>`, not in `reviewer.json`. In Submit review, **Copy the gh command** puts this command on the clipboard and shows it:
+
+```sh
+printf '%s\n' '<payload>' | gh api --method POST repos/{owner}/{repo}/pulls/{number}/reviews --input -
+```
+
+`<payload>` is the JSON of `commit_id` (`pr.headSha`), `body`, `event` (the verdict) and `comments`, as for a final `post` (`references/posting.md`). Each `'` in it is written as `'\''`. The command does not post replies and does not resolve or unresolve threads. To build the page, the command starts the built review server for a moment on a free port and reads its page.
+
 ## events.jsonl
 
 Every event has `id`, `at`, `type` and `review`, the pull request it belongs to as `owner/repo#number`. The review page adds `review`; the review server adds `id` and `at`. Handle an event only in the review it names.
@@ -168,7 +179,7 @@ Every event has `id`, `at`, `type` and `review`, the pull request it belongs to 
 | `explain` | `hunkId` | Fill `explanationMore` of that hunk. |
 | `summarize` | `verdict` (null while hunks wait for a verdict), `remarks` (each `severity`, `where`, `body`) | Write a review summary from these remarks, in the user's words and conventions, as SKILL.md step 7 describes: how serious the remarks are as a whole, the problems that several remarks share, and what the author should do first. The remarks are posted below it, so it does not restate them. Add it to `answers` with `hunkId` null and the summary as `answer`. |
 | `post` | `kind` (`draft` or `final`), `body`, `comments`, and for final only `verdict`, `unresolve`, `replies` and `resolve` | Post exactly this payload, then add an entry to `posts`. |
-| `check` | none | Read the PR's head commit, state, reviews and comments on GitHub. Write `remote`; when a call to GitHub fails, leave `remote` as it is and write `remote.error` with the message instead. Update `reviews`, `reviewComments` and `ownRemarks`, as in step 5: new ones, new replies, `resolved` and `resolvedBy`. For a user's comment that someone else resolved since the last `check`, write a new `fix`. In a stack, also read the stack again and update `stack` (step 7 of `SKILL.md`). Change nothing else. |
+| `check` | none | Read the PR's head commit, state, reviews and comments on GitHub. Write `remote`; when a call to GitHub fails, keep the other fields of `remote` as they are and write `remote.error` with the message. Update `reviews`, `reviewComments` and `ownRemarks`, as in step 5: new ones, new replies, `resolved` and `resolvedBy`. For a user's comment that someone else resolved since the last `check`, write a new `fix`. In a stack, also read the stack again and update `stack` (step 7 of `SKILL.md`). Change nothing else. |
 | `refresh` | none | Run the Resume steps for a changed head commit, set `pr.headSha` to the new head, write `changesSince`, and add an entry with status `done` to `refreshes`. When the head commit is still `pr.headSha`, for example because an earlier `refresh` already loaded it, handle it as a `check` and add a `done` entry with the same `from` and `to`. When loading fails, add an `error` entry with the reason. |
 | `start-review` | `number` | Run the steps of a new review for PR `number` of this stack in this session, as step 7 of `SKILL.md` says. |
 | `finish` | none | Go to step 8. |

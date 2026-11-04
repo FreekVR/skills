@@ -43,10 +43,12 @@ async function showThem() {
         </template></span>
       </p>
       <p :class="LEDE">
-        Nothing reaches GitHub until you press a post button.
+        {{ state.static ? 'Nothing reaches GitHub until you run the gh command of this page.' : 'Nothing reaches GitHub until you press a post button.' }}
       </p>
       <p v-if="ownReview" :class="LEDE">
-        GitHub shows this as a new review, after your earlier one. It also resolves and unresolves the comments you chose and posts your replies.
+        GitHub shows this as a new review, after your earlier one.<template v-if="!state.static">
+          It also resolves and unresolves the comments you chose and posts your replies.
+        </template>
       </p>
       <p v-if="state.review.pr.isOwnPr" :class="LEDE">
         This is your own PR. GitHub does not accept approve or request changes from the author; use comment.
@@ -229,7 +231,10 @@ async function showThem() {
               </template>
             </p>
             <div class="mt-4.5 flex flex-wrap items-center gap-2.5">
-              <UButton v-if="view.finalVerdict" :color="BUTTON_COLORS[view.finalVerdict.button]" class="font-semibold" @click="post('final')">
+              <UButton v-if="view.finalVerdict && state.static" color="neutral" class="font-semibold" icon="i-lucide-clipboard-copy" @click="copyGhCommand()">
+                Copy the gh command
+              </UButton>
+              <UButton v-else-if="view.finalVerdict" :color="BUTTON_COLORS[view.finalVerdict.button]" class="font-semibold" @click="post('final')">
                 <template #leading>
                   <VerdictIcon :verdict="view.finalVerdict.icon" class="size-4" />
                 </template>
@@ -238,12 +243,18 @@ async function showThem() {
               <UButton v-else color="neutral" variant="soft" disabled>
                 Choose a verdict to post
               </UButton>
-              <UButton color="warning" variant="outline" class="font-semibold" :aria-label="draftLabel" :title="draftLabel" @click="post('draft')">
+              <UButton v-if="!state.static" color="warning" variant="outline" class="font-semibold" :aria-label="draftLabel" :title="draftLabel" @click="post('draft')">
                 Post as draft
                 <UBadge v-if="draftCount" color="warning" variant="solid" size="sm" class="ml-1 rounded-full" aria-hidden="true">
                   {{ draftCount }}
                 </UBadge>
               </UButton>
+            </div>
+            <div v-if="state.ui.ghCommand" class="mt-4.5">
+              <p class="mt-0 mb-2 text-ui text-toned">
+                Run this command in a terminal to post the review with the GitHub CLI. It does not post replies and does not resolve threads.
+              </p>
+              <pre class="m-0 overflow-x-auto rounded-lg border border-default bg-elevated p-3 font-mono text-label whitespace-pre-wrap break-all"><code>{{ state.ui.ghCommand }}</code></pre>
             </div>
             <div v-if="posts.length" class="mt-6.5">
               <h3 class="m-0 mb-2 text-body font-semibold">

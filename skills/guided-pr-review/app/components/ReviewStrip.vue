@@ -192,7 +192,7 @@ useEventListener(document, 'scroll', (event: Event) => {
         </UPopover>
 
         <UButton
-          v-if="!postedReview()"
+          v-if="!postedReview() && !state.static"
           color="warning"
           variant="outline"
           class="font-semibold"
