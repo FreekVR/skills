@@ -8,6 +8,9 @@
 //   node review-data.js check <review-file>              Check that every hunk is in a flow or in "notInAnyFlow".
 //   node review-data.js stack <owner>/<repo> <pr-number> Print the stack of a PR as JSON, or "null" when it is in no stack.
 //                                                        Exit 3 and print the split when the branches above it split.
+//   node review-data.js own-diff <clone> <old-head> <first-subject>
+//                                                        Print the diff of a PR's own commits from before a rebase,
+//                                                        found by the subject of its first commit.
 //   node review-data.js list                             Print the reviews that are not deleted, with their page URL
 //                                                        while the review server runs.
 //   node review-data.js watch <review-dir> [--worktree <path>]
@@ -22,6 +25,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { execFileSync } = require('child_process');
 const { fromGitHubStack, fromBranches } = require('./stack.js');
+const { ownDiff } = require('./own-diff.js');
 
 const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews } = require('./reviews.js');
 
@@ -208,6 +212,10 @@ function main([command, ...args]) {
     console.log(JSON.stringify(stack));
     return stack && stack.split ? 3 : 0;
   }
+  if (command === 'own-diff' && args.length === 3) {
+    process.stdout.write(ownDiff(args[0], args[1], args[2]));
+    return 0;
+  }
   if (command === 'list' && args.length === 0) {
     const server = readJson(path.join(stateRoot(), 'server.json'));
     const base = server && isRunning(server.pid) ? server.url : null;
@@ -217,7 +225,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] | stack <owner>/<repo> <pr-number> | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
   return 2;
 }
 
