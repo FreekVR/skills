@@ -174,7 +174,7 @@ export function timeLabel(at) {
 
 export function fileName(path) { return path.split('/').pop() }
 
-// Get the title of the current view, for the document title.
+// Get the title of the current view, for the review strip.
 export function viewTitle() {
   if (state.view.kind === 'home') return 'Overview'
   if (state.view.kind === 'terminus') return postedReview() ? 'Review posted' : hasOwnReview() ? 'Post a new review' : 'Submit review'

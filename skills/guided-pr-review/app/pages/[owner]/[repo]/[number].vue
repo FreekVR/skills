@@ -7,7 +7,8 @@ setReviewPath(route.params.owner, route.params.repo, route.params.number)
 onMounted(boot)
 onBeforeUnmount(stopPolling)
 
-useHead({ title: () => (state.review ? `${viewTitle()} · ${state.review.pr.title}` : 'Guided PR review') })
+const prRef = `${route.params.owner}/${route.params.repo}#${route.params.number}`
+useHead({ title: () => `Guided PR Review: ${state.review ? `${state.review.pr.title} ` : ''}${prRef}` })
 
 // The reviewer's theme choice is part of their saved review state.
 watchEffect(() => {

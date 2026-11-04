@@ -18,6 +18,14 @@ test('shows the PR title, author, description and AI summary', async ({ page }) 
   await expect(main.getByText('forecast card.')).toBeVisible();
 });
 
+test('names the PR in the page title, on the first view and on Home', async ({ page }) => {
+  const title = 'Guided PR Review: feat: add three-day forecast example-org/sample-widget#17';
+  await openReview(page);
+  await expect(page).toHaveTitle(title);
+  await page.getByRole('button', { name: 'Home' }).click();
+  await expect(page).toHaveTitle(title);
+});
+
 test('shows unmet criteria and folds the met ones', async ({ page }) => {
   await openHome(page);
   const main = page.getByRole('main');
