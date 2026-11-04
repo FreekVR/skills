@@ -213,7 +213,11 @@ export function saveEdit(id, text) {
 export function saveRemark(id, text, severity) {
   const remark = state.reviewer.remarks.find((candidate) => candidate.id === id)
   const body = text.trim()
-  if (remark && body) Object.assign(remark, { body, severity })
+  if (remark && body) {
+    // A severity the reviewer changed is no longer the AI's.
+    if (severity !== remark.severity) delete remark.severitySource
+    Object.assign(remark, { body, severity })
+  }
   state.ui.editing = null
   delete state.ui.drafts[`edit:${id}`]
   saveReviewer()

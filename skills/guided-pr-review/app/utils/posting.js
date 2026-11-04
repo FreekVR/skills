@@ -1,5 +1,5 @@
 import { state, VERDICTS, REVIEW_EVENTS } from './state.js'
-import { acceptedItems, hunkById, openReviewComments, plural, severityRank, verdictOf, viewerLogin } from './review.js'
+import { acceptedItems, hunkById, openReviewComments, plural, severities, severityRank, verdictOf, viewerLogin } from './review.js'
 import { refreshState } from './panels.js'
 import { saveReviewer } from './actions.js'
 
@@ -8,7 +8,7 @@ export function importOwnReview() {
   const imported = new Set(state.reviewer.imported)
   for (const own of state.review.ownRemarks || []) {
     if (own.state !== 'pending' || imported.has(own.id)) continue
-    state.reviewer.remarks.push({ id: own.id, hunkId: own.hunkId, line: own.line, side: own.side, severity: own.severity, body: own.body })
+    state.reviewer.remarks.push({ id: own.id, hunkId: own.hunkId, line: own.line, side: own.side, severity: own.severity ?? severities()[0], ...(own.severitySource === 'ai' && { severitySource: 'ai' }), body: own.body })
     imported.add(own.id)
   }
   const pending = state.review.ownPendingReview

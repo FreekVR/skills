@@ -7,6 +7,7 @@ interface NoteItem {
   title?: string
   body: string
   severity: string
+  severitySource?: string
   rule?: string
   line?: number
   startLine?: number
@@ -72,6 +73,7 @@ const struck = computed(() => decision.value === 'dismissed' && 'text-muted line
       <template v-else>
         <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
         <DiffSeverity :severity="item.severity" />
+        <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
         <span class="text-meta text-muted">{{ own ? 'Your pending remark from GitHub' : 'Your remark' }}{{ item.line ? ` · ${lineLabel(item)}` : '' }}</span>
         <StatusBadge :id="item.id" :body="item.body" />
       </template>

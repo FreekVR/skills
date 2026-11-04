@@ -8,6 +8,7 @@ interface NoteItem {
   title?: string
   rule?: string
   severity: string
+  severitySource?: string
   line?: number
   startLine?: number
   side?: string
@@ -60,6 +61,7 @@ const TARGET = 'scroll-mt-24 outline-none focus:outline-2 focus:-outline-offset-
     <div class="flex flex-wrap items-baseline gap-2.5">
       <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
       <DiffSeverity :severity="item.severity" />
+      <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
       <span class="text-meta text-muted">You posted this earlier<template v-if="item.url"> · <a :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">open on GitHub</a></template>. It is not posted again.</span>
     </div>
     <CommentConversation v-if="item.replies?.length" :comment="item">

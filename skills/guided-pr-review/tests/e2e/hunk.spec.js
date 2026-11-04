@@ -150,6 +150,40 @@ test('shows the opinion on your pending comment until you edit its text', async 
   await expect(main.getByText('Exported components need one.')).toBeHidden();
 });
 
+test('marks a severity the AI set on your pending comment until you change it', async ({ page }) => {
+  const review = await openReview(page, { mutate: (data) => { Object.assign(data.ownRemarks[1], { severity: 'medium', severitySource: 'ai' }); } });
+  await openHunk(page, 'Show the forecast', /^A3 src\/components\/ForecastCard\.tsx/);
+  const main = page.getByRole('main');
+  await expect(main.getByText('AI set the severity')).toBeVisible();
+  await expectPoll(() => (review.reviewer().remarks || []).find((remark) => remark.id === 'gh-2')?.severity === 'medium');
+  expect((review.reviewer().remarks || []).find((remark) => remark.id === 'gh-2')).toMatchObject({ severitySource: 'ai' });
+  await main.getByRole('button', { name: 'Edit', exact: true }).click();
+  await main.locator('label', { hasText: 'Severity' }).locator('select').selectOption('nit');
+  await main.getByRole('button', { name: 'Save remark' }).click();
+  await expect(main.getByText('AI set the severity')).toBeHidden();
+  await expectPoll(() => (review.reviewer().remarks || []).find((remark) => remark.id === 'gh-2')?.severity === 'nit');
+  expect((review.reviewer().remarks || []).find((remark) => remark.id === 'gh-2').severitySource).toBeUndefined();
+});
+
+test('marks a severity the AI set on your posted comment', async ({ page }) => {
+  await openReview(page, { mutate: (data) => { data.ownRemarks[0].severitySource = 'ai'; } });
+  await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
+  await expect(page.getByRole('main').getByText('AI set the severity')).toBeVisible();
+});
+
+test('shows no mark when you set the severity', async ({ page }) => {
+  await openReview(page);
+  await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
+  await expect(page.getByRole('main').getByText('Is MAX still right?')).toBeVisible();
+  await expect(page.getByText('AI set the severity')).toHaveCount(0);
+});
+
+test('gives a pending comment without a severity the lowest one', async ({ page }) => {
+  const review = await openReview(page, { mutate: (data) => { delete data.ownRemarks[1].severity; } });
+  await expectPoll(() => (review.reviewer().remarks || []).find((remark) => remark.id === 'gh-2'));
+  expect((review.reviewer().remarks || []).find((remark) => remark.id === 'gh-2').severity).toBe('nit');
+});
+
 test('shows the whole file', async ({ page }) => {
   const review = await openReview(page);
   fs.mkdirSync(path.join(review.dir, 'files', 'src'), { recursive: true });
