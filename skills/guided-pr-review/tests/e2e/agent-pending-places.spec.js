@@ -3,7 +3,6 @@ const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
 const { openReview, openHunk, eventOf } = require('./helpers.js');
-const { review: fixture } = require('./fixture.js');
 
 const NO_AGENT = 'No agent runs this review, so this request waits.';
 const main = (page) => page.getByRole('main');

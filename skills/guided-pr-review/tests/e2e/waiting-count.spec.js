@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
-const { openReview, openHunk, eventOf } = require('./helpers.js');
+const { openReview, openHunk } = require('./helpers.js');
 const { H } = require('./fixture.js');
 
 const live = (review) => fs.writeFileSync(path.join(review.dir, 'session.json'), JSON.stringify({ sessionId: 'sample-session', cwd: review.dir, watcherPid: process.pid }));

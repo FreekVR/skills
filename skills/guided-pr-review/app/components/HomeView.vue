@@ -104,6 +104,9 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
               {{ criteria.status.label }}
             </HomePill>
           </template>
+          <!-- In a stack, one list shows each criterion with every PR that meets it, this one included. -->
+          <CoverageList v-if="hasStack()" />
+          <template v-else>
           <CriteriaRows v-if="criteria.rest.length" :criteria="criteria.rest" />
           <details v-if="criteria.met.length" :open="state.ui.openExplain.has('criteria-met')" @toggle="toggle('criteria-met', $event)">
             <summary :class="fold">
@@ -112,6 +115,7 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
             </summary>
             <CriteriaRows :criteria="criteria.met" />
           </details>
+          </template>
         </HomePanel>
 
         <HomePanel v-if="liveFindings().length" id="home-findings" :tone="findings.status.tone" :icon="findings.status.icon" title="What the AI found">
