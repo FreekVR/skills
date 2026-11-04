@@ -16,12 +16,19 @@
 //   node review-data.js answered <review-dir>...         Remove that question from each review page.
 //   node review-data.js list                             Print the reviews that are not deleted, with their page URL
 //                                                        while the review server runs.
-//   node review-data.js watch <review-dir> [--worktree <path>]
+//   node review-data.js watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart]
 //                                                        Record this session in session.json, then print each new
 //                                                        event in events.jsonl as an "EVENT <json>" line until stopped.
 //                                                        Exit 4 when another running process watches this review.
 //                                                        While the review is paused, it prints only "PAUSED" when the
 //                                                        pause starts and "RESUMED" when it ends.
+//                                                        When no event other than "check" came for <n> minutes
+//                                                        (default 30), also while paused, it prints "IDLE" and exits 0.
+//                                                        With --restart, which an agent uses only to restart a watch
+//                                                        that ended, it also prints the events written while no
+//                                                        watch ran, keeps the time of the last such event and prints
+//                                                        "IDLE" at once when it is older than the limit. Without it,
+//                                                        it starts at the end of events.jsonl with a fresh limit.
 'use strict';
 
 const fs = require('fs');
@@ -175,6 +182,20 @@ function readStack(repository, number) {
   return fromBranches(Number(number), gh('--paginate', '--slurp', `repos/${repository}/pulls?state=open&per_page=100`).flat());
 }
 
+// Reads `<review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart]`; returns null when the arguments do not fit.
+function parseWatchArgs(args) {
+  const [dir, ...flags] = args;
+  const parsed = { dir, worktree: null, idleMinutes: undefined, restart: false };
+  if (!dir) return null;
+  for (let i = 0; i < flags.length; i += 1) {
+    if (flags[i] === '--restart') parsed.restart = true;
+    else if (flags[i] === '--worktree' && flags[i + 1]) parsed.worktree = flags[++i];
+    else if (flags[i] === '--idle-minutes' && Number(flags[i + 1]) > 0) parsed.idleMinutes = Number(flags[++i]);
+    else return null;
+  }
+  return parsed;
+}
+
 function main([command, ...args]) {
   if (command === 'dir' && args.length === 2) {
     const [repository, number] = args;
@@ -206,15 +227,24 @@ function main([command, ...args]) {
     console.log('ok: every hunk is placed');
     return 0;
   }
-  if (command === 'watch' && (args.length === 1 || (args.length === 3 && args[1] === '--worktree'))) {
+  const watchArgs = command === 'watch' ? parseWatchArgs(args) : null;
+  if (watchArgs) {
+    const { dir, worktree, idleMinutes, restart } = watchArgs;
     // Check-then-write is not atomic, which is fine: reviews start one at a time.
-    const holder = readJson(path.join(args[0], 'session.json'))?.watcherPid;
+    const holder = readJson(path.join(dir, 'session.json'))?.watcherPid;
     if (holder && holder !== process.pid && isRunning(holder)) {
       console.log(`held: ${holder} watches this review (remove session.json if that process is not a watch)`);
       return 4;
     }
-    writeSession(args[0], args[2] || null, process.pid);
-    watchReview(args[0], (line) => console.log(`EVENT ${line}`), (paused) => console.log(paused ? 'PAUSED' : 'RESUMED'));
+    writeSession(dir, worktree, process.pid, restart);
+    watchReview(dir, (line) => console.log(`EVENT ${line}`), (paused) => console.log(paused ? 'PAUSED' : 'RESUMED'), 300, {
+      idleMinutes,
+      restart,
+      onIdle: () => {
+        console.log('IDLE');
+        process.exit(0);
+      },
+    });
     return undefined;
   }
   if (command === 'stack' && args.length === 2) {
@@ -243,7 +273,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] | waiting <question> <review-dir>... | answered <review-dir>... | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart] | waiting <question> <review-dir>... | answered <review-dir>... | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
   return 2;
 }
 
@@ -251,4 +281,4 @@ if (require.main === module) {
   process.exitCode = main(process.argv.slice(2));
 }
 
-module.exports = { parseDiff, mergeHunks, checkFlows };
+module.exports = { parseDiff, mergeHunks, checkFlows, parseWatchArgs };

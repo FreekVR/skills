@@ -21,8 +21,13 @@ function reviewDir(repository, number) {
 
 // A resume overwrites the file, so it always names the session that runs the review now.
 // watcherPid is the process that prints the review's events to the agent; while it runs, an agent is connected.
-function writeSession(dir, worktree = null, watcherPid = null) {
+function writeSession(dir, worktree = null, watcherPid = null, restart = false) {
   const session = { sessionId: process.env.CLAUDE_CODE_SESSION_ID || null, cwd: process.cwd(), worktree, watcherPid };
+  // Only a restart of a watch that ended keeps the time of the last event and the place in events.jsonl it read up to;
+  // a start or resume gets a fresh idle limit and reads from the end.
+  const previous = restart ? readJson(path.join(dir, 'session.json')) : null;
+  if (previous?.lastEventAt) session.lastEventAt = previous.lastEventAt;
+  if (Number.isInteger(previous?.eventsOffset)) session.eventsOffset = previous.eventsOffset;
   fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify(session) + '\n');
   return session;
 }
@@ -52,9 +57,10 @@ function isRunning(pid) {
   }
 }
 
-// Calls onLine for each line added to the file after the watch started.
-function watchEvents(file, onLine, interval = 300) {
-  let offset = fs.existsSync(file) ? fs.statSync(file).size : 0;
+// Calls onLine for each line added to the file after the watch started, or after startOffset when that is given: those
+// lines are read at once. onOffset gets the byte offset up to which complete lines are read, after each read.
+function watchEvents(file, onLine, interval = 300, startOffset = null, onOffset = () => {}) {
+  let offset = startOffset ?? (fs.existsSync(file) ? fs.statSync(file).size : 0);
   let rest = '';
   const read = () => {
     const size = fs.existsSync(file) ? fs.statSync(file).size : 0;
@@ -67,7 +73,9 @@ function watchEvents(file, onLine, interval = 300) {
     const lines = (rest + buffer.toString('utf8')).split('\n');
     rest = lines.pop();
     lines.filter(Boolean).forEach(onLine);
+    onOffset(offset - Buffer.byteLength(rest));
   };
+  if (startOffset !== null) read();
   const timer = setInterval(read, interval);
   return () => clearInterval(timer);
 }
@@ -75,7 +83,28 @@ function watchEvents(file, onLine, interval = 300) {
 // While the review server keeps a `paused` file in the review directory, the agent gets no events: check events are
 // dropped, because they only poll GitHub, and the others wait until the reviewer presses play.
 // onPause tells the agent when a pause starts and ends, so a quiet page does not look like a closed one.
-function watchReview(dir, print, onPause, interval = 300) {
+// onIdle runs when no event other than check came for idleMinutes, also while paused. The page sends a check every
+// 5 minutes while it is open, so checks must not keep the agent alive. An event counts when it arrives, also while it
+// is held. session.json keeps lastEventAt and eventsOffset (how far events.jsonl is read), so a restart of a watch
+// that ended (restart: true) prints the events written in the gap and can tell at once that the review was quiet.
+function watchReview(dir, print, onPause, interval = 300, { idleMinutes = 30, onIdle = () => {}, restart = false } = {}) {
+  const sessionFile = path.join(dir, 'session.json');
+  const idleMs = idleMinutes * 60000;
+  const save = (fields) => {
+    const session = readJson(sessionFile);
+    if (session) writeAtomic(sessionFile, JSON.stringify({ ...session, ...fields }) + '\n');
+  };
+  const eventsFile = path.join(dir, 'events.jsonl');
+  const saved = readJson(sessionFile);
+  let lastEventAt = new Date(saved?.lastEventAt || Date.now());
+  if (!saved?.lastEventAt) save({ lastEventAt: lastEventAt.toISOString() });
+  const startOffset = restart && Number.isInteger(saved?.eventsOffset) ? saved.eventsOffset : null;
+  let idle = false;
+  const checkIdle = () => {
+    if (idle || Date.now() - lastEventAt.getTime() < idleMs) return;
+    idle = true;
+    onIdle();
+  };
   const held = [];
   let wasPaused = false;
   // Both the timer and a new event check the pause here, so the agent always reads RESUMED before the events it lets go.
@@ -86,11 +115,21 @@ function watchReview(dir, print, onPause, interval = 300) {
     if (!paused) held.splice(0).forEach(print);
     return paused;
   };
-  const stopEvents = watchEvents(path.join(dir, 'events.jsonl'), (line) => {
+  const stopEvents = watchEvents(eventsFile, (line) => {
+    const isCheck = JSON.parse(line).type === 'check';
+    if (!isCheck) {
+      lastEventAt = new Date();
+      save({ lastEventAt: lastEventAt.toISOString() });
+    }
     if (!sync()) print(line);
-    else if (JSON.parse(line).type !== 'check') held.push(line);
+    else if (!isCheck) held.push(line);
+  }, interval, startOffset, (eventsOffset) => save({ eventsOffset }));
+  if (startOffset === null) save({ eventsOffset: fs.existsSync(eventsFile) ? fs.statSync(eventsFile).size : 0 });
+  const timer = setInterval(() => {
+    sync();
+    checkIdle();
   }, interval);
-  const timer = setInterval(sync, interval);
+  checkIdle();
   return () => {
     stopEvents();
     clearInterval(timer);

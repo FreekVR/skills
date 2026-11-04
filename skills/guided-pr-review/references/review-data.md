@@ -147,10 +147,10 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 ## session.json
 
 ```json
-{ "sessionId": "<Claude Code session ID, or null>", "cwd": "<directory the session runs from>", "worktree": "<worktree path, or null for a small PR>", "watcherPid": 4242 }
+{ "sessionId": "<Claude Code session ID, or null>", "cwd": "<directory the session runs from>", "worktree": "<worktree path, or null for a small PR>", "watcherPid": 4242, "lastEventAt": "<ISO time of the last event that is not a check>" }
 ```
 
-`node scripts/review-data.js watch <review-dir> [--worktree <path>]` writes `session.json` and keeps running as the watch. `sessionId` comes from `CLAUDE_CODE_SESSION_ID`, and `watcherPid` is the watch process. While that process runs, an agent is connected to the review. The review page lists every review directory in a switch in its header. For a review without a connected agent, it shows the command that resumes its session.
+`node scripts/review-data.js watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart]` writes `session.json` and keeps running as the watch. It exits with `IDLE` after `n` minutes (default 30) without an event other than `check`; `lastEventAt` holds the time it counts from. A start sets `lastEventAt` to now and reads only new events. With `--restart` it keeps `lastEventAt`, first prints the events written since the old watch stopped (from `eventsOffset`), and exits with `IDLE` at once when `lastEventAt` is then still `n` minutes ago. A request that arrives during a pause counts as activity. `sessionId` comes from `CLAUDE_CODE_SESSION_ID`, and `watcherPid` is the watch process. While that process runs, an agent is connected to the review. The review page lists every review directory in a switch in its header. For a review without a connected agent, it shows the command that resumes its session.
 
 The reviewer can pause and resume the agent in that switch. The review server then creates or deletes the empty file `paused` in the review directory. While it exists, the watch prints `PAUSED` once and then no events: it drops `check` events, so the agent does not poll GitHub, and the other events wait until the reviewer resumes the agent and the watch prints `RESUMED`. A watch that starts during a pause prints `PAUSED` at once. A new watch keeps the pause, but the events that the old watch held are gone: a watch only reads events added after it started.
 

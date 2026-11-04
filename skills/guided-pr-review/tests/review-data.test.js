@@ -6,8 +6,8 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { parseDiff, mergeHunks, checkFlows } = require('../scripts/review-data.js');
-const { execFileSync, spawnSync } = require('child_process');
+const { parseDiff, mergeHunks, checkFlows, parseWatchArgs } = require('../scripts/review-data.js');
+const { execFileSync, spawnSync, spawn } = require('child_process');
 const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus } = require('../scripts/reviews.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
@@ -229,6 +229,145 @@ test('watchReview says at once that a review is paused when the watch starts dur
   t.after(stop);
   await new Promise((resolve) => setTimeout(resolve, 80));
   assert.deepStrictEqual(states, [true]);
+});
+
+function idleDir(t, session) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  if (session) fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify(session));
+  return dir;
+}
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+const lastEventAtOf = (dir) => JSON.parse(fs.readFileSync(path.join(dir, 'session.json'), 'utf8')).lastEventAt;
+
+// A limit of 0.01 minutes is 600 ms; each step waits at least 300 ms.
+const LIMIT = 0.01;
+
+test('watchReview calls onIdle when no event came for the idle limit, and sets lastEventAt at the start', async (t) => {
+  const dir = idleDir(t, { watcherPid: 1 });
+  let idle = 0;
+  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
+  assert.ok(lastEventAtOf(dir));
+  await sleep(300);
+  assert.strictEqual(idle, 0);
+  await sleep(600);
+  assert.strictEqual(idle, 1);
+});
+
+test('watchReview does not reset the idle timer on a check event', async (t) => {
+  const dir = idleDir(t, { watcherPid: 1 });
+  let idle = 0;
+  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
+  const started = lastEventAtOf(dir);
+  await sleep(300);
+  fs.appendFileSync(path.join(dir, 'events.jsonl'), '{"type":"check"}\n');
+  await sleep(600);
+  assert.strictEqual(lastEventAtOf(dir), started);
+  assert.strictEqual(idle, 1);
+});
+
+test('watchReview resets the idle timer on another event', async (t) => {
+  const dir = idleDir(t, { watcherPid: 1 });
+  let idle = 0;
+  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
+  const started = lastEventAtOf(dir);
+  await sleep(400);
+  fs.appendFileSync(path.join(dir, 'events.jsonl'), '{"type":"ask"}\n');
+  await sleep(400);
+  assert.notStrictEqual(lastEventAtOf(dir), started);
+  assert.strictEqual(idle, 0);
+});
+
+test('watchReview counts a paused review as idle', async (t) => {
+  const dir = idleDir(t, { watcherPid: 1 });
+  fs.writeFileSync(path.join(dir, 'paused'), '');
+  let idle = 0;
+  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
+  await sleep(900);
+  assert.strictEqual(idle, 1);
+});
+
+test('watchReview counts a held event as activity when it arrives', async (t) => {
+  const dir = idleDir(t, { watcherPid: 1 });
+  fs.writeFileSync(path.join(dir, 'paused'), '');
+  let idle = 0;
+  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
+  await sleep(400);
+  fs.appendFileSync(path.join(dir, 'events.jsonl'), '{"type":"ask"}\n');
+  await sleep(400);
+  assert.strictEqual(idle, 0);
+  await sleep(500);
+  assert.strictEqual(idle, 1);
+});
+
+test('watchReview with restart prints the events written while no watch ran, and is not idle then', async (t) => {
+  const old = new Date(Date.now() - 5 * 60000).toISOString();
+  const dir = idleDir(t, { watcherPid: null, lastEventAt: old, eventsOffset: 0 });
+  fs.writeFileSync(path.join(dir, 'events.jsonl'), '{"type":"check"}\n{"type":"ask","n":1}\n');
+  const lines = [];
+  let idle = 0;
+  t.after(watchReview(dir, (line) => lines.push(line), () => {}, 20, { restart: true, onIdle: () => idle++ }));
+  assert.deepStrictEqual(lines, ['{"type":"check"}', '{"type":"ask","n":1}']);
+  assert.strictEqual(idle, 0);
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'session.json'), 'utf8')).eventsOffset, fs.statSync(path.join(dir, 'events.jsonl')).size);
+});
+
+test('watchReview without restart starts at the end of events.jsonl and saves the offset it reads to', async (t) => {
+  const dir = idleDir(t, { watcherPid: 1 });
+  const file = path.join(dir, 'events.jsonl');
+  fs.writeFileSync(file, '{"type":"ask","n":1}\n');
+  const lines = [];
+  t.after(watchReview(dir, (line) => lines.push(line), () => {}, 20));
+  fs.appendFileSync(file, '{"type":"ask","n":2}\n');
+  await sleep(300);
+  assert.deepStrictEqual(lines, ['{"type":"ask","n":2}']);
+  assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'session.json'), 'utf8')).eventsOffset, fs.statSync(file).size);
+});
+
+test('watchReview is idle at once when lastEventAt is older than the limit, and runs on when it is recent', (t) => {
+  const old = idleDir(t, { watcherPid: 1, lastEventAt: new Date(Date.now() - 31 * 60000).toISOString() });
+  let idle = 0;
+  t.after(watchReview(old, () => {}, () => {}, 20, { onIdle: () => idle++ }));
+  assert.strictEqual(idle, 1);
+  const recentAt = new Date(Date.now() - 5 * 60000).toISOString();
+  const recent = idleDir(t, { watcherPid: 1, lastEventAt: recentAt });
+  let idleRecent = 0;
+  t.after(watchReview(recent, () => {}, () => {}, 20, { onIdle: () => idleRecent++ }));
+  assert.strictEqual(idleRecent, 0);
+  assert.strictEqual(lastEventAtOf(recent), recentAt);
+});
+
+test('writeSession keeps lastEventAt and eventsOffset of the session it replaces only on a restart', (t) => {
+  const kept = { lastEventAt: '2026-01-01T00:00:00.000Z', eventsOffset: 12 };
+  const dir = idleDir(t, { watcherPid: 1, ...kept });
+  const fresh = writeSession(dir, null, 2);
+  assert.deepStrictEqual([fresh.lastEventAt, fresh.eventsOffset], [undefined, undefined]);
+  fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify(kept));
+  const restarted = writeSession(dir, null, 2, true);
+  assert.deepStrictEqual([restarted.lastEventAt, restarted.eventsOffset], [kept.lastEventAt, kept.eventsOffset]);
+});
+
+test('parseWatchArgs reads the worktree, idle-minutes and restart flags', () => {
+  assert.deepStrictEqual(parseWatchArgs(['d', '--idle-minutes', '2', '--restart', '--worktree', '/w']), { dir: 'd', worktree: '/w', idleMinutes: 2, restart: true });
+  assert.deepStrictEqual(parseWatchArgs(['d']), { dir: 'd', worktree: null, idleMinutes: undefined, restart: false });
+  assert.strictEqual(parseWatchArgs(['d', '--idle-minutes', 'x']), null);
+  assert.strictEqual(parseWatchArgs(['d', '--other', '1']), null);
+});
+
+test('watch --restart prints IDLE and exits 0 when the last event is older than --idle-minutes', (t) => {
+  const dir = idleDir(t, { watcherPid: null, lastEventAt: new Date(Date.now() - 5 * 60000).toISOString() });
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), 'watch', dir, '--idle-minutes', '1', '--restart'], { encoding: 'utf8', timeout: 10000 });
+  assert.strictEqual(result.status, 0);
+  assert.strictEqual(result.stdout.trim(), 'IDLE');
+});
+
+test('watch without --restart ignores an old lastEventAt and runs', async (t) => {
+  const dir = idleDir(t, { watcherPid: null, lastEventAt: new Date(Date.now() - 5 * 60000).toISOString() });
+  const child = spawn(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), 'watch', dir, '--idle-minutes', '1'], { stdio: 'ignore' });
+  t.after(() => child.kill());
+  await sleep(600);
+  assert.strictEqual(child.exitCode, null);
+  assert.ok(Date.now() - new Date(lastEventAtOf(dir)).getTime() < 60000);
 });
 
 function stackRoot(t) {
