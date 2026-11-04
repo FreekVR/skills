@@ -59,7 +59,7 @@ const content = {
         <div class="mb-3 flex items-center justify-between gap-3">
           <h3 class="m-0 text-ui font-bold">Ask about {{ fileName(hunk.file) }}</h3>
         </div>
-        <div v-for="{ asked, answer } in questions" :key="asked.id" class="mb-3.5 rounded-lg border border-default px-4 py-3.5">
+        <div v-for="{ asked, answer } in questions" :key="asked.id" class="mb-3.5 rounded-lg bg-elevated px-4 py-3.5">
           <p class="mt-0 mb-1 font-semibold">{{ asked.question }}</p>
           <template v-if="answer">
             <AiTag label="AI answer" class="mb-1.5" />

@@ -14,10 +14,10 @@ const BUTTONS = [
 const buttons = computed(() => BUTTONS.filter((button) => actions.value?.calls.includes(button.call)))
 
 const CHOSEN: Record<string, { title: string, text: string, tone: string }> = {
-  resolve: { title: 'You resolve this comment.', text: 'GitHub marks it resolved when you post your next review.', tone: 'border-success/40 bg-success/8 [--tone:var(--ui-success)]' },
-  open: { title: 'You leave this comment open.', text: 'It stays open on GitHub.', tone: 'border-error/40 bg-error/8 [--tone:var(--ui-error)]' },
-  keep: { title: 'You keep this comment resolved.', text: 'Nothing changes on GitHub.', tone: 'border-success/40 bg-success/8 [--tone:var(--ui-success)]' },
-  unresolve: { title: 'You unresolve this comment.', text: 'GitHub opens it again when you post your next review.', tone: 'border-accented bg-default [--tone:var(--ui-text-muted)]' },
+  resolve: { title: 'You resolve this comment.', text: 'GitHub marks it resolved when you post your next review.', tone: 'bg-success/12 [--tone:var(--ui-success)]' },
+  open: { title: 'You leave this comment open.', text: 'It stays open on GitHub.', tone: 'bg-error/12 [--tone:var(--ui-error)]' },
+  keep: { title: 'You keep this comment resolved.', text: 'Nothing changes on GitHub.', tone: 'bg-success/12 [--tone:var(--ui-success)]' },
+  unresolve: { title: 'You unresolve this comment.', text: 'GitHub opens it again when you post your next review.', tone: 'bg-elevated [--tone:var(--ui-text-muted)]' },
 }
 const chosen = computed(() => {
   const call = actions.value?.call
@@ -27,7 +27,7 @@ const chosen = computed(() => {
 
 <template>
   <template v-if="actions">
-    <div v-if="chosen" class="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-md border px-3 py-2 text-ui" :class="chosen.tone" role="status">
+    <div v-if="chosen" class="mt-2.5 flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg px-3.5 py-2.5 text-ui" :class="chosen.tone" role="status">
       <span class="grid size-5 shrink-0 place-items-center rounded-full bg-(--tone) text-inverted" aria-hidden="true">
         <VerdictIcon :verdict="chosen.verdict" class="size-3" />
       </span>
@@ -43,9 +43,9 @@ const chosen = computed(() => {
           v-for="button in buttons"
           :key="button.call"
           :color="button.color"
-          variant="outline"
-          class="font-semibold"
-          :class="actions.suggested && actions.suggested !== button.call && 'not-hover:not-focus-visible:text-muted not-hover:not-focus-visible:ring-accented'"
+          :variant="actions.suggested === button.call ? 'subtle' : 'soft'"
+          class="font-bold"
+          :class="actions.suggested && actions.suggested !== button.call && 'not-hover:not-focus-visible:text-muted'"
           @click="setThreadCall(actions.threadId, button.call)"
         >
           <VerdictIcon :verdict="button.verdict" class="size-3.5" />{{ button.label }}

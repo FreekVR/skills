@@ -11,10 +11,10 @@ const banners = computed(() => (state.static ? [] : updates()))
         v-for="banner in banners"
         :key="banner.key"
         color="neutral"
-        variant="outline"
+        variant="soft"
         orientation="horizontal"
         :role="banner.kind === 'offline' ? 'alert' : undefined"
-        class="border border-(--ui-text-muted) bg-elevated text-ui shadow-[0_4px_16px_rgba(0,0,0,.12)] ring-0"
+        class="bg-accented text-ui shadow-[0_4px_16px_rgba(0,0,0,.12)] ring-0"
         :ui="{ description: 'mt-0 text-default text-ui leading-normal', actions: 'shrink-0' }"
       >
         <template #description>
@@ -68,11 +68,11 @@ const banners = computed(() => (state.static ? [] : updates()))
           <UButton v-if="banner.kind === 'state' && !banner.finishing" color="neutral" variant="soft" @click="finish()">Finish the review</UButton>
           <template v-if="banner.kind === 'head'">
             <UButton v-if="banner.updating" color="neutral" variant="ghost" @click="refresh()">Ask again</UButton>
-            <UButton v-else color="primary" variant="outline" @click="refresh()">Load the new commits</UButton>
+            <UButton v-else color="primary" variant="solid" class="font-bold" @click="refresh()">Load the new commits</UButton>
             <UButton v-if="banner.canStartRound" color="neutral" variant="soft" @click="newRound()">Start a new review round</UButton>
           </template>
           <template v-if="banner.kind === 'refreshed'">
-            <UButton v-if="banner.status === 'error'" color="primary" variant="outline" @click="refresh()">Try again</UButton>
+            <UButton v-if="banner.status === 'error'" color="primary" variant="solid" class="font-bold" @click="refresh()">Try again</UButton>
             <UButton v-else-if="state.reviewer.hunkChanges?.added && state.freshHunks.size" color="neutral" variant="soft" @click="showFirstChangedHunk()">Show the first changed hunk</UButton>
             <UButton color="neutral" variant="ghost" @click="closeRefreshResult(banner.eventId)">Close</UButton>
           </template>

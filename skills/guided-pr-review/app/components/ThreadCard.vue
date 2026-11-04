@@ -20,8 +20,8 @@ const doubtful = computed(() => props.mine && doubtfulResolved(props.comment))
   <component
     :is="comment.resolved ? 'details' : 'div'"
     :open="doubtful || undefined"
-    class="thread mt-3.5 scroll-mt-6 rounded-lg border bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info"
-    :class="[comment.resolved ? 'px-3.5 py-2' : 'px-3.5 py-3', reasons.length ? 'border-warning' : 'border-default']"
+    class="thread mt-3.5 scroll-mt-6 rounded-lg border-r-8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info"
+    :class="[comment.resolved ? 'px-3.5 py-2' : 'px-3.5 py-3', reasons.length ? 'border-r-warning bg-[color-mix(in_srgb,var(--ui-warning)_9%,var(--ui-bg-elevated))]' : 'border-r-accented bg-elevated']"
     :data-needs-decision="reasons.length ? '' : undefined"
     :tabindex="reasons.length ? -1 : undefined"
   >

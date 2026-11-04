@@ -5,11 +5,11 @@ const tools = computed(() => summaryTools())
 
 <template>
   <div>
-    <div v-if="tools.draft" class="mt-2.5 rounded-lg border border-dashed border-accented bg-info/5 px-3.5 py-3">
+    <div v-if="tools.draft" class="mt-2.5 rounded-lg bg-info/8 px-3.5 py-3">
       <AiTag label="AI draft" />
       <p class="mt-2 mb-1 text-body whitespace-pre-wrap">{{ tools.draft.text }}</p>
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
-        <UButton color="primary" variant="outline" class="font-semibold" @click="useSummaryDraft(tools.draft.eventId)">
+        <UButton color="primary" variant="soft" class="font-bold" @click="useSummaryDraft(tools.draft.eventId)">
           Replace your summary with this
         </UButton>
         <UButton color="neutral" variant="ghost" class="text-toned" @click="dismissSummaryDraft(tools.draft.eventId)">

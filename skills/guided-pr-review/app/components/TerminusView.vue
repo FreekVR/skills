@@ -213,7 +213,7 @@ async function showThem() {
             <UAlert
               v-if="view.unseenWarning"
               color="warning"
-              variant="outline"
+              variant="soft"
               orientation="horizontal"
               class="mt-3.5 py-2.5"
               :ui="{ description: 'mt-0 text-ui text-default' }"
@@ -243,7 +243,7 @@ async function showThem() {
               <UButton v-else color="neutral" variant="soft" disabled>
                 Choose a verdict to post
               </UButton>
-              <UButton v-if="!state.static" color="warning" variant="outline" class="font-semibold" :aria-label="draftLabel" :title="draftLabel" @click="post('draft')">
+              <UButton v-if="!state.static" color="warning" variant="soft" class="font-bold" :aria-label="draftLabel" :title="draftLabel" @click="post('draft')">
                 Post as draft
                 <UBadge v-if="draftCount" color="warning" variant="solid" size="sm" class="ml-1 rounded-full" aria-hidden="true">
                   {{ draftCount }}
@@ -254,7 +254,7 @@ async function showThem() {
               <p class="mt-0 mb-2 text-ui text-toned">
                 Run this command in a terminal to post the review with the GitHub CLI. It does not post replies and does not resolve threads.
               </p>
-              <pre class="m-0 overflow-x-auto rounded-lg border border-default bg-elevated p-3 font-mono text-label whitespace-pre-wrap break-all"><code>{{ state.ui.ghCommand }}</code></pre>
+              <pre class="m-0 overflow-x-auto rounded-lg bg-elevated p-3 font-mono text-label whitespace-pre-wrap break-all"><code>{{ state.ui.ghCommand }}</code></pre>
             </div>
             <div v-if="posts.length" class="mt-6.5">
               <h3 class="m-0 mb-2 text-body font-semibold">

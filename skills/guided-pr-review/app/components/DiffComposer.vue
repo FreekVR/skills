@@ -14,7 +14,7 @@ const severity = computed({
 </script>
 
 <template>
-  <div class="relative border-y border-default bg-elevated px-5 pt-4 pb-4.5 font-sans whitespace-normal">
+  <div class="relative border-r-8 border-r-accented bg-elevated px-5 pt-4 pb-4.5 font-sans whitespace-normal">
     <div class="flex flex-wrap items-baseline gap-2.5">
       <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
       <span class="text-meta text-muted">Your remark on {{ lineLabel(composer) }}</span>

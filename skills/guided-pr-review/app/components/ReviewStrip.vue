@@ -257,7 +257,7 @@ useEventListener(document, 'scroll', (event: Event) => {
             <span class="mr-2.5 font-mono text-label"><MarkupText :text="id" /></span><MarkupText :text="criterion.text" />
             <span
               v-if="criterionSource(criterion)"
-              class="ml-2 inline-block rounded-full border border-accented px-2 py-1 align-[2px] text-tag leading-none font-semibold whitespace-nowrap text-toned"
+              class="ml-2 inline-block rounded-full bg-elevated px-2 py-1 align-[2px] text-tag leading-none font-semibold whitespace-nowrap text-toned"
               :class="{ italic: criterionSource(criterion).kind === 'description' }"
               :title="criterionSource(criterion).title || undefined"
             >{{ criterionSource(criterion).label }}</span>

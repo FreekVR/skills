@@ -10,7 +10,7 @@ const next = computed(() => (hasStack() ? nextInStack() : null))
 <template>
   <div>
     <div
-      class="flex flex-wrap items-center gap-x-4.5 gap-y-3.5 rounded-xl border border-(color:--submit-c)/40 bg-(color:--submit-c)/10 px-5.5 py-5"
+      class="flex flex-wrap items-center gap-x-4.5 gap-y-3.5 rounded-card bg-(color:--submit-c)/12 px-5.5 py-5"
       :style="{ '--submit-c': COLORS[card.option.icon] || COLORS.comment }"
     >
       <span class="grid size-11 shrink-0 place-items-center rounded-full bg-(--submit-c) text-inverted" aria-hidden="true">
