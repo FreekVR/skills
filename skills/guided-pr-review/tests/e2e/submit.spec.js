@@ -242,3 +242,8 @@ test('does not post request changes or comment without a review body, which GitH
   await expect(page.getByText('Write a summary first. GitHub needs a review body for request changes and comment.').last()).toBeVisible();
   expect(review.events().filter((event) => event.type === 'post')).toEqual([]);
 });
+
+test('your earlier comments include one someone else resolved that the AI doubts', async ({ page }) => {
+  await openSubmit(page, { mutate: (data) => { Object.assign(data.ownRemarks[0], { resolved: true, resolvedBy: 'sample-author', fix: { verdict: 'unclear', note: 'Unclear.' } }); } });
+  await expect(page.getByText('0 to resolve · 0 left open · 1 without a decision')).toBeVisible();
+});

@@ -321,3 +321,41 @@ test('ignores a choice to unresolve once GitHub shows the thread open, and asks 
   await expect(thread.getByText('You unresolve this comment.')).toBeHidden();
   await expect(thread.getByRole('button', { name: 'Resolve', exact: true })).toBeVisible();
 });
+
+const resolvedByAuthor = (verdict) => (data) => {
+  Object.assign(data.ownRemarks[0], { resolved: true, resolvedBy: 'sample-author', fix: { verdict, note: 'Line 3 still has MAX 10.' } });
+};
+
+test('highlights your comment that someone else resolved when the AI is not sure it is fixed', async ({ page }) => {
+  const review = await openReview(page, { mutate: resolvedByAuthor('unclear') });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'Is MAX still right?');
+  await expect(thread).toHaveAttribute('data-needs-decision', '');
+  await expect(thread.getByText('@sample-author resolved it; the AI is not sure it is fixed')).toBeVisible();
+  await expect(thread.getByText('Line 3 still has MAX 10.')).toBeVisible();
+  await expect(page.getByRole('complementary', { name: 'Review navigation' }).getByText('1 needs your decision')).toBeVisible();
+  await thread.getByRole('button', { name: 'Keep resolved', exact: true }).click();
+  await expect(thread.getByRole('status').filter({ hasText: 'You keep this comment resolved.' })).toBeVisible();
+  await expect(thread).not.toHaveAttribute('data-needs-decision', '');
+  await review.saved((state) => state.threadCalls?.['T-gh1'] === 'keep');
+});
+
+test('suggests Unresolve when the AI thinks a comment someone else resolved is not fixed', async ({ page }) => {
+  const review = await openReview(page, { mutate: resolvedByAuthor('not-fixed') });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'Is MAX still right?');
+  await expect(thread.getByText('@sample-author resolved it; the AI thinks it is not fixed')).toBeVisible();
+  await expect(thread.getByRole('button', { name: 'Keep resolved', exact: true })).toHaveClass(/not-hover:not-focus-visible:text-muted/);
+  await thread.getByRole('button', { name: 'Unresolve', exact: true }).click();
+  await review.saved((state) => state.threadCalls?.['T-gh1'] === 'unresolve');
+});
+
+test('leaves a comment folded when someone else resolved it and the AI says it is fixed', async ({ page }) => {
+  await openReview(page, { mutate: resolvedByAuthor('fixed') });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'Is MAX still right?');
+  await expect(thread).not.toHaveAttribute('data-needs-decision', '');
+  await expect(thread.getByText('Resolved by @sample-author')).toBeVisible();
+  await thread.locator('summary').click();
+  await expect(thread.getByText('Line 3 still has MAX 10.')).toBeVisible();
+});

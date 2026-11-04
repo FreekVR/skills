@@ -9,12 +9,14 @@ const BUTTONS = [
   { call: 'resolve', label: 'Resolve', verdict: 'approved', color: 'success' as const },
   { call: 'open', label: 'Leave open', verdict: 'changes', color: 'error' as const },
   { call: 'unresolve', label: 'Unresolve', verdict: 'comment', color: 'neutral' as const },
+  { call: 'keep', label: 'Keep resolved', verdict: 'approved', color: 'success' as const },
 ]
 const buttons = computed(() => BUTTONS.filter((button) => actions.value?.calls.includes(button.call)))
 
 const CHOSEN: Record<string, { title: string, text: string, tone: string }> = {
   resolve: { title: 'You resolve this comment.', text: 'GitHub marks it resolved when you post your next review.', tone: 'border-success/40 bg-success/8 [--tone:var(--ui-success)]' },
   open: { title: 'You leave this comment open.', text: 'It stays open on GitHub.', tone: 'border-error/40 bg-error/8 [--tone:var(--ui-error)]' },
+  keep: { title: 'You keep this comment resolved.', text: 'Nothing changes on GitHub.', tone: 'border-success/40 bg-success/8 [--tone:var(--ui-success)]' },
   unresolve: { title: 'You unresolve this comment.', text: 'GitHub opens it again when you post your next review.', tone: 'border-accented bg-default [--tone:var(--ui-text-muted)]' },
 }
 const chosen = computed(() => {

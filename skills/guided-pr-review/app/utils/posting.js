@@ -77,13 +77,21 @@ export function postedOwnRemarks() { return (state.review.ownRemarks || []).filt
 
 // The reviewer's posted comments that are still open on GitHub each need a call: resolve, or leave open.
 export function openOwnThreads() { return postedOwnRemarks().filter((own) => own.threadId && !own.resolved) }
-// A call only counts while it fits the thread on GitHub: unresolve for a resolved thread, the others for an open one.
+// A developer may resolve the reviewer's comment without fixing it. The agent then checks the code,
+// and a comment it does not call fixed needs the reviewer's call: unresolve, or keep it resolved.
+export function resolvedByOthers(own) { return Boolean(own.resolved && own.resolvedBy && viewerLogin() && own.resolvedBy !== viewerLogin()) }
+export function doubtfulResolved(own) { return resolvedByOthers(own) && Boolean(own.fix) && own.fix.verdict !== 'fixed' }
+export function doubtfulResolvedThreads() { return postedOwnRemarks().filter((own) => own.threadId && doubtfulResolved(own)) }
+
+// A call only counts while it fits the thread on GitHub: unresolve or keep for a resolved thread, resolve or open for an open one.
 // After a post, GitHub's new state makes the old call stale, so the thread gets its buttons back.
 export function threadCall(own) {
   const call = state.reviewer.threadCalls?.[own.threadId]
-  return (call === 'unresolve') === Boolean(own.resolved) ? call : undefined
+  return (own.resolved ? ['unresolve', 'keep'] : ['resolve', 'open']).includes(call) ? call : undefined
 }
-export function threadsWithoutCall() { return openOwnThreads().filter((own) => !threadCall(own)) }
+// The reviewer's comments that take a call: the open ones, and the resolved ones the AI doubts.
+export function threadsNeedingCall() { return [...openOwnThreads(), ...doubtfulResolvedThreads()] }
+export function threadsWithoutCall() { return threadsNeedingCall().filter((own) => !threadCall(own)) }
 
 // A comment needs the reviewer's look once commits came after it (the agent then wrote a fix check)
 // or someone else replied last; until then there is nothing new to resolve or leave open.
@@ -91,6 +99,7 @@ export function threadsToCheck() { return threadsWithoutCall().filter((own) => c
 
 // Why a comment needs the reviewer's decision, as the page shows it next to the comment.
 export function checkReasons(own) {
+  if (own.resolved) return doubtfulResolved(own) ? [`@${own.resolvedBy} resolved it; the AI ${own.fix.verdict === 'not-fixed' ? 'thinks it is not fixed' : 'is not sure it is fixed'}`] : []
   const last = own.replies?.at(-1)
   return [own.fix ? 'New commits since your comment' : '', last && last.author !== viewerLogin() ? `@${last.author} replied` : ''].filter(Boolean)
 }

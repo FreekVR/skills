@@ -3,7 +3,7 @@
 // `mine` threads get the call to resolve or leave open; threads of others can be copied to the reviewer's own review. Any resolved thread can be unresolved.
 type Comment = {
   id: string, author?: string, body: string, hunkId?: string | null, path?: string, line?: number, side?: string, diffHunk?: string,
-  resolved?: boolean, outdated?: boolean, threadId?: string, canResolve?: boolean, canUnresolve?: boolean,
+  resolved?: boolean, resolvedBy?: string, outdated?: boolean, threadId?: string, canResolve?: boolean, canUnresolve?: boolean,
   replies?: { author: string, body: string, at?: string }[], opinion?: { stance?: string, text?: string }, fix?: { verdict: string, note?: string, reply?: string },
 }
 const props = defineProps<{ comment: Comment, mine: boolean }>()
@@ -11,12 +11,15 @@ const props = defineProps<{ comment: Comment, mine: boolean }>()
 // Every flow that passes the hunk of this comment, each with the stop where it does.
 const stations = computed(() => (props.comment.hunkId ? stationsOf(props.comment.hunkId) : []) as { line: { id: string, name: string, letter: string, color: string }, index: number }[])
 const copied = computed(() => isCopied(props.comment))
-const reasons = computed(() => (props.mine && !props.comment.resolved && !threadCall(props.comment) ? checkReasons(props.comment) : []))
+const reasons = computed(() => (props.mine && !threadCall(props.comment) ? checkReasons(props.comment) : []))
+// A comment the AI doubts stays open, so its check and the choice made show without a click.
+const doubtful = computed(() => props.mine && doubtfulResolved(props.comment))
 </script>
 
 <template>
   <component
     :is="comment.resolved ? 'details' : 'div'"
+    :open="doubtful || undefined"
     class="thread mt-3.5 scroll-mt-6 rounded-lg border bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info"
     :class="[comment.resolved ? 'px-3.5 py-2' : 'px-3.5 py-3', reasons.length ? 'border-warning' : 'border-default']"
     :data-needs-decision="reasons.length ? '' : undefined"
@@ -26,7 +29,7 @@ const reasons = computed(() => (props.mine && !props.comment.resolved && !thread
       <span class="inline-flex items-center gap-1 font-semibold text-warning"><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Needs your decision</span>
       <span class="text-toned">{{ reasons.join(' · ') }}</span>
     </p>
-    <FixLine v-if="!comment.resolved" :item="comment" class="mt-0! mb-2.5" />
+    <FixLine :item="comment" class="mt-0! mb-2.5" />
     <component :is="comment.resolved ? 'summary' : 'div'" class="flex list-none flex-wrap items-center gap-x-2.5 gap-y-1.5" :class="{ 'cursor-pointer': comment.resolved }">
       <span class="font-mono text-label wrap-anywhere text-toned">{{ threadPlace(comment) }}</span>
       <span v-if="comment.outdated" class="text-label text-dimmed">outdated</span>
@@ -46,7 +49,7 @@ const reasons = computed(() => (props.mine && !props.comment.resolved && !thread
           <FlowBullet :line="station.line" class="size-5! text-tag!" />
         </UButton>
       </span>
-      <span v-if="comment.resolved" class="text-meta font-semibold">{{ threadCall(comment) === 'unresolve' ? 'Resolved · you unresolve it' : 'Resolved' }}</span>
+      <span v-if="comment.resolved" class="text-meta font-semibold">{{ resolvedByOthers(comment) ? `Resolved by @${comment.resolvedBy}` : 'Resolved' }}{{ threadCall(comment) === 'unresolve' ? ' · you unresolve it' : '' }}</span>
     </component>
     <ThreadCode :comment="comment" />
     <CommentConversation :comment="comment">

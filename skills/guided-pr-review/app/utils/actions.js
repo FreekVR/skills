@@ -119,7 +119,7 @@ export function setTheme(choice) {
   saveReviewer()
 }
 
-// Resolve a posted comment of the reviewer, leave it open, or unresolve a resolved thread. A thread left open starts with the AI's draft reply.
+// Resolve a posted comment of the reviewer, leave it open, unresolve a resolved thread, or keep it resolved. A thread left open starts with the AI's draft reply.
 // A call of null takes the choice back, so the comment needs a decision again.
 export function setThreadCall(threadId, call) {
   const own = openOwnThreads().find((candidate) => candidate.threadId === threadId)

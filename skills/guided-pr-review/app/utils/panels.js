@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityRank, severityTone, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { answerFor, buildPost, githubStatus, isFinishing, newComments, openOwnThreads, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { answerFor, buildPost, githubStatus, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, resolvedByOthers, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // Each kind of change on GitHub comes with the one action that deals with it.
@@ -80,17 +80,23 @@ export function seenBefore(hunkId) {
   return Boolean(where && where !== state.view.line)
 }
 
+// A resolved comment only has a current check when someone else resolved it.
 export function fixLine(own) {
-  if (!own.fix || own.resolved) return null
+  if (!own.fix || (own.resolved && !resolvedByOthers(own))) return null
   return { verdict: own.fix.verdict, label: FIX_LABELS[own.fix.verdict] || FIX_LABELS.unclear, note: own.fix.note || '' }
 }
 
 // Resolve or leave open. The AI's recommendation is the stronger button; a thread left open can get a reply.
 // A resolved thread, of the reviewer or of someone else, can only be unresolved, and then gets a reply.
+// When the AI doubts a fix of the reviewer's comment that someone else resolved, the reviewer can also keep it resolved.
 export function threadActions(own) {
   if (!own.threadId) return null
   const call = threadCall(own)
-  if (own.resolved) return { resolved: true, threadId: own.threadId, call, calls: own.canUnresolve !== false ? ['unresolve'] : [], canReply: call === 'unresolve' }
+  if (own.resolved) {
+    const doubtful = doubtfulResolved(own)
+    const calls = [...(own.canUnresolve !== false ? ['unresolve'] : []), ...(doubtful ? ['keep'] : [])]
+    return { resolved: true, threadId: own.threadId, call, calls, suggested: doubtful && own.fix.verdict === 'not-fixed' ? 'unresolve' : null, canReply: call === 'unresolve' }
+  }
   return {
     resolved: false,
     threadId: own.threadId,
@@ -316,15 +322,15 @@ export function sentPosts() {
 }
 
 export function threadCallCounts() {
-  const threads = openOwnThreads()
+  const threads = threadsNeedingCall()
   const count = (call) => threads.filter((own) => threadCall(own) === call).length
   const left = threadsWithoutCall().length
   const unresolve = threadsToUnresolve().length
-  return `${count('resolve')} to resolve · ${count('open')} left open${unresolve ? ` · ${unresolve} to unresolve` : ''}${left ? ` · ${left} without a decision` : ''}`
+  return `${count('resolve')} to resolve · ${count('open')} left open${unresolve ? ` · ${unresolve} to unresolve` : ''}${count('keep') ? ` · ${count('keep')} kept resolved` : ''}${left ? ` · ${left} without a decision` : ''}`
 }
 
 // Under the reviewer's newest review: their decisions and replies wait for the next review they post.
-function hasPendingThreadWork() { return openOwnThreads().length > 0 || pendingReplies().length > 0 }
+function hasPendingThreadWork() { return threadsNeedingCall().length > 0 || pendingReplies().length > 0 }
 
 // Which commit a review on GitHub was made on, compared with the commit this page shows.
 export function commitWhere(sha) {

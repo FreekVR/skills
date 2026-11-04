@@ -12,7 +12,7 @@ const verdicts = computed(() => hunkVerdictsCheck())
 const notPosted = computed(() => notPostedFindings())
 const posts = computed(() => sentPosts())
 // The reviewer's own posted comments that are still open: their decisions go to GitHub with this review.
-const earlier = computed(() => (openOwnThreads().length ? { left: threadsWithoutCall().length, counts: threadCallCounts() } : null))
+const earlier = computed(() => (threadsNeedingCall().length ? { left: threadsWithoutCall().length, counts: threadCallCounts() } : null))
 const ownReview = computed(() => hasOwnReview())
 const draftCount = computed(() => localCount())
 const draftLabel = computed(() => (draftCount.value ? `Post as draft. ${plural(draftCount.value, 'remark')} not on GitHub yet.` : 'Post as draft'))
@@ -127,7 +127,7 @@ async function showThem() {
           </TerminusCheckItem>
           <TerminusCheckItem v-if="earlier" :number="notPosted ? 5 : 4" :done="earlier.left === 0" section="earlier" title="Your earlier comments" :counts="earlier.counts" :open="earlier.left > 0">
             <p :class="LEDE">
-              {{ earlier.left ? 'Decide on each one: resolve it or leave it open. A comment without a decision stays open on GitHub.' : 'This review resolves and unresolves the comments you chose and posts your replies.' }}
+              {{ earlier.left ? 'Decide on each one: resolve it or leave it open, or for one someone else resolved, unresolve it or keep it resolved. A comment without a decision stays as it is on GitHub.' : 'This review resolves and unresolves the comments you chose and posts your replies.' }}
               <button type="button" :class="LINK_BUTTON" @click="goReviews()">Go to the existing reviews</button>
             </p>
           </TerminusCheckItem>
