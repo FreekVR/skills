@@ -236,30 +236,40 @@ function readWaiting(dir) {
 }
 
 // The step the agent works on while it prepares this review, or null when it does not prepare it.
-// The file may be empty: the agent prepares it without naming a step.
+// The file may be empty: the agent prepares it without naming a step. `from` is the PR number of the review
+// whose page started this one with start-review.
 function readPreparing(dir) {
   const file = path.join(dir, 'preparing');
   if (!fs.existsSync(file)) return null;
   const data = readJson(file);
-  return { step: data?.step || null, since: data?.since || null };
+  return { step: data?.step || null, since: data?.since || null, ...(Number.isInteger(data?.from) && { from: data.from }) };
 }
 
+// A new step keeps `from`, so the page shows the agent of that review until this review has a watch of its own.
 function setPreparing(dir, step) {
-  if (step === null) fs.rmSync(path.join(dir, 'preparing'), { force: true });
-  else writeAtomic(path.join(dir, 'preparing'), JSON.stringify({ step, since: new Date().toISOString() }) + '\n');
+  if (step === null) return fs.rmSync(path.join(dir, 'preparing'), { force: true });
+  const from = readPreparing(dir)?.from;
+  writeAtomic(path.join(dir, 'preparing'), JSON.stringify({ step, since: new Date().toISOString(), ...(from && { from }) }) + '\n');
 }
 
 // Whether an agent watches this review, whether the reviewer paused it, the question the agent waits on,
 // whether the agent still prepares the review, and the session to resume when no agent runs.
+// Until a review that another review's page started has a watch of its own, the agent of that other review stands in.
 function agentStatus(dir) {
-  const session = readJson(path.join(dir, 'session.json'));
-  const watcherPid = session?.watcherPid;
+  const preparing = readPreparing(dir);
+  let agentDir = dir;
+  let session = readJson(path.join(dir, 'session.json'));
+  const live = (candidate) => Boolean(candidate?.watcherPid && isRunning(candidate.watcherPid));
+  if (!live(session) && preparing?.from) {
+    agentDir = path.join(path.dirname(dir), String(preparing.from));
+    session = readJson(path.join(agentDir, 'session.json'));
+  }
   return {
     session: session ? { sessionId: session.sessionId || null, cwd: session.cwd || null } : null,
-    connected: Boolean(watcherPid && isRunning(watcherPid)),
-    paused: fs.existsSync(path.join(dir, 'paused')),
+    connected: live(session),
+    paused: fs.existsSync(path.join(agentDir, 'paused')),
     waiting: readWaiting(dir),
-    preparing: readPreparing(dir),
+    preparing,
   };
 }
 

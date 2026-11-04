@@ -4,7 +4,7 @@
 withDefaults(defineProps<{ text: string, noAgentText?: string }>(), { noAgentText: 'No agent runs this review, so this request waits.' })
 
 const agent = computed(() => agentState())
-const pr = computed(() => state.review.pr as { owner: string, repo: string, number: number | string })
+const pr = computed(() => agentPr() as { owner: string, repo: string, number: number | string })
 const help = computed(() => resumeHelp({ ...pr.value, session: state.agent?.session }))
 
 </script>

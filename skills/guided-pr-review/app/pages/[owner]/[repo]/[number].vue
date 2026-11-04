@@ -42,6 +42,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
   <div v-if="state.bootError" class="p-8">
     {{ state.bootError }}
   </div>
+  <ReviewPreparing v-else-if="state.preparing" />
   <div v-else-if="state.review && state.reviewer" class="grid h-dvh grid-cols-[340px_minmax(0,1fr)] grid-rows-[auto_1fr] max-md:h-auto max-md:grid-cols-1">
     <a href="#main" class="sr-only focus:not-sr-only">Skip to the content</a>
     <ReviewStrip class="md:col-start-2 md:row-start-1" />

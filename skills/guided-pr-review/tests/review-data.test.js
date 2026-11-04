@@ -8,7 +8,7 @@ const os = require('os');
 const path = require('path');
 const { parseDiff, mergeHunks, checkFlows, parseWatchArgs } = require('../scripts/review-data.js');
 const { execFileSync, spawnSync, spawn } = require('child_process');
-const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus, readPreparing } = require('../scripts/reviews.js');
+const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus, readPreparing, setPreparing } = require('../scripts/reviews.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
 index 1111111..2222222 100644
@@ -396,6 +396,28 @@ test('agentStatus reports a live agent, a dead one, a pause and a waiting questi
   write(5, 'review.json', {});
   setWaiting([dir(5)], 'Which angles?');
   assert.strictEqual(agentStatus(dir(5)).waiting.question, 'Which angles?');
+});
+
+test('agentStatus of a review that waits for its agent reports the agent of the review the start came from', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(15, 'session.json', { sessionId: 'session-15', cwd: '/work', watcherPid: process.pid });
+  write(15, 'paused', '');
+  write(16, 'preparing', { step: 'Waiting for the agent to start', since: '2026-11-04T10:00:00Z', from: 15 });
+  const status = agentStatus(dirOf(16));
+  assert.deepStrictEqual([status.connected, status.paused, status.session], [true, true, { sessionId: 'session-15', cwd: '/work' }]);
+  assert.strictEqual(status.preparing.from, 15);
+  write(17, 'preparing', { step: 'Waiting for the agent to start', from: 15 });
+  write(17, 'session.json', { sessionId: 'session-17', cwd: '/other', watcherPid: process.pid });
+  assert.deepStrictEqual([agentStatus(dirOf(17)).paused, agentStatus(dirOf(17)).session.sessionId], [false, 'session-17']);
+  write(18, 'preparing', { step: 'Waiting for the agent to start', from: 19 });
+  assert.deepStrictEqual([agentStatus(dirOf(18)).connected, agentStatus(dirOf(18)).session], [false, null]);
+});
+
+test('setPreparing keeps the review the start came from', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(16, 'preparing', { step: 'Waiting for the agent to start', since: '2026-11-04T10:00:00Z', from: 15 });
+  setPreparing(dirOf(16), 'reading the PR');
+  assert.deepStrictEqual([readPreparing(dirOf(16)).step, readPreparing(dirOf(16)).from], ['reading the PR', 15]);
 });
 
 test("stackStatus reports each PR's review directory", (t) => {

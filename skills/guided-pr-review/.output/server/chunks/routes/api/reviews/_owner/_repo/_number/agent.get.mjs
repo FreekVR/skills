@@ -19,7 +19,7 @@ import 'node:url';
 
 const agent_get = defineEventHandler((event) => {
   setResponseHeader(event, "Content-Type", "application/json");
-  return JSON.stringify(reviews.agentStatus(reviewDirOf(event)));
+  return JSON.stringify(reviews.agentStatus(reviewDirOf(event, { withoutReview: true })));
 });
 
 export { agent_get as default };

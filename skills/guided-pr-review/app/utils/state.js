@@ -16,6 +16,8 @@ export const state = reactive({
   stackStatus: [],
   offline: false,
   bootError: null,
+  // The PR of a page whose review.json the agent has not written yet.
+  preparing: null,
 })
 
 // Colour tokens of the flows. The view maps each one to a colour.

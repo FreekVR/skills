@@ -1,7 +1,7 @@
 import { state, POLL_MS, CHECK_MS } from './state.js'
-import { transport } from './api.js'
+import { reviewPath, transport } from './api.js'
 import { notify } from './notify.js'
-import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isCurrentReview, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
+import { acceptedItems, agentPr, decisionOf, emptyReviewer, firstStationOf, hunkById, isCurrentReview, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
 import { answerFor, applySummaryDraft, buildPost, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, restorePosition } from './navigation.js'
@@ -16,10 +16,19 @@ let polling = false
 // Save the reviewer state soon. Changes that follow each other quickly are saved once.
 export function saveReviewer() {
   clearTimeout(saveTimer)
-  saveTimer = setTimeout(async () => {
-    try { await transport.saveReviewer(state.reviewer) }
-    catch (error) { notify(`Your progress was not saved: ${error.message}. Keep this tab open and try again.`, true) }
-  }, 250)
+  saveTimer = setTimeout(saveReviewerNow, 250)
+}
+
+// Save the reviewer state now, for example before the page goes to another review.
+async function saveReviewerNow() {
+  clearTimeout(saveTimer)
+  try { await transport.saveReviewer(state.reviewer) }
+  catch (error) { notify(`Your progress was not saved: ${error.message}. Keep this tab open and try again.`, true) }
+}
+
+// Keep a sent event in the reviewer state, so the page knows what it asked the agent.
+function rememberSent(id, event, extra) {
+  state.reviewer.sent.push({ id, type: event.type, hunkId: event.hunkId, question: event.question, kind: event.kind, ...extra })
 }
 
 // `lineId` is the flow the reviewer saw the hunk in first, so another flow can say they saw it there.
@@ -37,7 +46,7 @@ export function markSeen(hunkId, lineId) {
 export async function sendEvent(event, extra = {}) {
   try {
     const { id } = await deliver(event)
-    state.reviewer.sent.push({ id, type: event.type, hunkId: event.hunkId, question: event.question, kind: event.kind, ...extra })
+    rememberSent(id, event, extra)
     saveReviewer()
     return id
   } catch (error) {
@@ -71,9 +80,20 @@ export async function loadStack() {
   if (hasStack()) state.stackStatus = await transport.loadStack().catch(() => state.stackStatus)
 }
 
-// Ask the agent to prepare the review of another PR in the stack.
-export function startReview(number) {
-  return sendEvent({ type: 'start-review', number }, { number })
+// Ask the agent to prepare the review of another PR in the stack, and open the page of that PR.
+// That page shows that the agent prepares the review until review.json is there.
+export async function startReview(number) {
+  let page
+  try {
+    const sent = await transport.startReview(number)
+    rememberSent(sent.id, { type: 'start-review' }, { number })
+    page = sent.page
+  } catch (error) {
+    return notify(`The agent did not get this: ${error.message}`, true)
+  }
+  // The sent start keeps a second start away when the reviewer comes back, so it is saved before the page goes.
+  await saveReviewerNow()
+  window.location.assign(page)
 }
 
 // Pause or play the agent of a review. Play sends one check, so the page catches up with GitHub.
@@ -85,13 +105,14 @@ export async function setPaused(review, paused) {
     return
   }
   review.paused = paused
-  if (!paused && isCurrentReview(review)) deliver({ type: 'check' }).catch(() => {})
+  if (!paused && state.review && isCurrentReview(review)) deliver({ type: 'check' }).catch(() => {})
 }
 
-// Resume the agent of the open review. The page's own flag and the switch's entry for this review both follow once the server accepts it.
+// Resume the agent of the open review, or of the review the start came from while the agent prepares this one.
+// The page's own flag and the switch's entry for this review both follow once the server accepts it.
 export async function resumeAgent() {
-  const { owner, repo, number } = state.review.pr
-  const entry = (state.reviews || []).find(isCurrentReview)
+  const { owner, repo, number } = agentPr()
+  const entry = state.review && (state.reviews || []).find(isCurrentReview)
   const review = entry || { owner, repo, number, paused: true }
   await setPaused(review, false)
   if (!review.paused && state.agent) state.agent.paused = false
@@ -412,6 +433,29 @@ export function stopPolling() {
   clearTimeout(checkTimer)
 }
 
+// A review that a start-review made has a directory but no review.json yet. Its page shows whether the agent prepares it,
+// and boots as soon as review.json is there. Returns false when the review directory does not exist.
+async function waitForReview() {
+  const agent = await transport.loadAgent().catch(() => null)
+  if (!agent) return false
+  state.preparing = reviewPath()
+  // The agent removes `preparing` when it stops, so the page keeps the review the start came from for its back link.
+  const show = (status) => {
+    setAgent(status)
+    if (status.preparing?.from) state.preparing = { ...state.preparing, from: status.preparing.from }
+  }
+  show(agent)
+  polling = true
+  pollTimer = setTimeout(async function check() {
+    const found = await transport.loadReview().then(() => true, () => false)
+    if (!polling) return
+    if (found) return boot()
+    await transport.loadAgent().then(show, () => {})
+    if (polling) pollTimer = setTimeout(check, POLL_MS)
+  }, POLL_MS)
+  return true
+}
+
 // Load the review and the reviewer state, then start polling. Call setReviewPath first.
 export async function boot() {
   stopPolling()
@@ -419,6 +463,7 @@ export async function boot() {
     const [review, reviewer, agent] = await Promise.all([transport.loadReview(), transport.loadReviewer(), transport.loadAgent().catch(() => null)])
     setReview(review)
     setAgent(agent)
+    state.preparing = null
     state.reviewer = { ...emptyReviewer(), ...reviewer }
     state.seen = new Set(state.reviewer.seen)
     noteFreshHunks()
@@ -440,6 +485,7 @@ export async function boot() {
     loadReviews()
     loadStack()
   } catch (error) {
+    if (error.statusCode === 404 && await waitForReview()) return
     state.bootError = `The review data did not load: ${error.message}. Check that the agent is still running and reload this page.`
   }
 }

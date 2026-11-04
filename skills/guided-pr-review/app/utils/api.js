@@ -2,11 +2,16 @@
 const GUARD = { 'X-Guided-Review': '1' }
 
 let base = ''
+let path = null
 
 // Set the review that the transport calls go to.
 export function setReviewPath(owner, repo, number) {
   base = `/api/reviews/${owner}/${repo}/${number}`
+  path = { owner, repo, number: Number(number) }
 }
+
+// Get the PR of the page, also before its review.json exists.
+export function reviewPath() { return path }
 
 // The functions keep the names and results of the old page's transport, so the logic calls them the same way.
 // They are not exported one by one, because the logic has functions with the same names (saveReviewer, sendEvent).
@@ -40,6 +45,12 @@ export const transport = {
   async saveReviewer(reviewer) {
     await $fetch(`${base}/reviewer`, { method: 'PUT', headers: GUARD, body: JSON.stringify(reviewer) }).catch((error) => {
       throw new Error(`Saving failed: ${error.statusCode} ${error.statusMessage}`)
+    })
+  },
+  // Ask the agent to prepare the review of another PR of the stack. Returns the event ID and the page of that PR.
+  startReview(number) {
+    return $fetch(`${base}/start-review`, { method: 'POST', headers: GUARD, body: { number } }).catch((error) => {
+      throw new Error(`Sending failed: ${error.statusCode} ${error.statusMessage}`)
     })
   },
   sendEvent(event) {

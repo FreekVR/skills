@@ -236,15 +236,35 @@ test('a criterion this PR places in another PR is expected there, even without s
   await expect(criterionRow(page, 'WX-42#3')).not.toContainText('Not found');
 });
 
-test('Start a review sends a start-review event and shows that the agent prepares it', async ({ page }) => {
+// The page of a PR the agent has not prepared yet: it says so, and shows the agent of the review the start came from.
+const expectPreparingPage = async (page, from) => {
+  await expect(page).toHaveURL(/\/example-org\/sample-widget\/16$/);
+  await expect(page.getByRole('heading', { name: 'The agent is preparing this review' })).toBeVisible();
+  await expect(page.getByText('Now: Waiting for the agent to start.')).toBeVisible();
+  await expect(page.getByRole('link', { name: `Back to the review of #${from}` })).toHaveAttribute('href', `/example-org/sample-widget/${from}`);
+};
+
+// Plays the agent that writes review.json of #16; the page must show it without a reload.
+const reviewAppears = async (page, review) => {
+  await page.evaluate(() => { window.sameDocument = true; });
+  review.write(reviewOf16());
+  await expect(page.getByRole('heading', { name: 'The agent is preparing this review' })).toHaveCount(0);
+  await expect(page.getByRole('main')).toBeVisible();
+  await expect(page.getByText('The agent is still preparing this review.')).toBeVisible();
+  expect(await page.evaluate(() => window.sameDocument)).toBe(true);
+};
+
+test('Start a review opens the page of the PR, which shows that the agent prepares it until its review is there', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
   liveAgent(review);
   await button(page).click();
   await row(page, 16).getByRole('button', { name: 'Start a review' }).click();
-  expect(await eventOf(review, 'start-review')).toMatchObject({ type: 'start-review', number: 16 });
-  await reviewDirOf(page, review, 16, 'preparing', '');
-  await expect(row(page, 16)).toContainText('Preparing the review…');
-  await expect(row(page, 16).getByRole('button', { name: 'Start a review' })).toHaveCount(0);
+  await expectPreparingPage(page, 15);
+  expect(await eventOf(review, 'start-review')).toMatchObject({ type: 'start-review', number: 16, review: 'example-org/sample-widget#15' });
+  // This review's agent stands in until #16 has a watch of its own.
+  await expect(page.getByText('Preparing…')).toBeVisible();
+  await expect(page.getByText(/No agent runs/)).toHaveCount(0);
+  await reviewAppears(page, review);
 });
 
 // Posts the final review of the page's PR and plays the agent that answers with the post result.
@@ -266,6 +286,22 @@ const reviewOf16 = () => {
   return data;
 };
 
+test('when the agent stops before it writes the review, the page says so and still opens the review once it is there', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  await button(page).click();
+  await row(page, 16).getByRole('button', { name: 'Start a review' }).click();
+  await expectPreparingPage(page, 15);
+  fs.rmSync(path.join(path.dirname(review.dir), '16', 'preparing'));
+  await expect(page.getByRole('heading', { name: 'The agent has not written this review' })).toBeVisible();
+  await expect(page.getByText('Start it again from the stack switch of the review it came from, or ask the agent in the chat.')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Back to the review of #15' })).toHaveAttribute('href', '/example-org/sample-widget/15');
+  await page.evaluate(() => { window.sameDocument = true; });
+  review.write(reviewOf16());
+  await expect(page.getByRole('heading', { name: 'The agent has not written this review' })).toHaveCount(0);
+  await expect(page.getByRole('main')).toBeVisible();
+  expect(await page.evaluate(() => window.sameDocument)).toBe(true);
+});
+
 test('after the final post the page offers the next PR in the stack, linking to its review when it has one', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
   review.write(reviewOf16());
@@ -274,11 +310,13 @@ test('after the final post the page offers the next PR in the stack, linking to 
   await expect(next).toHaveAttribute('href', /\/example-org\/sample-widget\/16$/);
 });
 
-test('after the final post the Next button starts the review of a PR without one', async ({ page }) => {
+test('after the final post the Next button starts the review of a PR without one and opens its page', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
   await postFinal(page, review);
   await page.getByRole('button', { name: 'Next in the stack: #16' }).click();
-  expect(await eventOf(review, 'start-review')).toMatchObject({ number: 16 });
+  await expectPreparingPage(page, 15);
+  expect(await eventOf(review, 'start-review')).toMatchObject({ type: 'start-review', number: 16, review: 'example-org/sample-widget#15' });
+  await reviewAppears(page, review);
 });
 
 const sessionOf = (review, number) => {
@@ -333,19 +371,32 @@ test('with #17 posted the Next button targets the PR below', async ({ page }) =>
   await expect(page.getByRole('link', { name: 'Next in the stack: #15' })).toBeVisible();
 });
 
-test('after Start a review, the row shows Preparing and offers no second start, also after a reload', async ({ page }) => {
+test('after Start a review, the row shows Preparing and offers no second start on the page it came from', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
   liveAgent(review);
   await button(page).click();
   await row(page, 16).getByRole('button', { name: 'Start a review' }).click();
-  await eventOf(review, 'start-review');
-  await expect(row(page, 16)).toContainText('Preparing the review…');
-  await expect(row(page, 16).getByRole('button', { name: 'Start a review' })).toHaveCount(0);
-  await review.saved((state) => (state.sent || []).some((sent) => sent.type === 'start-review'));
-  await page.reload();
+  await expectPreparingPage(page, 15);
+  await review.saved((state) => (state.sent || []).some((sent) => sent.type === 'start-review' && sent.number === 16));
+  await page.goBack();
+  await page.getByRole('main').waitFor();
   await button(page).click();
   await expect(row(page, 16)).toContainText('Preparing the review…');
   await expect(row(page, 16).getByRole('button', { name: 'Start a review' })).toHaveCount(0);
+  expect(review.events().filter((event) => event.type === 'start-review')).toHaveLength(1);
+});
+
+test('back on the posted review, the Next button opens the page of the PR it started, without a second start', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  await postFinal(page, review);
+  await page.getByRole('button', { name: 'Next in the stack: #16' }).click();
+  await expectPreparingPage(page, 15);
+  await page.goBack();
+  await page.getByRole('main').waitFor();
+  await page.keyboard.press('s');
+  await page.getByRole('link', { name: 'Next in the stack: #16' }).click();
+  await expectPreparingPage(page, 15);
+  expect(review.events().filter((event) => event.type === 'start-review')).toHaveLength(1);
 });
 
 test('Start a review on another PR does not turn Finish for now into the finishing text', async ({ page }) => {
@@ -355,7 +406,10 @@ test('Start a review on another PR does not turn Finish for now into the finishi
   await eventOf(review, 'finish');
   await expect(page.getByText('The agent keeps this review.')).toBeVisible();
   await page.getByRole('button', { name: 'Next in the stack: #16' }).click();
-  await eventOf(review, 'start-review');
+  await expectPreparingPage(page, 15);
+  await page.goBack();
+  await page.getByRole('main').waitFor();
+  await page.keyboard.press('s');
   await expect(page.getByText('The agent keeps this review.')).toBeVisible();
 });
 

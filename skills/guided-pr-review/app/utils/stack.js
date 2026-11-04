@@ -23,7 +23,8 @@ export function stackRows() {
     // The agent has not made the directory yet, so a start the reviewer already sent counts as preparing.
     const asked = !status?.hasReview && state.reviewer.sent.some((sent) => sent.type === 'start-review' && sent.number === pr.number)
     const action = status?.hasReview ? 'open' : done ? 'github' : !status || status.preparing || status.agentConnected || asked ? 'none' : 'start'
-    return { number: pr.number, title: pr.title, url: pr.url, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action, asked }
+    const page = status?.page || `/${state.review.pr.owner}/${state.review.pr.repo}/${pr.number}`
+    return { number: pr.number, title: pr.title, url: pr.url, page, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action, asked }
   })
 }
 
@@ -43,10 +44,11 @@ export function stackRowLabel(row) {
 
 // Get the PR to review after this one: the first PR above it, else the first below it, that the reviewer can act on.
 // A PR is skipped when it is merged or closed, its final review is posted, or its action is none (unknown, preparing, another session).
+// A PR this page asked the agent to prepare is not skipped: the button opens its page instead of a second start.
 export function nextInStack() {
   const rows = stackRows()
   const at = rows.findIndex((row) => row.current)
-  const open = (row) => (row.action === 'open' || row.action === 'start') && row.state === 'open' && !row.status?.posted
+  const open = (row) => (row.action === 'open' || row.action === 'start' || row.asked) && row.state === 'open' && !row.status?.posted
   return [...rows.slice(at + 1), ...rows.slice(0, at).reverse()].find(open) || null
 }
 

@@ -8,7 +8,8 @@ export function emptyReviewer() {
 
 // Lines, hunks and stations only change with review.json, so index them once per change.
 export function setReview(review, json = JSON.stringify(review)) {
-  state.review = review
+  // The agent writes review.json as soon as it has the PR and its hunks, and adds the rest as it goes.
+  state.review = { findings: [], context: {}, conventions: {}, ...review }
   state.reviewJson = json
   state.hunks = new Map(review.hunks.map((hunk) => [hunk.id, hunk]))
   state.lines = buildLines(review)
@@ -135,6 +136,13 @@ export function statusBadge(id, body) {
   const status = githubStatus(id, body)
   const hint = status === 'local' ? 'Not on GitHub yet. Post a draft or the review to send it.' : status === 'changed' ? 'Post again to update GitHub.' : ''
   return { status, label: STATUS_LABELS[status], hint }
+}
+
+// Get the PR whose agent the page shows. Until the agent wrote review.json, that is the review the start came from.
+export function agentPr() {
+  if (state.review) return state.review.pr
+  const page = state.preparing
+  return { ...page, number: state.agent?.preparing?.from ?? page.number }
 }
 
 // The shared server lists all reviews without marking one as current, so the page compares the pull request.

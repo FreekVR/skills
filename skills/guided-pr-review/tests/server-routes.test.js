@@ -120,3 +120,51 @@ test('agent gives the connection, the pause and the open question of the agent',
   assert.deepStrictEqual([status.connected, status.paused, status.waiting.question], [true, true, 'Which angles?']);
   assert.deepStrictEqual(status.session, { sessionId: 'sample-session', cwd: '/sample/dir' });
 });
+
+test('start-review asks the agent for another PR of the stack and lets its page open before review.json exists', async () => {
+  const dir = review('20', { number: 20 });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { number: 20 }, hunks, stack: { prs: [{ number: 20 }, { number: 21 }, { number: 22 }] } }));
+  const target = path.join(home, 'guided-pr-review', 'acme', 'shop', '21');
+  const response = await send(`${base}/20/start-review`, 'POST', JSON.stringify({ number: 21 }));
+  assert.strictEqual(response.status, 200);
+  const { id, page } = await response.json();
+  assert.strictEqual(page, '/acme/shop/21');
+  const stored = fs.readFileSync(path.join(dir, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse).pop();
+  assert.deepStrictEqual({ ...stored, at: undefined }, { type: 'start-review', number: 21, review: 'acme/shop#20', id, at: undefined });
+  assert.ok(stored.at);
+  const preparing = JSON.parse(fs.readFileSync(path.join(target, 'preparing'), 'utf8'));
+  assert.deepStrictEqual([preparing.step, preparing.from], ['Waiting for the agent to start', 20]);
+  assert.ok(preparing.since);
+  assert.strictEqual((await fetch(`${base}/21/review`)).status, 404);
+  assert.strictEqual((await fetch(`${base}/21/reviewer`)).status, 404);
+  const agent = await fetch(`${base}/21/agent`);
+  assert.strictEqual(agent.status, 200);
+  assert.strictEqual((await agent.json()).preparing.from, 20);
+  assert.strictEqual((await fetch(`${base}/23/agent`)).status, 404);
+});
+
+test('start-review starts nothing for a PR that has a review or that the agent already prepares, and still gives its page', async () => {
+  const dir = review('24', { number: 24 });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { number: 24 }, hunks, stack: { prs: [{ number: 24 }, { number: 25 }, { number: 26 }] } }));
+  review('25', { number: 25 });
+  const preparing = path.join(home, 'guided-pr-review', 'acme', 'shop', '26', 'preparing');
+  fs.mkdirSync(path.dirname(preparing), { recursive: true });
+  fs.writeFileSync(preparing, JSON.stringify({ step: 'reading the PR', since: '2026-11-04T10:00:00Z' }));
+  for (const number of [25, 26]) {
+    assert.deepStrictEqual(await (await send(`${base}/24/start-review`, 'POST', JSON.stringify({ number }))).json(), { id: null, page: `/acme/shop/${number}` });
+  }
+  assert.ok(!fs.existsSync(path.join(dir, 'events.jsonl')));
+  assert.ok(!fs.existsSync(path.join(home, 'guided-pr-review', 'acme', 'shop', '25', 'preparing')));
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(preparing, 'utf8')), { step: 'reading the PR', since: '2026-11-04T10:00:00Z' });
+});
+
+test('start-review refuses a PR that is not in the stack, and a request from another page', async () => {
+  const dir = path.join(home, 'guided-pr-review', 'acme', 'shop', '20');
+  const before = fs.readFileSync(path.join(dir, 'events.jsonl'), 'utf8');
+  for (const number of [99, '21', null, 20]) assert.strictEqual((await send(`${base}/20/start-review`, 'POST', JSON.stringify({ number }))).status, 400);
+  assert.strictEqual((await send(`${base}/7/start-review`, 'POST', JSON.stringify({ number: 8 }))).status, 400);
+  assert.strictEqual((await send(`${base}/20/start-review`, 'POST', JSON.stringify({ number: 22 }), {})).status, 403);
+  assert.strictEqual(fs.readFileSync(path.join(dir, 'events.jsonl'), 'utf8'), before);
+  assert.ok(!fs.existsSync(path.join(home, 'guided-pr-review', 'acme', 'shop', '99')));
+  assert.ok(!fs.existsSync(path.join(home, 'guided-pr-review', 'acme', 'shop', '22')));
+});
