@@ -56,6 +56,9 @@ const banners = computed(() => updates())
               <SafeMarkdown :value="banner.summary" />
             </div>
           </div>
+          <p v-else-if="banner.kind === 'remote-error'" class="m-0">
+            <strong>The agent could not reach GitHub: {{ banner.message }}</strong> The page shows the last state it read.
+          </p>
           <p v-else-if="banner.kind === 'comments'" class="m-0">
             <strong>{{ plural(banner.count, 'new comment') }}</strong> by {{ banner.authors.map((author: string) => `@${author}`).join(', ') }}.
           </p>

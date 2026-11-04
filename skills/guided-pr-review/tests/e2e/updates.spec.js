@@ -56,6 +56,14 @@ test('merged PR: the banner offers Finish, which sends a finish event', async ({
   await expect(main(page).getByText('The agent asks in the chat whether to delete the review data.')).toBeVisible();
 });
 
+test('a failed check: the banner shows the error until a later check removes it', async ({ page }) => {
+  const review = await openReview(page);
+  review.update((data) => { data.remote.error = 'gh: HTTP 502'; });
+  await expect(main(page).getByText('The agent could not reach GitHub: gh: HTTP 502')).toBeVisible();
+  review.update((data) => { delete data.remote.error; });
+  await expect(main(page).getByText('The agent could not reach GitHub')).toBeHidden();
+});
+
 const loadNewCommits = async (page, review) => {
   review.update((data) => { data.remote.headSha = 'bbb222'; });
   await page.getByRole('button', { name: 'Load the new commits' }).click();

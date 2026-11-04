@@ -27,6 +27,7 @@ export function updates() {
   const loading = load?.status === 'loading'
   if (shown && !loading && (load.status === 'error' || !newer)) banners.push({ kind: 'refreshed', key: `refreshed-${load.eventId}`, ...load })
   else if (loading || newer) banners.push({ kind: 'head', key: 'head', updating: loading, canStartRound: Boolean(postedReview()) })
+  if (remote.error) banners.push({ kind: 'remote-error', key: `remote-error-${remote.error}`, message: remote.error })
   const fresh = newComments()
   if (fresh.length) {
     banners.push({ kind: 'comments', key: `comments-${fresh.length}`, count: fresh.length, authors: [...new Set(fresh.map((comment) => comment.author))] })
