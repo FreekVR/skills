@@ -32,8 +32,8 @@ const itemClass = (current: boolean) => ['w-full items-start gap-2 rounded-md px
   <aside class="flex min-h-0 flex-col border-r border-default bg-elevated dark:bg-elevated/55 max-md:order-3 max-md:border-t max-md:border-r-0" aria-label="Review navigation">
     <div class="border-b border-default px-2 pt-3.5 pb-1.5">
       <div class="mx-2.5 mb-3 grid gap-0.5">
-        <span class="font-mono text-meta text-muted">{{ reviewRef(state.review.pr) }}</span>
-        <span class="line-clamp-2 text-ui leading-snug font-semibold" :title="state.review.pr.title">{{ state.review.pr.title }}</span>
+        <a :href="state.review.pr.url" target="_blank" rel="noopener" class="justify-self-start font-mono text-meta text-info underline-offset-3">{{ reviewRef(state.review.pr) }}</a>
+        <span class="line-clamp-2 text-ui leading-snug font-semibold" :title="state.review.pr.title"><MarkupText :text="state.review.pr.title" /></span>
       </div>
       <UButton color="neutral" variant="ghost" :class="itemClass(state.view.kind === 'home')" :aria-current="state.view.kind === 'home'" @click="goHome()">
         <span class="grid size-6 place-items-center" :class="state.view.kind === 'home' ? 'text-default' : 'text-toned'" aria-hidden="true">

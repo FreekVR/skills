@@ -6,7 +6,7 @@ defineProps<{ help: { ref: string, command: string | null }, lead?: string }>()
 <template>
   <div>
     <p v-if="!help.command" class="m-0">
-      {{ lead }}Ask your agent to resume the guided review of {{ help.ref }}.
+      {{ lead }}Ask your agent to resume the guided review of <MarkupText :text="help.ref" />.
     </p>
     <template v-else>
       <p class="m-0">

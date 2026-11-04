@@ -48,3 +48,12 @@ test('links both commits of what changed since your last review', async ({ page 
   await expect(panel.getByRole('link', { name: '9f8e7d6', exact: true })).toHaveAttribute('href', `${COMMIT}9f8e7d6c5b4a`);
   await expect(panel.getByRole('link', { name: 'aaa111', exact: true })).toHaveAttribute('href', `${COMMIT}aaa111`);
 });
+
+test('links the PR next to its title in the navigation and, on a phone, in the header', async ({ page }) => {
+  await openReview(page);
+  const pr = 'https://github.com/example-org/sample-widget/pull/17';
+  const nav = page.getByRole('complementary', { name: 'Review navigation' });
+  await expect(nav.getByRole('link', { name: 'example-org/sample-widget#17' })).toHaveAttribute('href', pr);
+  await page.setViewportSize({ width: 390, height: 800 });
+  await expect(page.getByRole('banner').getByRole('link', { name: 'example-org/sample-widget#17' })).toHaveAttribute('href', pr);
+});

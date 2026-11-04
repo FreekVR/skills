@@ -154,7 +154,7 @@ useEventListener(document, 'scroll', (event: Event) => {
                 <div class="min-w-0 flex-1">
                   <template v-if="isCurrentReview(review)">
                     <span class="flex flex-wrap items-center gap-x-1.5 font-semibold">
-                      <UIcon name="i-lucide-check" class="size-3.5 text-success" aria-hidden="true" />{{ reviewRef(review) }}{{ review.state === 'open' ? '' : ` · ${review.state}` }}
+                      <UIcon name="i-lucide-check" class="size-3.5 text-success" aria-hidden="true" /><a :href="state.review.pr.url" target="_blank" rel="noopener" class="text-info underline-offset-3">{{ reviewRef(review) }}</a>{{ review.state === 'open' ? '' : ` · ${review.state}` }}
                       <span class="rounded-sm px-1.5 text-tag font-normal text-muted ring-1 ring-accented">this page</span>
                     </span>
                     <span class="block text-muted">{{ review.title }}</span>
@@ -224,7 +224,7 @@ useEventListener(document, 'scroll', (event: Event) => {
     </div>
     <!-- On a phone the rail with the PR's name sits below the page, so the header names the PR. -->
     <p class="compact-hide m-0 truncate px-gutter pt-2 text-label text-muted md:hidden" :class="{ 'pb-3': !line }">
-      <span class="font-mono">{{ reviewRef(state.review.pr) }}</span> · {{ state.review.pr.title }}
+      <a :href="state.review.pr.url" target="_blank" rel="noopener" class="font-mono text-info underline-offset-3">{{ reviewRef(state.review.pr) }}</a> · <MarkupText :text="state.review.pr.title" />
     </p>
 
     <template v-if="line">
