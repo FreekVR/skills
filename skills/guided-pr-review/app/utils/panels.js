@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityRank, severityTone, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { answerFor, buildPost, githubStatus, isFinishing, newComments, openOwnThreads, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsWithoutCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { answerFor, buildPost, githubStatus, isFinishing, newComments, openOwnThreads, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // Each kind of change on GitHub comes with the one action that deals with it.
@@ -86,16 +86,18 @@ export function fixLine(own) {
 }
 
 // Resolve or leave open. The AI's recommendation is the stronger button; a thread left open can get a reply.
+// A resolved thread, of the reviewer or of someone else, can only be unresolved, and then gets a reply.
 export function threadActions(own) {
-  if (own.resolved) return { resolved: true }
   if (!own.threadId) return null
   const call = threadCall(own)
+  if (own.resolved) return { resolved: true, threadId: own.threadId, call, calls: own.canUnresolve !== false ? ['unresolve'] : [], canReply: call === 'unresolve' }
   return {
     resolved: false,
     threadId: own.threadId,
     call,
     suggested: own.fix?.verdict === 'fixed' ? 'resolve' : own.fix?.verdict === 'not-fixed' ? 'open' : null,
-    canResolve: own.canResolve !== false,
+    calls: own.canResolve !== false ? ['resolve', 'open'] : ['open'],
+    canReply: true,
   }
 }
 
@@ -317,7 +319,8 @@ export function threadCallCounts() {
   const threads = openOwnThreads()
   const count = (call) => threads.filter((own) => threadCall(own) === call).length
   const left = threadsWithoutCall().length
-  return `${count('resolve')} to resolve · ${count('open')} left open${left ? ` · ${left} without a decision` : ''}`
+  const unresolve = threadsToUnresolve().length
+  return `${count('resolve')} to resolve · ${count('open')} left open${unresolve ? ` · ${unresolve} to unresolve` : ''}${left ? ` · ${left} without a decision` : ''}`
 }
 
 // Under the reviewer's newest review: their decisions and replies wait for the next review they post.

@@ -33,7 +33,7 @@ You MUST complete these checks in order and mark each one done before you contin
 Read these, and only these. Fetch each PR, issue and ticket once; skip a link to something you already read.
 
 - The PR: title, description, author, head commit, CI checks, and all comments, including bot comments. Also the login of the authenticated GitHub user, for `viewer`.
-- The PR's reviews and review comments, with their threads, also resolved ones. Keep apart the ones by the user (the authenticated GitHub user) and the ones by others. You need each thread's GraphQL ID, `isResolved`, `isOutdated` and `viewerCanResolve`, so read the threads with `gh api graphql` (`pullRequest.reviewThreads`).
+- The PR's reviews and review comments, with their threads, also resolved ones. Keep apart the ones by the user (the authenticated GitHub user) and the ones by others. You need each thread's GraphQL ID, `isResolved`, `isOutdated`, `viewerCanResolve` and `viewerCanUnresolve`, so read the threads with `gh api graphql` (`pullRequest.reviewThreads`).
 - The Jira keys (`ABC-123`) and GitHub issues named in the PR description. For Jira you need a tool that can read Jira. Without one, skip Jira and add that to `context.skipped`.
 - The PRs that those tickets link to.
 - The PRs that the reviewed PR links to directly, also in other repositories.

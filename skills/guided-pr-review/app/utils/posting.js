@@ -49,7 +49,7 @@ export function buildPost(kind) {
   const body = withDisclosure(parts.join('\n\n'), (state.reviewer.summaryAiSuggested || general.some((item) => item.source === 'ai')) && disclosure.review).trim()
   const event = { type: 'post', kind, body, comments }
   // A reply or a resolved thread shows on GitHub at once, so only the final review takes them; a draft stays private.
-  if (kind === 'final') Object.assign(event, { verdict: state.reviewer.verdict || proposedVerdict(), replies: pendingReplies(), resolve: threadsToResolve() })
+  if (kind === 'final') Object.assign(event, { verdict: state.reviewer.verdict || proposedVerdict(), unresolve: threadsToUnresolve().map((thread) => thread.threadId), replies: pendingReplies(), resolve: threadsToResolve() })
   const contents = items.map((item) => ({ id: item.id, body: item.body }))
   if (state.reviewer.summary.trim()) contents.push({ id: 'summary', body: state.reviewer.summary.trim() })
   return { event, contents }
@@ -77,7 +77,12 @@ export function postedOwnRemarks() { return (state.review.ownRemarks || []).filt
 
 // The reviewer's posted comments that are still open on GitHub each need a call: resolve, or leave open.
 export function openOwnThreads() { return postedOwnRemarks().filter((own) => own.threadId && !own.resolved) }
-export function threadCall(own) { return state.reviewer.threadCalls?.[own.threadId] }
+// A call only counts while it fits the thread on GitHub: unresolve for a resolved thread, the others for an open one.
+// After a post, GitHub's new state makes the old call stale, so the thread gets its buttons back.
+export function threadCall(own) {
+  const call = state.reviewer.threadCalls?.[own.threadId]
+  return (call === 'unresolve') === Boolean(own.resolved) ? call : undefined
+}
 export function threadsWithoutCall() { return openOwnThreads().filter((own) => !threadCall(own)) }
 
 // A comment needs the reviewer's look once commits came after it (the agent then wrote a fix check)
@@ -92,8 +97,8 @@ export function checkReasons(own) {
 
 export function needsDecisionLabel(count) { return `${count} ${count === 1 ? 'needs' : 'need'} your decision` }
 
-// A posted comment stands until GitHub shows it resolved or the reviewer chose to resolve it.
-export function standingOwnRemarks() { return postedOwnRemarks().filter((own) => !own.resolved && threadCall(own) !== 'resolve') }
+// A posted comment stands until GitHub shows it resolved or the reviewer chose to resolve it, and again once the reviewer chose to unresolve it.
+export function standingOwnRemarks() { return postedOwnRemarks().filter((own) => (own.resolved ? threadCall(own) === 'unresolve' : threadCall(own) !== 'resolve')) }
 
 export function undecidedLabel() { return plural(hunksWithoutVerdict().length, 'hunk') }
 
@@ -168,12 +173,19 @@ export function startRoundOnNewCommits() {
 
 export function hasOwnReview() { return (state.review.reviews || []).some((review) => review.author === viewerLogin()) }
 
-// The replies with text in any open thread, the reviewer's own and those of others. A reply that is still the AI's draft gets the disclosure.
+// The replies with text in any open thread, the reviewer's own and those of others, and in threads the review unresolves.
+// A reply that is still the AI's draft gets the disclosure.
 export function pendingReplies() {
   const disclosure = state.review.conventions.disclosure || {}
-  return [...openOwnThreads(), ...openReviewComments()].filter((thread) => thread.threadId)
+  return [...openOwnThreads(), ...openReviewComments(), ...threadsToUnresolve()].filter((thread) => thread.threadId)
     .map((thread) => ({ thread, body: (state.reviewer.threadReplies[thread.threadId] || '').trim() })).filter(({ body }) => body)
     .map(({ thread, body }) => ({ threadId: thread.threadId, body: withDisclosure(body, body === thread.fix?.reply?.trim() && disclosure.comment) }))
+}
+
+// The resolved threads, the reviewer's own and those of others, that the reviewer chose to unresolve.
+export function threadsToUnresolve() {
+  return [...postedOwnRemarks(), ...(state.review.reviewComments || [])]
+    .filter((thread) => thread.threadId && thread.resolved && thread.canUnresolve !== false && threadCall(thread) === 'unresolve')
 }
 
 // The reviewer's own open threads they chose to resolve, as thread IDs for the post.

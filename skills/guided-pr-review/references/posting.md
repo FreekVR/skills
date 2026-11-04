@@ -20,9 +20,10 @@ gh api --method POST repos/{owner}/{repo}/pulls/{number}/reviews --input payload
 
 For `kind: final`, answer the threads first, then create the review:
 
-1. Post each of the event's `replies` in its thread, with the GraphQL mutation `addPullRequestReviewThreadReply` (`pullRequestReviewThreadId`, `body`). A reply can be in a thread of someone else.
-2. Resolve each thread in the event's `resolve`, with the GraphQL mutation `resolveReviewThread` (`threadId`). Use `gh api graphql`; the REST API cannot resolve threads.
-3. Create the review as in step 3 above.
-4. Read the reviews and threads again, as for a `check` event, so the Existing reviews tab shows the new state.
+1. Unresolve each thread in the event's `unresolve`, with the GraphQL mutation `unresolveReviewThread` (`threadId`), so the replies go to open threads.
+2. Post each of the event's `replies` in its thread, with the GraphQL mutation `addPullRequestReviewThreadReply` (`pullRequestReviewThreadId`, `body`). A reply can be in a thread of someone else.
+3. Resolve each thread in the event's `resolve`, with the GraphQL mutation `resolveReviewThread` (`threadId`). Use `gh api graphql`; the REST API cannot resolve threads.
+4. Create the review as in step 3 above.
+5. Read the reviews and threads again, as for a `check` event, so the Existing reviews tab shows the new state.
 
 Every entry you add to `posts` MUST have the event's `id` as `eventId`; without it, the review page shows the post as still on its way. On success, add an entry to `posts` with `status: posted`, the review's `html_url` as `url` and its `id` as `reviewId`. If GitHub returns an error, do not retry with changed content. Add the error message to `posts` with `status: error`; the review page shows it to the reviewer.

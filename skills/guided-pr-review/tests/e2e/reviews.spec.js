@@ -263,3 +263,61 @@ test('marks the lines of a comment in the diff only while you point at the comme
   await page.locator('#note-gh-1').hover();
   await expect(marked).toHaveCount(4);
 });
+
+const resolvedReadme = (data) => { data.reviewComments[1].resolved = true; };
+
+test('unresolves a resolved thread, shows the choice in place of the button, and takes it back', async ({ page }) => {
+  const review = await openReview(page, { mutate: resolvedReadme });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'The README does not mention the card.');
+  await thread.locator('summary').click();
+  await thread.getByRole('button', { name: 'Unresolve', exact: true }).click();
+  await expect(thread.getByRole('status').filter({ hasText: 'You unresolve this comment.' })).toBeVisible();
+  await expect(thread.getByText('Resolved · you unresolve it')).toBeVisible();
+  await review.saved((state) => state.threadCalls?.['T-c2'] === 'unresolve');
+  await thread.getByRole('button', { name: 'Change', exact: true }).click();
+  await review.saved((state) => state.threadCalls && !('T-c2' in state.threadCalls));
+  await expect(thread.getByRole('button', { name: 'Unresolve', exact: true })).toBeVisible();
+});
+
+test('offers no Unresolve when GitHub does not allow it', async ({ page }) => {
+  await openReview(page, { mutate: (data) => { resolvedReadme(data); data.reviewComments[1].canUnresolve = false; } });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'The README does not mention the card.');
+  await thread.locator('summary').click();
+  await expect(thread.getByRole('button', { name: 'Unresolve', exact: true })).toBeHidden();
+});
+
+test('sends the threads to unresolve and their replies with the next review', async ({ page }) => {
+  const review = await openReview(page, { mutate: resolvedReadme, reviewer: { threadCalls: { 'T-gh1': 'resolve', 'T-c2': 'unresolve' } } });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'The README does not mention the card.');
+  await thread.locator('summary').click();
+  await thread.getByRole('button', { name: 'Reply', exact: true }).click();
+  await thread.getByRole('textbox', { name: 'Reply in this thread' }).fill('The card needs a line after all.');
+  await review.saved((state) => state.threadReplies?.['T-c2'] === 'The card needs a line after all.');
+  await page.getByRole('main').getByRole('button', { name: 'Submit review' }).click();
+  await page.locator('#term-preview summary').click();
+  await expect(page.getByText("Unresolve @other-reviewer's comment on README.md")).toBeVisible();
+  await page.getByRole('group', { name: 'Verdict' }).getByRole('button', { name: /^Comment/ }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Post new review: comment' }).click();
+  const event = await eventOf(review, 'post');
+  expect(event).toMatchObject({ kind: 'final', unresolve: ['T-c2'], resolve: ['T-gh1'], replies: [{ threadId: 'T-c2', body: 'The card needs a line after all.' }] });
+});
+
+test('ignores a choice to resolve once GitHub shows the thread resolved, and offers Unresolve', async ({ page }) => {
+  await openReview(page, { mutate: (data) => { data.ownRemarks[0].resolved = true; }, reviewer: { threadCalls: { 'T-gh1': 'resolve' } } });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'Is MAX still right?');
+  await thread.locator('summary').click();
+  await expect(thread.getByText('You resolve this comment.')).toBeHidden();
+  await expect(thread.getByRole('button', { name: 'Unresolve', exact: true })).toBeVisible();
+});
+
+test('ignores a choice to unresolve once GitHub shows the thread open, and asks for a decision', async ({ page }) => {
+  await openReview(page, { reviewer: { threadCalls: { 'T-gh1': 'unresolve' } } });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const thread = threadOf(page, 'Is MAX still right?');
+  await expect(thread.getByText('You unresolve this comment.')).toBeHidden();
+  await expect(thread.getByRole('button', { name: 'Resolve', exact: true })).toBeVisible();
+});

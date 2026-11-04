@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // One comment thread of a review on GitHub: where it is, its code, the conversation and what to do with it.
-// `mine` threads get the call to resolve or leave open; threads of others can be copied to the reviewer's own review.
+// `mine` threads get the call to resolve or leave open; threads of others can be copied to the reviewer's own review. Any resolved thread can be unresolved.
 type Comment = {
   id: string, author?: string, body: string, hunkId?: string | null, path?: string, line?: number, side?: string, diffHunk?: string,
-  resolved?: boolean, outdated?: boolean, threadId?: string, canResolve?: boolean,
+  resolved?: boolean, outdated?: boolean, threadId?: string, canResolve?: boolean, canUnresolve?: boolean,
   replies?: { author: string, body: string, at?: string }[], opinion?: { stance?: string, text?: string }, fix?: { verdict: string, note?: string, reply?: string },
 }
 const props = defineProps<{ comment: Comment, mine: boolean }>()
@@ -46,7 +46,7 @@ const reasons = computed(() => (props.mine && !props.comment.resolved && !thread
           <FlowBullet :line="station.line" class="size-5! text-tag!" />
         </UButton>
       </span>
-      <span v-if="comment.resolved" class="text-meta font-semibold">Resolved</span>
+      <span v-if="comment.resolved" class="text-meta font-semibold">{{ threadCall(comment) === 'unresolve' ? 'Resolved · you unresolve it' : 'Resolved' }}</span>
     </component>
     <ThreadCode :comment="comment" />
     <CommentConversation :comment="comment">
@@ -54,8 +54,8 @@ const reasons = computed(() => (props.mine && !props.comment.resolved && !thread
         <OpinionLine v-if="!comment.resolved" :opinion="comment.opinion" :own="mine" />
       </template>
     </CommentConversation>
-    <ThreadActions v-if="mine" :own="comment" />
-    <div v-else class="mt-2 flex flex-wrap items-center gap-1.5">
+    <ThreadActions v-if="mine || comment.resolved" :own="comment" />
+    <div v-if="!mine" class="mt-2 flex flex-wrap items-center gap-1.5">
       <span v-if="copied" class="text-meta text-dimmed">Copied to your review</span>
       <UButton v-else color="neutral" variant="ghost" size="sm" class="text-toned" @click="copyComment(comment)">
         Copy to my review

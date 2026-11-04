@@ -231,6 +231,7 @@ test('a draft resolves nothing and posts no replies', async ({ page }) => {
   const event = await eventOf(review, 'post');
   expect(event.kind).toBe('draft');
   expect(event.resolve).toBeUndefined();
+  expect(event.unresolve).toBeUndefined();
   expect(event.replies).toBeUndefined();
 });
 
