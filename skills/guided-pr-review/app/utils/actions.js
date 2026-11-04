@@ -88,6 +88,15 @@ export async function setPaused(review, paused) {
   if (!paused && isCurrentReview(review)) deliver({ type: 'check' }).catch(() => {})
 }
 
+// Resume the agent of the open review. The page's own flag and the switch's entry for this review both follow once the server accepts it.
+export async function resumeAgent() {
+  const { owner, repo, number } = state.review.pr
+  const entry = (state.reviews || []).find(isCurrentReview)
+  const review = entry || { owner, repo, number, paused: true }
+  await setPaused(review, false)
+  if (!review.paused && state.agent) state.agent.paused = false
+}
+
 // Open or close the list of open reviews.
 export function toggleSwitcher(open) {
   if (open === Boolean(state.ui.switcherOpen)) return

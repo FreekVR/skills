@@ -70,9 +70,7 @@ const content = {
               <UButton color="neutral" variant="ghost" class="text-toned" @click="turnIntoRemark(asked.id)">Turn into a remark</UButton>
             </div>
           </template>
-          <span v-else class="inline-flex items-center gap-2 text-label text-muted">
-            <span class="size-2 motion-safe:animate-pulse rounded-full bg-warning" aria-hidden="true" />Waiting for the agent…
-          </span>
+          <AgentPending v-else text="Waiting for the agent…" />
         </div>
         <UTextarea v-model="question" aria-label="Question about this hunk" placeholder="For example: why is the cache keyed by city?" :rows="3" autoresize autofocus class="w-full" />
         <div class="mt-2 flex flex-wrap items-center gap-2">

@@ -196,10 +196,13 @@ function readWaiting(dir) {
   return readJson(path.join(dir, 'waiting'));
 }
 
-// Whether an agent watches this review, whether the reviewer paused it, and the question the agent waits on.
+// Whether an agent watches this review, whether the reviewer paused it, the question the agent waits on,
+// and the session to resume when no agent runs.
 function agentStatus(dir) {
-  const watcherPid = readJson(path.join(dir, 'session.json'))?.watcherPid;
+  const session = readJson(path.join(dir, 'session.json'));
+  const watcherPid = session?.watcherPid;
   return {
+    session: session ? { sessionId: session.sessionId || null, cwd: session.cwd || null } : null,
     connected: Boolean(watcherPid && isRunning(watcherPid)),
     paused: fs.existsSync(path.join(dir, 'paused')),
     waiting: readWaiting(dir),

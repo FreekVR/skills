@@ -245,9 +245,10 @@ function stackRoot(t) {
 test('agentStatus reports a live agent, a dead one, a pause and a waiting question', (t) => {
   const { dirOf: dir, write } = stackRoot(t);
   write(1, 'review.json', {});
-  assert.deepStrictEqual(agentStatus(dir(1)), { connected: false, paused: false, waiting: null });
-  write(2, 'session.json', { watcherPid: process.pid });
+  assert.deepStrictEqual(agentStatus(dir(1)), { session: null, connected: false, paused: false, waiting: null });
+  write(2, 'session.json', { sessionId: 'sample-session', cwd: '/sample/dir', watcherPid: process.pid });
   assert.strictEqual(agentStatus(dir(2)).connected, true);
+  assert.deepStrictEqual(agentStatus(dir(2)).session, { sessionId: 'sample-session', cwd: '/sample/dir' });
   const dead = spawnSync(process.execPath, ['-e', '']);
   write(3, 'session.json', { watcherPid: dead.pid });
   assert.strictEqual(agentStatus(dir(3)).connected, false);

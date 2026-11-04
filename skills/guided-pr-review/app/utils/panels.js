@@ -15,7 +15,7 @@ export function updates() {
     const { owner, repo, number } = state.review.pr
     banners.push({ kind: 'offline', key: 'offline', resume: resumeHelp(current || { owner, repo, number }) })
   }
-  if (current?.paused) banners.push({ kind: 'paused', key: 'paused', review: current })
+  if (state.agent?.paused) banners.push({ kind: 'paused', key: 'paused' })
   if (remote.state === 'merged' || remote.state === 'closed') {
     banners.push({ kind: 'state', key: `state-${remote.state}`, state: remote.state, finishing: isFinishing() })
   }

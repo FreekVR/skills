@@ -1,5 +1,6 @@
 import { state, VERDICTS, REVIEW_EVENTS } from './state.js'
 import { acceptedItems, hunkById, openReviewComments, plural, severityRank, verdictOf, viewerLogin } from './review.js'
+import { refreshState } from './panels.js'
 import { saveReviewer } from './actions.js'
 
 // Posting replaces the user's pending GitHub review, so its remarks and body must be in the page first.
@@ -138,6 +139,34 @@ export function newComments() {
 
 export function sentEvents(type, hunkId) {
   return state.reviewer.sent.filter((event) => event.type === type && (hunkId === undefined || event.hunkId === hunkId))
+}
+
+// Events the agent answers, and how the page sees the answer: the sent events of these types wait until it does.
+const ANSWERED = {
+  ask: (sent) => answerFor(sent.id),
+  summarize: (sent) => answerFor(sent.id),
+  // A hunk that is not in the review has nothing to explain, so the request counts as answered.
+  explain: (sent) => { const hunk = hunkById(sent.hunkId); return !hunk || hunk.explanationMore },
+  post: (sent) => postFor(sent.id),
+  // Waits by the rule of the banner: only the last refresh, and only while GitHub has newer commits.
+  refresh: (sent) => { const load = refreshState(); return load?.status !== 'loading' || load.eventId !== sent.id },
+  // Waits until the other PR's review exists. When the stack falls apart or the agent refuses the start, the count keeps it
+  // until the reviewer starts a new round or the PR's review appears.
+  'start-review': (sent) => state.stackStatus.some((status) => status.number === sent.number && status.hasReview),
+}
+
+// Get the sent events that still wait for the agent's answer.
+export function waitingRequests() {
+  return state.reviewer.sent
+    .filter((sent) => ANSWERED[sent.type] && !ANSWERED[sent.type](sent))
+    .map((sent) => ({ id: sent.id, type: sent.type, hunkId: sent.hunkId }))
+}
+
+// Get what the agent of this review does. It counts as working until the page has an answer, so the page does not flash "No agent" on boot.
+export function agentState() {
+  if (!state.agent) return 'working'
+  if (!state.agent.connected) return 'none'
+  return state.agent.paused ? 'paused' : 'working'
 }
 
 export function answerFor(eventId) { return (state.review.answers || []).find((answer) => answer.eventId === eventId) }
