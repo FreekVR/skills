@@ -8,7 +8,7 @@ const os = require('os');
 const path = require('path');
 const { parseDiff, mergeHunks, checkFlows } = require('../scripts/review-data.js');
 const { execFileSync, spawnSync } = require('child_process');
-const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting } = require('../scripts/reviews.js');
+const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus } = require('../scripts/reviews.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
 index 1111111..2222222 100644
@@ -241,6 +241,22 @@ function stackRoot(t) {
   };
   return { root, dirOf, write };
 }
+
+test('agentStatus reports a live agent, a dead one, a pause and a waiting question', (t) => {
+  const { dirOf: dir, write } = stackRoot(t);
+  write(1, 'review.json', {});
+  assert.deepStrictEqual(agentStatus(dir(1)), { connected: false, paused: false, waiting: null });
+  write(2, 'session.json', { watcherPid: process.pid });
+  assert.strictEqual(agentStatus(dir(2)).connected, true);
+  const dead = spawnSync(process.execPath, ['-e', '']);
+  write(3, 'session.json', { watcherPid: dead.pid });
+  assert.strictEqual(agentStatus(dir(3)).connected, false);
+  write(4, 'paused', '');
+  assert.strictEqual(agentStatus(dir(4)).paused, true);
+  write(5, 'review.json', {});
+  setWaiting([dir(5)], 'Which angles?');
+  assert.strictEqual(agentStatus(dir(5)).waiting.question, 'Which angles?');
+});
 
 test("stackStatus reports each PR's review directory", (t) => {
   const { root, write } = stackRoot(t);

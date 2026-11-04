@@ -3,7 +3,7 @@ import path from 'node:path'
 import type { H3Event } from 'h3'
 import { reviewDir } from '../../scripts/reviews.js'
 
-export { writeAtomic, changedFile, revealInFolder, stackStatus, readWaiting } from '../../scripts/reviews.js'
+export { writeAtomic, changedFile, revealInFolder, stackStatus, agentStatus } from '../../scripts/reviews.js'
 
 const NAME = /^[\w.-]+$/
 

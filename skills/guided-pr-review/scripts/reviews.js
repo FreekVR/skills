@@ -106,13 +106,14 @@ function listReviews(root = stateRoot()) {
         const review = readJson(path.join(dir, 'review.json'));
         if (!review) continue;
         const session = readJson(path.join(dir, 'session.json'));
+        const { connected, paused } = agentStatus(dir);
         reviews.push({
           owner, repo, number: Number(number), dir,
           title: review.pr?.title || '',
           state: review.remote?.state || 'open',
           session,
-          agentConnected: Boolean(session?.watcherPid && isRunning(session.watcherPid)),
-          paused: fs.existsSync(path.join(dir, 'paused')),
+          agentConnected: connected,
+          paused,
         });
       }
     }
@@ -195,4 +196,14 @@ function readWaiting(dir) {
   return readJson(path.join(dir, 'waiting'));
 }
 
-module.exports = { stackStatus, setWaiting, readWaiting, stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };
+// Whether an agent watches this review, whether the reviewer paused it, and the question the agent waits on.
+function agentStatus(dir) {
+  const watcherPid = readJson(path.join(dir, 'session.json'))?.watcherPid;
+  return {
+    connected: Boolean(watcherPid && isRunning(watcherPid)),
+    paused: fs.existsSync(path.join(dir, 'paused')),
+    waiting: readWaiting(dir),
+  };
+}
+
+module.exports = { stackStatus, setWaiting, readWaiting, agentStatus, stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };

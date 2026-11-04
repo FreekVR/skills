@@ -11,6 +11,7 @@ export const state = reactive({
   freshHunks: new Set(),
   seen: new Set(),
   reviews: null,
+  agent: null,
   waiting: null,
   stackStatus: [],
   offline: false,

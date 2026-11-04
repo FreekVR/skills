@@ -17,9 +17,9 @@ import 'path';
 import 'child_process';
 import 'node:url';
 
-const waiting_get = defineEventHandler((event) => {
+const agent_get = defineEventHandler((event) => {
   setResponseHeader(event, "Content-Type", "application/json");
-  return JSON.stringify(reviews.readWaiting(reviewDirOf(event)));
+  return JSON.stringify(reviews.agentStatus(reviewDirOf(event)));
 });
 
-export { waiting_get as default };
+export { agent_get as default };

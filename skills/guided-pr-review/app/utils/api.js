@@ -20,9 +20,9 @@ export const transport = {
   loadReviewer() {
     return $fetch(`${base}/reviewer`)
   },
-  // The question the agent waits on, as { question, since }, or null.
-  loadWaiting() {
-    return $fetch(`${base}/waiting`)
+  // Whether an agent watches the review, whether it is paused, and the question it waits on.
+  loadAgent() {
+    return $fetch(`${base}/agent`)
   },
   // The review state of each PR in this review's stack.
   loadStack() {

@@ -363,6 +363,12 @@ export function showInFolder(file) {
   return transport.openFolder(file).catch((error) => notify(`Cannot open the folder: ${error.message}`, true))
 }
 
+// Keep the agent status, and the question it waits on, as the overlay reads it.
+function setAgent(agent) {
+  state.agent = agent
+  state.waiting = agent?.waiting ?? null
+}
+
 // Load review.json again every few seconds, so the agent's changes show up.
 export async function poll() {
   try {
@@ -381,7 +387,7 @@ export async function poll() {
       markCurrentSeen()
     }
     // The overlay and the stack switch are optional: when a call fails, the page keeps what it had.
-    await Promise.all([transport.loadWaiting().then((waiting) => { state.waiting = waiting }, () => {}), loadStack()])
+    await Promise.all([transport.loadAgent().then(setAgent, () => {}), loadStack()])
     if (state.offline) state.offline = false
   } catch (error) {
     if (!error.serverGone) notify(`Cannot reach the agent: ${error.message}`, true)
@@ -401,9 +407,9 @@ export function stopPolling() {
 export async function boot() {
   stopPolling()
   try {
-    const [review, reviewer, waiting] = await Promise.all([transport.loadReview(), transport.loadReviewer(), transport.loadWaiting().catch(() => null)])
+    const [review, reviewer, agent] = await Promise.all([transport.loadReview(), transport.loadReviewer(), transport.loadAgent().catch(() => null)])
     setReview(review)
-    state.waiting = waiting
+    setAgent(agent)
     state.reviewer = { ...emptyReviewer(), ...reviewer }
     state.seen = new Set(state.reviewer.seen)
     noteFreshHunks()

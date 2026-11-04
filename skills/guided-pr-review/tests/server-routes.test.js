@@ -110,8 +110,12 @@ test('stack lists the review state of each PR in the stack, or nothing without a
   assert.deepStrictEqual(status.map((entry) => [entry.number, entry.page]), [[7, '/acme/shop/7'], [8, '/acme/shop/8']]);
 });
 
-test('waiting gives the open question of the agent, or null', async () => {
-  assert.strictEqual(await (await fetch(`${base}/7/waiting`)).json(), null);
+test('agent gives the connection, the pause and the open question of the agent', async (t) => {
+  t.after(() => { for (const file of ['waiting', 'session.json', 'paused']) fs.rmSync(path.join(small, file), { force: true }) });
+  assert.deepStrictEqual(await (await fetch(`${base}/7/agent`)).json(), { connected: false, paused: false, waiting: null });
   fs.writeFileSync(path.join(small, 'waiting'), JSON.stringify({ question: 'Which angles?', since: '2026-01-01T00:00:00.000Z' }));
-  assert.strictEqual((await (await fetch(`${base}/7/waiting`)).json()).question, 'Which angles?');
+  fs.writeFileSync(path.join(small, 'session.json'), JSON.stringify({ watcherPid: process.pid }));
+  fs.writeFileSync(path.join(small, 'paused'), '');
+  const status = await (await fetch(`${base}/7/agent`)).json();
+  assert.deepStrictEqual([status.connected, status.paused, status.waiting.question], [true, true, 'Which angles?']);
 });

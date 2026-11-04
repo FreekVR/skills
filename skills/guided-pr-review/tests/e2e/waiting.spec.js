@@ -26,20 +26,20 @@ test('the reviewer can close the overlay, and a new question opens it again', as
   await overlay(page).getByRole('button', { name: 'Read the review meanwhile' }).click();
   await expect(overlay(page)).toBeHidden();
   // The same question stays closed through the next polls.
-  await page.waitForResponse((response) => response.url().endsWith('/waiting'));
+  await page.waitForResponse((response) => response.url().endsWith('/agent'));
   await expect(overlay(page)).toBeHidden();
   wait(review, '2026-11-04T10:05:00Z');
   await expect(overlay(page)).toBeVisible();
 });
 
 test('the page works when the waiting request fails', async ({ page }) => {
-  await page.route('**/waiting', (route) => route.fulfill({ status: 500 }));
-  const failed = page.waitForResponse((response) => response.url().endsWith('/waiting'));
+  await page.route('**/agent', (route) => route.fulfill({ status: 500 }));
+  const failed = page.waitForResponse((response) => response.url().endsWith('/agent'));
   await openReview(page);
   await failed;
   await expect(page.getByRole('main')).toBeVisible();
   await expect(overlay(page)).toBeHidden();
   // A second failing poll shows no notice either.
-  await page.waitForResponse((response) => response.url().endsWith('/waiting'));
+  await page.waitForResponse((response) => response.url().endsWith('/agent'));
   await expect(page.getByText('Cannot reach the agent')).toBeHidden();
 });
