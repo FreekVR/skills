@@ -190,6 +190,16 @@ test('sends the replies with the final review, and shows them in the preview', a
   expect(event.replies).toEqual([{ threadId: 'T-c1', body: 'Fine for now.' }]);
 });
 
+test('offers Finish again after a review posted in a later session than an earlier finish', async ({ page }) => {
+  const review = await openSubmit(page, { reviewer: { sent: [{ id: 'old-finish', type: 'finish' }] } });
+  await verdictButton(page, /^Approve/).click();
+  await page.getByRole('main').getByRole('button', { name: 'Post new review: approve' }).click();
+  const event = await eventOf(review, 'post');
+  review.update((data) => data.posts.push({ eventId: event.id, kind: 'final', status: 'posted', message: 'ok', url: 'https://github.com/example-org/sample-widget/pull/17#pullrequestreview-10', reviewId: 10 }));
+  await expect(page.getByRole('heading', { name: 'Approved' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Finish for now' })).toBeVisible();
+});
+
 test('shows the posted state after the final review is posted', async ({ page }) => {
   const review = await openSubmit(page);
   await verdictButton(page, /^Approve/).click();

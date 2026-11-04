@@ -139,7 +139,8 @@ export function postedReview() {
   return last && last.id !== state.reviewer.reopenedAfter ? last : null
 }
 
-export function isFinishing() { return sentEvents('finish').length > 0 }
+// A finish ends the agent's session. Any event the page sent after it belongs to a later session, so Finish is offered again.
+export function isFinishing() { return state.reviewer.sent.at(-1)?.type === 'finish' }
 
 export function postedInEarlierRound(id) {
   return postedFinals().some((sent) => (sent.contents || []).some((content) => content.id === id))
