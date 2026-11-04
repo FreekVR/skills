@@ -40,6 +40,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const os = require('os');
 const { execFileSync } = require('child_process');
 const { fromGitHubStack, fromBranches } = require('./stack.js');
 const { ownDiff } = require('./own-diff.js');
@@ -48,7 +49,37 @@ const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, li
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
+// Ask Git for the path of every file in the diff, in order. Git unquotes paths with spaces, quotes and
+// non-ASCII characters. `git apply` lists only the new path of a rename, so a second run on the reversed
+// diff gives the old one. Returns null when Git is missing or fails, or lists another number of files.
+function gitPaths(text, expected) {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-'));
+  try {
+    const list = (reverse) => {
+      const args = ['apply', ...(reverse ? ['-R'] : []), '--numstat', '-z'];
+      const out = execFileSync('git', args, { cwd, input: text, encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] });
+      const parts = out.split('\0');
+      parts.pop();
+      // Each file is `added\tdeleted\tpath`, and Git ends the path with the NUL.
+      const files = parts.map((entry) => entry.split('\t').slice(2).join('\t'));
+      // The reversed diff lists its files in reverse order.
+      return reverse ? files.reverse() : files;
+    };
+    const paths = list(false);
+    const oldPaths = list(true);
+    return paths.length === expected && oldPaths.length === expected ? { paths, oldPaths } : null;
+  } catch {
+    return null;
+  } finally {
+    fs.rmSync(cwd, { recursive: true, force: true });
+  }
+}
+
 function parseDiff(text, whole = new Set()) {
+  const blocks = text.split('\n').filter((line) => line.startsWith('diff --git ')).length;
+  const git = blocks ? gitPaths(text, blocks) : null;
+  if (blocks && !git) process.stderr.write('warning: git could not list the diff paths, using the diff headers\n');
+  let blockIndex = 0;
   const hunks = [];
   let file = null;
   let current = null;
@@ -64,7 +95,11 @@ function parseDiff(text, whole = new Set()) {
     if (line.startsWith('diff --git ')) {
       finishFile();
       const match = line.match(/^diff --git a\/(.+) b\/(.+)$/);
-      file = { oldPath: match[1], path: match[2], status: 'modified', hasHunks: false, binary: false };
+      // A quoted header does not match; the fallback then keeps the raw header text as the file name.
+      const [oldPath, newPath] = git ? [git.oldPaths[blockIndex], git.paths[blockIndex]]
+        : match ? [match[1], match[2]] : [line.slice('diff --git '.length), line.slice('diff --git '.length)];
+      blockIndex++;
+      file = { oldPath, path: newPath, status: 'modified', hasHunks: false, binary: false };
       current = null;
     } else if (!file) {
       continue;

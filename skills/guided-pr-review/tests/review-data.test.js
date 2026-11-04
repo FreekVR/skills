@@ -44,6 +44,71 @@ test('parseDiff returns one entry per hunk with line ranges', () => {
   assert.deepStrictEqual(cache[1].lines, ["+  log('evicted');", '   return;']);
 });
 
+// `name` is the path as Git writes it in the --- and +++ lines.
+const pathDiff = (header, name) => `${header}
+--- ${name.replace(/^/, 'a/')}
++++ ${name.replace(/^/, 'b/')}
+@@ -1 +1 @@
+-a
++b
+`;
+
+test('parseDiff reads a path with a space', () => {
+  const [hunk] = parseDiff(pathDiff('diff --git a/my docs/read me.md b/my docs/read me.md', 'my docs/read me.md'));
+  assert.strictEqual(hunk.file, 'my docs/read me.md');
+  assert.strictEqual(hunk.oldFile, 'my docs/read me.md');
+});
+
+test('parseDiff reads a path with a double quote, which Git writes quoted', () => {
+  const [hunk] = parseDiff(pathDiff('diff --git "a/x \\"y\\".txt" "b/x \\"y\\".txt"', 'x "y".txt'));
+  assert.strictEqual(hunk.file, 'x "y".txt');
+  assert.strictEqual(hunk.oldFile, 'x "y".txt');
+});
+
+test('parseDiff reads a rename with a space and keeps the old path', () => {
+  const [hunk] = parseDiff('diff --git a/old name.txt b/new name.txt\nsimilarity index 100%\nrename from old name.txt\nrename to new name.txt\n');
+  assert.strictEqual(hunk.status, 'renamed');
+  assert.strictEqual(hunk.file, 'new name.txt');
+  assert.strictEqual(hunk.oldFile, 'old name.txt');
+});
+
+test('parseDiff maps each file block to its own path', () => {
+  const diff = pathDiff('diff --git a/a b.txt b/a b.txt', 'a b.txt') + pathDiff('diff --git a/c.txt b/c.txt', 'c.txt');
+  assert.deepStrictEqual(parseDiff(diff).map((hunk) => hunk.file), ['a b.txt', 'c.txt']);
+});
+
+test('parseDiff gives the old path of each file in a diff with an add, a rename and a delete', () => {
+  const diff = [
+    'diff --git a/add.txt b/add.txt', 'new file mode 100644', '--- /dev/null', '+++ b/add.txt', '@@ -0,0 +1 @@', '+x',
+    'diff --git a/old name.txt b/new name.txt', 'similarity index 100%', 'rename from old name.txt', 'rename to new name.txt',
+    'diff --git a/del.txt b/del.txt', 'deleted file mode 100644', '--- a/del.txt', '+++ /dev/null', '@@ -1 +0,0 @@', '-x',
+    '',
+  ].join('\n');
+  assert.deepStrictEqual(
+    parseDiff(diff).map((hunk) => [hunk.file, hunk.oldFile]),
+    [['add.txt', 'add.txt'], ['new name.txt', 'old name.txt'], ['del.txt', 'del.txt']],
+  );
+});
+
+test('parseDiff keeps a quoted header as the file name when git is missing, and does not throw', () => {
+  const header = 'diff --git "a/x \\"y\\".txt" "b/x \\"y\\".txt"';
+  const script = `const { parseDiff } = require(${JSON.stringify(path.join(__dirname, '../scripts/review-data.js'))});
+    console.log(JSON.stringify(parseDiff(${JSON.stringify(pathDiff(header, 'x "y".txt'))}).map((h) => h.file)));`;
+  const result = spawnSync(process.execPath, ['-e', script], { env: { PATH: '' }, encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.strictEqual(JSON.parse(result.stdout).length, 1);
+  assert.match(result.stderr, /warning: git could not list the diff paths/);
+});
+
+test('parseDiff falls back to the diff headers, with a warning, when git is missing', () => {
+  const script = `const { parseDiff } = require(${JSON.stringify(path.join(__dirname, '../scripts/review-data.js'))});
+    console.log(JSON.stringify(parseDiff(${JSON.stringify(pathDiff('diff --git a/src/a.txt b/src/a.txt', 'src/a.txt'))}).map((h) => h.file)));`;
+  const result = spawnSync(process.execPath, ['-e', script], { env: { PATH: '' }, encoding: 'utf8' });
+  assert.strictEqual(result.status, 0, result.stderr);
+  assert.deepStrictEqual(JSON.parse(result.stdout), ['src/a.txt']);
+  assert.match(result.stderr, /warning: git could not list the diff paths/);
+});
+
 test('parseDiff joins the hunks of a file passed as whole into one hunk, with a header line at each gap', () => {
   const hunks = parseDiff(DIFF, new Set(['src/cache.ts']));
   const cache = hunks.filter((hunk) => hunk.file === 'src/cache.ts');
