@@ -37,6 +37,8 @@ const stops = computed(() => {
 const reviews = computed(() => [...(state.reviews || [])].sort((a, b) => Number(isCurrentReview(b)) - Number(isCurrentReview(a))))
 const switcherOpen = computed({ get: () => Boolean(state.ui.switcherOpen), set: toggleSwitcher })
 const draftCount = computed(() => localCount())
+const waitingCount = computed(() => waitingRequests().length)
+const AGENT_TEXT_COLORS: Record<string, string> = { working: 'text-muted', paused: 'text-warning', none: 'text-warning' }
 const draftLabel = computed(() => (draftCount.value ? `Post as draft. ${plural(draftCount.value, 'remark')} not on GitHub yet.` : 'Post as draft'))
 const theme = computed(() => state.reviewer.theme || 'system')
 
@@ -140,6 +142,9 @@ useEventListener(document, 'scroll', (event: Event) => {
 
       <div class="flex shrink-0 items-center gap-2 max-md:min-w-0 max-md:shrink max-md:flex-wrap">
         <StackSwitch v-if="hasStack()" />
+        <span v-if="waitingCount" class="text-label" :class="AGENT_TEXT_COLORS[agentState()]">
+          {{ waitingCount === 1 ? '1 request waits for the agent' : `${waitingCount} requests wait for the agent` }}
+        </span>
         <UPopover v-if="reviews.length" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
           <UButton color="neutral" variant="outline" class="font-semibold" :label="plural(reviews.length, 'session')" :aria-label="`${plural(reviews.length, 'session')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
           <template #content>
