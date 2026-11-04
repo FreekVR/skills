@@ -10,7 +10,9 @@ The review page, the review server and the agent share these files in the review
 | `session.json` | agent, through `review-data.js watch` | review server | The agent session that runs the review, and its watch process |
 | `paused` | review server | the watch, review server | Empty; exists while the reviewer has paused the agent |
 | `waiting` | agent, through `review-data.js waiting` and `answered` | review page | `{ "question", "since" }`; exists while the agent waits for the user's answer in the chat |
-| `preparing` | agent | review page | Empty; exists while the agent prepares the review of a PR after `start-review` |
+| `preparing` | agent, through `review-data.js preparing` and `prepared` | review page | `{ "step", "since" }`; exists while the agent still works on a review whose page can be open, for example after `start-review`. `step` is what the agent does now. An empty file also counts, without a step |
+
+`node scripts/review-data.js preparing <review-dir> "<step>"` writes `preparing` and shows the banner "The agent is still preparing this review." with the step in the review page. Run it again with the next step. `node scripts/review-data.js prepared <review-dir>` removes the file and the banner. Both exit with code 2 and print the usage on a missing directory or an empty step.
 
 Only the writer in the table MAY write a file. The review page reloads `review.json` every few seconds, so the agent's changes show up without a page reload.
 
@@ -60,7 +62,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   "notInAnyFlow": [],
   "findings": [
     { "id": "f1", "hunkId": "3f2a9c1d0b7e", "line": 1, "side": "RIGHT", "severity": "major",
-      "title": "<one line>", "body": "<the comment text as it will be posted>", "rule": "<which review rule found it>" }
+      "title": "<one line>", "body": "<the comment text as it will be posted>", "rule": "<which review rule found it; acceptance-criteria for an unmet criterion>" }
   ],
   "viewer": { "login": "<login of the authenticated GitHub user>" },
   "reviews": [
@@ -110,7 +112,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - `remote` is what the agent found on GitHub at the last `check`. `state` is `open`, `closed` or `merged`. When `remote.headSha` differs from `pr.headSha`, the review page offers to load the new commits.
 - `refreshes` has one entry per `refresh` event, with its `eventId`. `status` is `done` or `error`; for `error`, `message` says what failed. `from` and `to` are the head commit before and after; they are the same when there were no new commits. Until the entry is there, the review page says that the agent is loading the new commits; after it, the page shows the result and how many hunks are new, changed or gone.
 - `changesSince` says what changed in the code since the user's last review: one paragraph or at most 7 bullets, in markdown. `from` is the commit of the user's newest submitted review (`commitId`), or the previous `pr.headSha` when the user has none; `to` is the current `pr.headSha`. The review page shows it on Home and with the result of a `refresh`, only while `to` is `pr.headSha`.
-- A finding with `hunkId: null` is about the whole PR, for example a missing acceptance criterion. It goes in the review body.
+- A finding with `hunkId: null` is about the whole PR, for example a missing acceptance criterion. It goes in the review body. Each `not-met` criterion has exactly one: `rule` `acceptance-criteria`, the criterion ID at the start of `title`. `check` reports a `not-met` criterion without it, and such a finding for a criterion that is not `not-met`.
 - `line` and `side` follow GitHub review comments: `side` is `RIGHT` for added and context lines, `LEFT` for removed lines. A finding or remark on several lines also has `startLine` and `startSide` for its first line; in a `post` event these become `start_line` and `start_side`.
 
 ## reviewer.json

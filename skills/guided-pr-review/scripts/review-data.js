@@ -14,6 +14,9 @@
 //   node review-data.js waiting <question> <review-dir>...
 //                                                        Show the question the agent waits on in each review page.
 //   node review-data.js answered <review-dir>...         Remove that question from each review page.
+//   node review-data.js preparing <review-dir> "<step>"  Show in the review page that the agent still prepares the review,
+//                                                        and what it does now.
+//   node review-data.js prepared <review-dir>            Remove that notice from the review page.
 //   node review-data.js list                             Print the reviews that are not deleted, with their page URL
 //                                                        while the review server runs.
 //   node review-data.js watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart]
@@ -38,7 +41,7 @@ const { execFileSync } = require('child_process');
 const { fromGitHubStack, fromBranches } = require('./stack.js');
 const { ownDiff } = require('./own-diff.js');
 
-const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews, setWaiting } = require('./reviews.js');
+const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews, setWaiting, setPreparing } = require('./reviews.js');
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
@@ -150,6 +153,26 @@ function checkStack(review) {
   return problems;
 }
 
+// A criterion that is not met needs one finding for the whole PR; a finding for any other verdict is stale.
+function checkCriteria(review) {
+  const verdicts = new Map();
+  for (const ticket of review.context?.tickets || []) {
+    for (const criterion of ticket.acceptanceCriteria || []) verdicts.set(criterion.id, criterion.verdict);
+  }
+  const findings = (review.findings || []).filter((finding) => finding.rule === 'acceptance-criteria' && finding.hunkId == null);
+  // The ID must end at a non-alphanumeric character, so WX-42#1 does not match a title that starts with WX-42#10.
+  const idOf = (finding) => [...verdicts.keys()].find((id) => new RegExp(`^${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![A-Za-z0-9])`).test(String(finding.title)));
+  const problems = [];
+  for (const [id, verdict] of verdicts) {
+    if (verdict === 'not-met' && !findings.some((finding) => idOf(finding) === id)) problems.push(`${id} is not met but has no finding for the whole PR`);
+  }
+  for (const finding of findings) {
+    const id = idOf(finding);
+    if (id && verdicts.get(id) !== 'not-met') problems.push(`${id} has a finding but is ${verdicts.get(id)}`);
+  }
+  return problems;
+}
+
 function checkFlows(review) {
   const hunkIds = new Set(review.hunks.map((hunk) => hunk.id));
   const placed = new Set(review.notInAnyFlow || []);
@@ -162,6 +185,7 @@ function checkFlows(review) {
   }
   return {
     stack: checkStack(review),
+    criteria: checkCriteria(review),
     missing: [...hunkIds].filter((id) => !placed.has(id)),
     unknown: [...placed].filter((id) => !hunkIds.has(id)),
     withoutWhy,
@@ -216,12 +240,13 @@ function main([command, ...args]) {
   }
   if (command === 'check' && args.length === 1) {
     const [reviewFile] = args;
-    const { missing, unknown, withoutWhy, stack } = checkFlows(JSON.parse(fs.readFileSync(reviewFile, 'utf8')));
+    const { missing, unknown, withoutWhy, stack, criteria } = checkFlows(JSON.parse(fs.readFileSync(reviewFile, 'utf8')));
     missing.forEach((id) => console.log(`missing: ${id} is not in any flow and not in notInAnyFlow`));
     unknown.forEach((id) => console.log(`unknown: ${id} is not a hunk of this PR`));
     withoutWhy.forEach((step) => console.log(`no why: step ${step} does not say why it comes there`));
     stack.forEach((problem) => console.log(`stack: ${problem}`));
-    if (missing.length || unknown.length || withoutWhy.length || stack.length) {
+    criteria.forEach((problem) => console.log(`criteria: ${problem}`));
+    if (missing.length || unknown.length || withoutWhy.length || stack.length || criteria.length) {
       return 1;
     }
     console.log('ok: every hunk is placed');
@@ -264,6 +289,14 @@ function main([command, ...args]) {
     setWaiting(args, null);
     return 0;
   }
+  if (command === 'preparing' && args.length === 2 && args[1].trim() && fs.existsSync(args[0])) {
+    setPreparing(args[0], args[1]);
+    return 0;
+  }
+  if (command === 'prepared' && args.length === 1 && fs.existsSync(args[0])) {
+    setPreparing(args[0], null);
+    return 0;
+  }
   if (command === 'list' && args.length === 0) {
     const server = readJson(path.join(stateRoot(), 'server.json'));
     const base = server && isRunning(server.pid) ? server.url : null;
@@ -273,7 +306,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart] | waiting <question> <review-dir>... | answered <review-dir>... | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
   return 2;
 }
 

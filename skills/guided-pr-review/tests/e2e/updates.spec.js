@@ -111,3 +111,27 @@ test('home shows what changed since your last review, for the commit on this pag
   review.update((data) => { data.changesSince.to = 'an-older-commit'; });
   await expect(panel).toBeHidden();
 });
+
+const preparing = (review, content) => fs.writeFileSync(path.join(review.dir, 'preparing'), content);
+const live = (review) => fs.writeFileSync(path.join(review.dir, 'session.json'), JSON.stringify({ sessionId: 'sample-session', cwd: review.dir, watcherPid: process.pid }));
+
+test('a banner says that the agent still prepares the review and shows its step until it is done', async ({ page }) => {
+  const review = await openReview(page);
+  live(review);
+  await expect(page.getByText('The agent is still preparing this review.')).toBeHidden();
+  preparing(review, JSON.stringify({ step: 'running the AI reviews', since: '2026-11-04T10:00:00Z' }));
+  await expect(page.getByText('The agent is still preparing this review.')).toBeVisible();
+  await expect(page.getByText('Now: running the AI reviews.')).toBeVisible();
+  await expect(page.getByText('Findings and explanations can still appear.')).toBeVisible();
+  await expect(page.getByText('Preparing…')).toBeVisible();
+  fs.rmSync(path.join(review.dir, 'preparing'));
+  await expect(page.getByText('The agent is still preparing this review.')).toBeHidden();
+});
+
+test('the preparing banner says that no agent runs the review when the session is gone', async ({ page }) => {
+  const review = await openReview(page);
+  preparing(review, '');
+  await expect(page.getByText('The agent is still preparing this review.')).toBeVisible();
+  await expect(page.getByText('Now:')).toBeHidden();
+  await expect(page.getByText('No agent runs this review, so the preparation has stopped.')).toBeVisible();
+});

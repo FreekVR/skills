@@ -24,6 +24,14 @@ const banners = computed(() => updates())
           <p v-else-if="banner.kind === 'paused'" class="m-0">
             <strong>Agent paused.</strong> It does not check GitHub. Questions and posts wait until you resume it.
           </p>
+          <div v-else-if="banner.kind === 'preparing'">
+            <p class="m-0">
+              <strong>The agent is still preparing this review.</strong>
+              <template v-if="banner.step"> Now: {{ banner.step }}.</template>
+              Findings and explanations can still appear.
+            </p>
+            <AgentPending text="Preparing…" no-agent-text="No agent runs this review, so the preparation has stopped." class="mt-1" />
+          </div>
           <p v-else-if="banner.kind === 'state'" class="m-0">
             <strong>This PR is {{ banner.state }}.</strong> {{ banner.finishing ? 'The agent asks in the chat whether to delete the review data.' : 'A review has little effect now.' }}
           </p>

@@ -212,7 +212,7 @@ function stackStatus(owner, repo, numbers, root = stateRoot()) {
       number,
       page: `/${owner}/${repo}/${number}`,
       hasReview: Boolean(review),
-      preparing: fs.existsSync(path.join(dir, 'preparing')),
+      preparing: Boolean(readPreparing(dir)),
       agentConnected: Boolean(watcherPid && isRunning(watcherPid)),
       hunks: hunkIds.size,
       seen: (reviewer.seen || []).filter((id) => hunkIds.has(id)).length,
@@ -235,8 +235,22 @@ function readWaiting(dir) {
   return readJson(path.join(dir, 'waiting'));
 }
 
+// The step the agent works on while it prepares this review, or null when it does not prepare it.
+// The file may be empty: the agent prepares it without naming a step.
+function readPreparing(dir) {
+  const file = path.join(dir, 'preparing');
+  if (!fs.existsSync(file)) return null;
+  const data = readJson(file);
+  return { step: data?.step || null, since: data?.since || null };
+}
+
+function setPreparing(dir, step) {
+  if (step === null) fs.rmSync(path.join(dir, 'preparing'), { force: true });
+  else writeAtomic(path.join(dir, 'preparing'), JSON.stringify({ step, since: new Date().toISOString() }) + '\n');
+}
+
 // Whether an agent watches this review, whether the reviewer paused it, the question the agent waits on,
-// and the session to resume when no agent runs.
+// whether the agent still prepares the review, and the session to resume when no agent runs.
 function agentStatus(dir) {
   const session = readJson(path.join(dir, 'session.json'));
   const watcherPid = session?.watcherPid;
@@ -245,7 +259,8 @@ function agentStatus(dir) {
     connected: Boolean(watcherPid && isRunning(watcherPid)),
     paused: fs.existsSync(path.join(dir, 'paused')),
     waiting: readWaiting(dir),
+    preparing: readPreparing(dir),
   };
 }
 
-module.exports = { stackStatus, setWaiting, readWaiting, agentStatus, stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };
+module.exports = { stackStatus, setWaiting, readWaiting, readPreparing, setPreparing, agentStatus, stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };

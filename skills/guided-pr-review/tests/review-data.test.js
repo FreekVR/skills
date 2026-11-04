@@ -8,7 +8,7 @@ const os = require('os');
 const path = require('path');
 const { parseDiff, mergeHunks, checkFlows, parseWatchArgs } = require('../scripts/review-data.js');
 const { execFileSync, spawnSync, spawn } = require('child_process');
-const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus } = require('../scripts/reviews.js');
+const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus, readPreparing } = require('../scripts/reviews.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
 index 1111111..2222222 100644
@@ -90,7 +90,7 @@ test('checkFlows reports hunks that are not placed and IDs that are not hunks', 
     flows: [{ id: 'cache', steps: [{ hunkId: 'a', why: 'Start here.' }, { hunkId: 'z', why: '' }] }],
     notInAnyFlow: ['b'],
   };
-  assert.deepStrictEqual(checkFlows(review), { missing: ['c'], unknown: ['z'], withoutWhy: ['cache:z'], stack: [] });
+  assert.deepStrictEqual(checkFlows(review), { missing: ['c'], unknown: ['z'], withoutWhy: ['cache:z'], stack: [], criteria: [] });
 });
 
 test('checkFlows passes when every hunk is placed, also in several flows', () => {
@@ -101,7 +101,7 @@ test('checkFlows passes when every hunk is placed, also in several flows', () =>
       { id: 'write', steps: [{ hunkId: 'a', why: 'Data is saved.' }] },
     ],
   };
-  assert.deepStrictEqual(checkFlows(review), { missing: [], unknown: [], withoutWhy: [], stack: [] });
+  assert.deepStrictEqual(checkFlows(review), { missing: [], unknown: [], withoutWhy: [], stack: [], criteria: [] });
 });
 
 test('check rejects a stack field that a single PR should not have', () => {
@@ -384,7 +384,7 @@ function stackRoot(t) {
 test('agentStatus reports a live agent, a dead one, a pause and a waiting question', (t) => {
   const { dirOf: dir, write } = stackRoot(t);
   write(1, 'review.json', {});
-  assert.deepStrictEqual(agentStatus(dir(1)), { session: null, connected: false, paused: false, waiting: null });
+  assert.deepStrictEqual(agentStatus(dir(1)), { session: null, connected: false, paused: false, waiting: null, preparing: null });
   write(2, 'session.json', { sessionId: 'sample-session', cwd: '/sample/dir', watcherPid: process.pid });
   assert.strictEqual(agentStatus(dir(2)).connected, true);
   assert.deepStrictEqual(agentStatus(dir(2)).session, { sessionId: 'sample-session', cwd: '/sample/dir' });
@@ -473,4 +473,63 @@ test('waiting and answered set and remove the marker from the command line', (t)
   assert.strictEqual(readWaiting(dirOf(14)).question, 'Which angles?');
   run('answered', dirOf(14));
   assert.strictEqual(readWaiting(dirOf(14)), null);
+});
+
+test('readPreparing reads the step, treats an empty file as preparing without a step and a missing file as not preparing', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(14, 'review.json', {});
+  assert.strictEqual(readPreparing(dirOf(14)), null);
+  write(15, 'preparing', '');
+  assert.deepStrictEqual(readPreparing(dirOf(15)), { step: null, since: null });
+  write(16, 'preparing', { step: 'running the AI reviews', since: '2026-11-04T10:00:00Z' });
+  assert.deepStrictEqual(readPreparing(dirOf(16)), { step: 'running the AI reviews', since: '2026-11-04T10:00:00Z' });
+  assert.deepStrictEqual(agentStatus(dirOf(16)).preparing, { step: 'running the AI reviews', since: '2026-11-04T10:00:00Z' });
+});
+
+test('preparing and prepared set and remove the marker from the command line', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(14, 'review.json', {});
+  const run = (...args) => execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), ...args]);
+  run('preparing', dirOf(14), 'running the AI reviews');
+  assert.strictEqual(readPreparing(dirOf(14)).step, 'running the AI reviews');
+  assert.ok(readPreparing(dirOf(14)).since);
+  run('prepared', dirOf(14));
+  assert.strictEqual(readPreparing(dirOf(14)), null);
+});
+
+test('preparing and prepared print usage and exit 2 for an empty step or a missing directory', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(14, 'review.json', {});
+  const run = (...args) => spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), ...args], { encoding: 'utf8' });
+  for (const args of [['preparing', dirOf(14), ''], ['preparing', dirOf(99), 'step'], ['preparing', dirOf(14)], ['prepared', dirOf(99)], ['prepared']]) {
+    const result = run(...args);
+    assert.strictEqual(result.status, 2);
+    assert.match(result.stderr, /Usage/);
+  }
+});
+
+test('check wants one finding for the whole PR for each criterion that is not met, and none for another verdict', () => {
+  const criterion = (id, verdict) => ({ id, verdict });
+  const finding = (id, extra = {}) => ({ hunkId: null, rule: 'acceptance-criteria', title: `${id} Caches nothing`, ...extra });
+  const review = (criteria, findings) => ({ hunks: [], context: { tickets: [{ acceptanceCriteria: criteria }] }, findings });
+  assert.deepStrictEqual(checkFlows({ hunks: [] }).criteria, []);
+  assert.deepStrictEqual(checkFlows(review([criterion('WX-42#1', 'met')], [])).criteria, []);
+  assert.deepStrictEqual(checkFlows(review([criterion('WX-42#2', 'not-met')], [finding('WX-42#2')])).criteria, []);
+  assert.deepStrictEqual(checkFlows(review([criterion('WX-42#2', 'not-met')], [])).criteria, ['WX-42#2 is not met but has no finding for the whole PR']);
+  // A finding on a hunk, or with another rule, does not count.
+  assert.strictEqual(checkFlows(review([criterion('WX-42#2', 'not-met')], [finding('WX-42#2', { hunkId: 'a' })])).criteria.length, 1);
+  assert.strictEqual(checkFlows(review([criterion('WX-42#2', 'not-met')], [finding('WX-42#2', { rule: 'other' })])).criteria.length, 1);
+  assert.deepStrictEqual(checkFlows(review([criterion('WX-42#1', 'met'), criterion('WX-42#10', 'not-met')], [finding('WX-42#10')])).criteria, []);
+  assert.deepStrictEqual(checkFlows(review([criterion('WX-42#1', 'not-met'), criterion('WX-42#10', 'not-met')], [finding('WX-42#10')])).criteria, ['WX-42#1 is not met but has no finding for the whole PR']);
+  assert.deepStrictEqual(checkFlows(review([criterion('WX-42#2', 'not-met')], [{ rule: 'acceptance-criteria', title: 'WX-42#2 Caches nothing' }])).criteria, []);
+  assert.deepStrictEqual(checkFlows(review([criterion('WX-42#1', 'met'), criterion('WX-42#3', 'elsewhere')], [finding('WX-42#1'), finding('WX-42#3')])).criteria, ['WX-42#1 has a finding but is met', 'WX-42#3 has a finding but is elsewhere']);
+});
+
+test('check exits 1 and prints the criteria problems', (t) => {
+  const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-check-')), 'review.json');
+  t.after(() => fs.rmSync(path.dirname(file), { recursive: true, force: true }));
+  fs.writeFileSync(file, JSON.stringify({ hunks: [], findings: [], context: { tickets: [{ acceptanceCriteria: [{ id: 'WX-42#2', verdict: 'not-met' }] }] } }));
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), 'check', file], { encoding: 'utf8' });
+  assert.strictEqual(result.status, 1);
+  assert.match(result.stdout, /criteria: WX-42#2 is not met but has no finding for the whole PR/);
 });

@@ -16,6 +16,7 @@ export function updates() {
     banners.push({ kind: 'offline', key: 'offline', resume: resumeHelp(current || { owner, repo, number }) })
   }
   if (state.agent?.paused) banners.push({ kind: 'paused', key: 'paused' })
+  if (state.agent?.preparing) banners.push({ kind: 'preparing', key: 'preparing', step: state.agent.preparing.step })
   if (remote.state === 'merged' || remote.state === 'closed') {
     banners.push({ kind: 'state', key: `state-${remote.state}`, state: remote.state, finishing: isFinishing() })
   }
