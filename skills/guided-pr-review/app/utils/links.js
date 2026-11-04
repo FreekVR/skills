@@ -61,6 +61,8 @@ export function jiraLink(key, criterion, tickets, jiraBase) {
 
 // Get the link part for a GitHub issue or pull request, with its title when the review knows it.
 export function githubLink(label, repo, number) {
+  // The preparing screen shows a PR reference before review.json exists.
+  if (!state.review) return { type: 'link', text: label, url: `https://github.com/${repo}/issues/${number}`, title: label }
   const context = state.review.context
   const pr = (context.linkedPrs || []).find((candidate) => candidate.repo === repo && String(candidate.number) === String(number))
   const issue = linkableTickets().find((ticket) => ticket.key === `${repo}#${number}` || (repo === `${state.review.pr.owner}/${state.review.pr.repo}` && ticket.key === `#${number}`))

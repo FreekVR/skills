@@ -41,3 +41,32 @@ test('a review.json with an empty list of flows and no findings opens a hunk', a
   await expect(page.getByRole('navigation', { name: /^Hunks in / })).toBeVisible();
   expect(errors).toEqual([]);
 });
+
+for (const [name, partial] of [['an empty object', {}], ['only a PR title', { pr: { title: 'Show the forecast' } }]]) {
+  test(`a review.json with ${name} shows the preparing screen, and completing it shows the review without a reload`, async ({ page }) => {
+    const errors = collectErrors(page);
+    const review = await openReview(page);
+    fs.writeFileSync(path.join(review.dir, 'preparing'), JSON.stringify({ step: 'reading the diff', since: new Date().toISOString() }));
+    fs.writeFileSync(path.join(review.dir, 'review.json'), JSON.stringify(partial));
+    await page.reload();
+    await expect(page.getByRole('heading', { name: 'The agent is preparing this review' })).toBeVisible();
+
+    await page.evaluate(() => { window.sameDocument = true; });
+    const full = fixture();
+    review.update((data) => Object.assign(data, full));
+    await expect(page.getByRole('heading', { name: 'The agent is preparing this review' })).toBeHidden();
+    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+    expect(await page.evaluate(() => window.sameDocument)).toBe(true);
+    expect(errors).toEqual([]);
+  });
+}
+
+test('a review.json that loses its PR after the page booted keeps the review on screen', async ({ page }) => {
+  const errors = collectErrors(page);
+  const review = await openReview(page);
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  fs.writeFileSync(path.join(review.dir, 'review.json'), JSON.stringify({}));
+  await page.waitForTimeout(4000);
+  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  expect(errors).toEqual([]);
+});

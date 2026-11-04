@@ -399,6 +399,11 @@ function setAgent(agent) {
   state.waiting = agent?.waiting ?? null
 }
 
+// The agent writes review.json in steps. The page needs the PR and its hunks before it can show anything.
+function isComplete(review) {
+  return Boolean(review?.pr?.owner && review.pr.repo && review.pr.number && Array.isArray(review.hunks))
+}
+
 // Load review.json again every few seconds, so the agent's changes show up.
 export async function poll() {
   try {
@@ -408,7 +413,7 @@ export async function poll() {
       throw error
     })
     const json = JSON.stringify(review)
-    if (json !== state.reviewJson) {
+    if (json !== state.reviewJson && isComplete(review)) {
       setReview(review, json)
       noteFreshHunks()
       importOwnReview()
@@ -447,7 +452,7 @@ async function waitForReview() {
   show(agent)
   polling = true
   pollTimer = setTimeout(async function check() {
-    const found = await transport.loadReview().then(() => true, () => false)
+    const found = await transport.loadReview().then(isComplete, () => false)
     if (!polling) return
     if (found) return boot()
     await transport.loadAgent().then(show, () => {})
@@ -461,6 +466,8 @@ export async function boot() {
   stopPolling()
   try {
     const [review, reviewer, agent] = await Promise.all([transport.loadReview(), transport.loadReviewer(), transport.loadAgent().catch(() => null)])
+    // A review.json that is not complete yet is handled like a missing one.
+    if (!isComplete(review) && await waitForReview()) return
     setReview(review)
     setAgent(agent)
     state.preparing = null
