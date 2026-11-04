@@ -84,7 +84,7 @@ First let the user choose. Look through the skills available to you for ones tha
 Give each subagent a brief with these parts, and nothing more:
 
 1. The checks it runs: one review skill, or one or more of the built-in checks below, with their text. Run the test coverage check yourself, not in a subagent, because it can need the user's answer.
-2. Where the PR is: the repository, the PR number, the head commit, the path of the diff file from step 2, and the list of hunks with their ID, file and line ranges. For a big PR, also the worktree path.
+2. Where the PR is: the repository, the PR number, the head commit, the path of the diff file from step 2, and the list of hunks with their ID, file and line ranges. For a big PR, also the worktree path. Tell the subagent where its review skill reads the code: for a big PR, run the skill from the worktree, because a skill such as security-review reviews the git diff of the folder it runs in; for a small PR, give the skill the diff file instead.
 3. The tickets as read in step 1, only for the checks of acceptance criteria and scope.
 4. The code rules and the severity labels from step 4.
 5. The answer format: a JSON list of findings, each with `hunkId` (null for the whole PR), `line`, `side`, `severity`, `title`, `body` and `rule`; an empty list when the checks find nothing. The acceptance criteria check also returns, per criterion ID, a `verdict` and a one-line `note`.
