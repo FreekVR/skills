@@ -23,7 +23,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
     "localPath": "<big PR only: absolute path of the worktree>"
   },
   "context": {
-    "summary": "<two or three sentences: what the PR does and why>",
+    "summary": "<markdown: two or three sentences on what the PR does and why, then a line that names the tickets it fixes>",
     "tickets": [
       { "key": "WX-42", "title": "Three-day forecast", "url": "<url>",
         "acceptanceCriteria": [ { "id": "WX-42#1", "text": "Shows three days with min and max temperature.", "source": "ticket", "verdict": "met", "note": "<one line: why>" } ] }
@@ -87,6 +87,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - `layout` is `flows` or `directory`. With `directory`, `flows` is empty and the review page lists hunks by directory, then alphabetically.
 - A flow with no acceptance criteria has `noCriteria`, which says why. The review page shows it where the flow's criteria would be.
 - An acceptance criterion has `source` `ticket` when the ticket lists it, or `description` when the agent took it from the description because the ticket lists none. Do not repeat that in `text`. `verdict` is `met`, `not-met` or `unclear`, with a one-line `note`.
+- `context.summary` ends with a line of its own that names each ticket in `tickets` with its key and title, for example `Fixes WX-42 (Three-day forecast).` Quote a short title as it is. Shorten long titles, or sum up the titles when there are many tickets, so the line stays one line. Leave the line out when `tickets` is empty.
 - `relatedTickets` holds open tickets that concern the same code, found by searching the tracker. Each one has `key`, `url` and `title`, and no criteria. The review page links their keys like the linked tickets; a related ticket's project prefix also makes other keys with that prefix linkable. They do not count as acceptance criteria.
 - `tickets` holds Jira tickets (`key` like `WX-42`) and GitHub issues (`key` like `example-org/sample-api#12`), each with `url` and `title`. The review page links every reference it can resolve in any text, with the title as tooltip.
 - `reviews` are the submitted reviews on the PR, by the user and by others, without pending ones and without the empty `COMMENTED` reviews GitHub makes for thread replies. `state` is GitHub's: `APPROVED`, `CHANGES_REQUESTED`, `COMMENTED` or `DISMISSED`. `commitId` is GitHub's `commit_id` of the review: the head commit when it was submitted. The Existing reviews tab shows them, the user's own first, each with its commit next to the commit the page shows.
