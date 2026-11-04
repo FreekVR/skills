@@ -55,5 +55,6 @@ useEventListener('keydown', (event: KeyboardEvent) => {
     </main>
     <ReviewNotices />
     <ShortcutsModal />
+    <AgentWaiting />
   </div>
 </template>

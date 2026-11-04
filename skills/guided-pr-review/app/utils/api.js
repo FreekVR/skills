@@ -20,6 +20,10 @@ export const transport = {
   loadReviewer() {
     return $fetch(`${base}/reviewer`)
   },
+  // The question the agent waits on, as { question, since }, or null.
+  loadWaiting() {
+    return $fetch(`${base}/waiting`)
+  },
   loadReviews() {
     return $fetch('/api/reviews')
   },

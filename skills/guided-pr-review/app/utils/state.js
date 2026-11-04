@@ -7,10 +7,11 @@ export const state = reactive({
   hunks: new Map(),
   stations: new Map(),
   view: { kind: 'station', line: null, index: 0 },
-  ui: { openExplain: new Set(), composer: null, drafts: {}, editing: null },
+  ui: { openExplain: new Set(), composer: null, drafts: {}, editing: null, waitingClosed: null },
   freshHunks: new Set(),
   seen: new Set(),
   reviews: null,
+  waiting: null,
   offline: false,
   bootError: null,
 })

@@ -369,6 +369,8 @@ export async function poll() {
       applySummaryDraft()
       markCurrentSeen()
     }
+    // The overlay is optional: when this call fails, the page keeps what it had.
+    state.waiting = await transport.loadWaiting().catch(() => state.waiting)
     if (state.offline) state.offline = false
   } catch (error) {
     if (!error.serverGone) notify(`Cannot reach the agent: ${error.message}`, true)
@@ -388,8 +390,9 @@ export function stopPolling() {
 export async function boot() {
   stopPolling()
   try {
-    const [review, reviewer] = await Promise.all([transport.loadReview(), transport.loadReviewer()])
+    const [review, reviewer, waiting] = await Promise.all([transport.loadReview(), transport.loadReviewer(), transport.loadWaiting().catch(() => null)])
     setReview(review)
+    state.waiting = waiting
     state.reviewer = { ...emptyReviewer(), ...reviewer }
     state.seen = new Set(state.reviewer.seen)
     noteFreshHunks()
