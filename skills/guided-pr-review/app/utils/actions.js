@@ -71,6 +71,11 @@ export async function loadStack() {
   if (hasStack()) state.stackStatus = await transport.loadStack().catch(() => state.stackStatus)
 }
 
+// Ask the agent to prepare the review of another PR in the stack.
+export function startReview(number) {
+  return sendEvent({ type: 'start-review', number }, { number })
+}
+
 // Pause or play the agent of a review. Play sends one check, so the page catches up with GitHub.
 export async function setPaused(review, paused) {
   try {

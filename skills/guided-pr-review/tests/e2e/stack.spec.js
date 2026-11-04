@@ -2,7 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { test, expect } = require('@playwright/test');
-const { openReview } = require('./helpers.js');
+const { openReview, eventOf } = require('./helpers.js');
 const { review: fixture } = require('./fixture.js');
 
 const TITLES = { 14: 'feat: add the forecast API client', 15: 'feat: cache forecasts per region', 16: 'feat: show the forecast card', 17: 'docs: describe the forecast settings' };
@@ -221,4 +221,159 @@ test('a criterion this PR places in another PR is expected there, even without s
   await openReview(page, { mutate: (data) => { onHome(data); data.stack.coverage = []; }, others: [mergedWithCriteria()] });
   await expect(coverageCell(page, 'WX-42#3', 16)).toHaveText(/expected/);
   await expect(homeStack(page).getByRole('table').getByRole('row').filter({ hasText: 'WX-42#3' })).not.toContainText('no PR');
+});
+
+test('Start a review sends a start-review event and shows that the agent prepares it', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  await button(page).click();
+  await row(page, 16).getByRole('button', { name: 'Start a review' }).click();
+  expect(await eventOf(review, 'start-review')).toMatchObject({ type: 'start-review', number: 16 });
+  await reviewDirOf(page, review, 16, 'preparing', '');
+  await expect(row(page, 16)).toContainText('Preparing the review…');
+  await expect(row(page, 16).getByRole('button', { name: 'Start a review' })).toHaveCount(0);
+});
+
+// Posts the final review of the page's PR and plays the agent that answers with the post result.
+const postFinal = async (page, review) => {
+  await page.keyboard.press('s');
+  await page.getByText('Nothing reaches GitHub until you press a post button.').waitFor();
+  await page.getByRole('group', { name: 'Verdict' }).getByRole('button', { name: /^Approve/ }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Post new review: approve' }).click();
+  const event = await eventOf(review, 'post');
+  review.update((data) => data.posts.push({ eventId: event.id, kind: 'final', status: 'posted', message: 'ok', url: 'https://github.com/example-org/sample-widget/pull/1#pullrequestreview-10', reviewId: 10 }));
+  await expect(page.getByRole('button', { name: 'Finish for now' })).toBeVisible();
+};
+
+const reviewOf16 = () => {
+  const data = merged();
+  data.pr.number = 16;
+  data.pr.title = TITLES[16];
+  data.stack = stackFixture([14, 15, 16, 17], 16);
+  return data;
+};
+
+test('after the final post the page offers the next PR in the stack, linking to its review when it has one', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  review.write(reviewOf16());
+  await postFinal(page, review);
+  const next = page.getByRole('link', { name: 'Next in the stack: #16' });
+  await expect(next).toHaveAttribute('href', /\/example-org\/sample-widget\/16$/);
+});
+
+test('after the final post the Next button starts the review of a PR without one', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  await postFinal(page, review);
+  await page.getByRole('button', { name: 'Next in the stack: #16' }).click();
+  expect(await eventOf(review, 'start-review')).toMatchObject({ number: 16 });
+});
+
+const sessionOf = (review, number) => {
+  const dir = path.join(path.dirname(review.dir), String(number));
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify({ sessionId: 'def-456', cwd: '/work', worktree: null, watcherPid: process.pid }));
+};
+
+test('the Next button skips a PR that another session runs', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  sessionOf(review, 16);
+  await postFinal(page, review);
+  await expect(page.getByRole('button', { name: 'Next in the stack: #17' })).toBeVisible();
+});
+
+test('the Next button is absent when the agent prepares the only PR left', async ({ page }) => {
+  const review = await openReview(page, { mutate: (data) => { onPage(data); data.stack = stackFixture([14, 15, 16], 15); }, others: [merged()] });
+  const dir = path.join(path.dirname(review.dir), '16');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'preparing'), '');
+  await postFinal(page, review);
+  await expect(page.getByText(/Next in the stack/)).toHaveCount(0);
+});
+
+// #15 has a posted final review, as the server reads it: a post result and the sent event with this head.
+const postedReviewOf = (review, number) => {
+  const data = merged();
+  data.pr.number = number;
+  data.pr.title = TITLES[number];
+  data.stack = stackFixture([14, 15, 16, 17], 16);
+  data.posts = [{ eventId: 'e1', kind: 'final', status: 'posted', message: 'ok', url: 'https://github.com/example-org/sample-widget/pull/1#r', reviewId: 1 }];
+  const dir = review.write(data);
+  fs.writeFileSync(path.join(dir, 'reviewer.json'), JSON.stringify({ sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: data.pr.headSha }] }));
+};
+
+test('the Next button skips a PR whose final review is posted, and is absent when none is left', async ({ page }) => {
+  const review = await openReview(page, { mutate: (data) => { onPage(data); data.pr.number = 16; data.pr.title = TITLES[16]; data.stack = stackFixture([14, 15, 16], 16); }, others: [merged()] });
+  postedReviewOf(review, 15);
+  await postFinal(page, review);
+  await expect(page.getByText(/Next in the stack/)).toHaveCount(0);
+});
+
+test('with #17 posted the Next button targets the PR below', async ({ page }) => {
+  const review = await openReview(page, { mutate: (data) => { onPage(data); data.pr.number = 16; data.pr.title = TITLES[16]; data.stack = stackFixture([14, 15, 16, 17], 16); }, others: [merged()] });
+  postedReviewOf(review, 17);
+  const other = merged();
+  other.pr.number = 15;
+  other.pr.title = TITLES[15];
+  other.stack = stackFixture([14, 15, 16, 17], 16);
+  review.write(other);
+  await postFinal(page, review);
+  await expect(page.getByRole('link', { name: 'Next in the stack: #15' })).toBeVisible();
+});
+
+test('after Start a review, the row shows Preparing and offers no second start, also after a reload', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  await button(page).click();
+  await row(page, 16).getByRole('button', { name: 'Start a review' }).click();
+  await eventOf(review, 'start-review');
+  await expect(row(page, 16)).toContainText('Preparing the review…');
+  await expect(row(page, 16).getByRole('button', { name: 'Start a review' })).toHaveCount(0);
+  await review.saved((state) => (state.sent || []).some((sent) => sent.type === 'start-review'));
+  await page.reload();
+  await button(page).click();
+  await expect(row(page, 16)).toContainText('Preparing the review…');
+  await expect(row(page, 16).getByRole('button', { name: 'Start a review' })).toHaveCount(0);
+});
+
+test('Start a review on another PR does not turn Finish for now into the finishing text', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  await postFinal(page, review);
+  await page.getByRole('button', { name: 'Finish for now' }).click();
+  await eventOf(review, 'finish');
+  await expect(page.getByText('The agent keeps this review.')).toBeVisible();
+  await page.getByRole('button', { name: 'Next in the stack: #16' }).click();
+  await eventOf(review, 'start-review');
+  await expect(page.getByText('The agent keeps this review.')).toBeVisible();
+});
+
+test('a PR in no stack shows no Next button after the final post', async ({ page }) => {
+  const review = await openReview(page);
+  await postFinal(page, review);
+  await expect(page.getByText(/Next in the stack/)).toHaveCount(0);
+});
+
+test('a stack read from the branches has no number, so the page shows no "#" for it', async ({ page }) => {
+  const fromBranches = (data) => {
+    onHome(data);
+    data.stack.source = 'branches';
+    data.stack.number = null;
+  };
+  await openReview(page, { mutate: fromBranches, others: [mergedWithCriteria()] });
+  await expect(homeStack(page)).toContainText('stack, 4 PRs, base main');
+  await expect(homeStack(page)).not.toContainText('stack #');
+  await button(page).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toContainText('Stack · bottom to top');
+  await expect(dialog).not.toContainText('Stack #');
+});
+
+test('a PR with remarks shows them next to the hunks seen in the stack switch', async ({ page }) => {
+  const above = fixture();
+  above.pr.number = 16;
+  above.pr.title = TITLES[16];
+  above.stack = stackFixture([14, 15, 16, 17], 16);
+  const review = await openReview(page, { mutate: onPage, others: [merged(), above] });
+  const dir = path.join(path.dirname(review.dir), '16');
+  fs.writeFileSync(path.join(dir, 'reviewer.json'), JSON.stringify({ seen: [], remarks: [{ id: 'r1' }, { id: 'r2' }] }));
+  await page.reload();
+  await button(page).click();
+  await expect(row(page, 16)).toContainText(/\d+ of \d+ hunks seen · 2 remarks/);
 });

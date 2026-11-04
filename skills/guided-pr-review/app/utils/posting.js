@@ -154,7 +154,8 @@ export function postedReview() {
 }
 
 // A finish ends the agent's session. Any event the page sent after it belongs to a later session, so Finish is offered again.
-export function isFinishing() { return state.reviewer.sent.at(-1)?.type === 'finish' }
+// Starting the review of another PR does not count: that is not the session of this review.
+export function isFinishing() { return state.reviewer.sent.findLast((sent) => sent.type !== 'start-review')?.type === 'finish' }
 
 export function postedInEarlierRound(id) {
   return postedFinals().some((sent) => (sent.contents || []).some((content) => content.id === id))

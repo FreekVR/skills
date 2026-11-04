@@ -17,7 +17,7 @@ function linkOf(row: { current: boolean, action: string, url: string, status: { 
     <template #content>
       <div class="w-[min(440px,calc(100vw-32px))] p-1.5 [--line:var(--ui-primary)]">
         <p class="m-0 px-2.5 pt-1.5 pb-2 text-meta font-extrabold tracking-[.08em] text-muted uppercase">
-          Stack #{{ state.review.stack.number }} · bottom to top
+          Stack<template v-if="state.review.stack.number"> #{{ state.review.stack.number }}</template> · bottom to top
         </p>
         <ul role="list" aria-label="PRs in this stack, bottom to top" class="m-0 grid list-none p-0">
           <li
@@ -47,7 +47,7 @@ function linkOf(row: { current: boolean, action: string, url: string, status: { 
                 <span v-if="row.state === 'merged'" class="rounded-sm px-1.5 text-tag text-muted ring-1 ring-accented">merged</span>
               </span>
               <span class="block" :class="row.approved ? 'text-success' : 'text-muted'">
-                {{ stackRowLabel(row) }}<template v-if="row.action === 'start'"> · <UButton variant="link" color="info" size="sm" class="p-0 align-baseline text-label" label="Start a review" /></template>
+                {{ stackRowLabel(row) }}<template v-if="row.action === 'start'"> · <UButton variant="link" color="info" size="sm" class="p-0 align-baseline text-label" label="Start a review" @click="startReview(row.number)" /></template>
               </span>
             </div>
           </li>

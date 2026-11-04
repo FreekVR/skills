@@ -4,6 +4,7 @@ const props = defineProps<{ sent: { id: string, at?: string }, finishing: boolea
 
 const COLORS: Record<string, string> = { approved: 'var(--ui-success)', changes: 'var(--ui-error)', comment: 'var(--ui-text-toned)' }
 const card = computed(() => postedCard(props.sent))
+const next = computed(() => (hasStack() ? nextInStack() : null))
 </script>
 
 <template>
@@ -34,6 +35,14 @@ const card = computed(() => postedCard(props.sent))
         </p>
         <UButton v-else color="neutral" class="font-semibold" @click="finish()">
           Finish for now
+        </UButton>
+      </template>
+      <template v-if="next">
+        <UButton v-if="next.action === 'open'" as="a" :href="next.status?.page" color="primary" class="font-semibold">
+          Next in the stack: #{{ next.number }}
+        </UButton>
+        <UButton v-else color="primary" class="font-semibold" @click="startReview(next.number)">
+          Next in the stack: #{{ next.number }}
         </UButton>
       </template>
       <UButton color="neutral" variant="soft" class="font-semibold" @click="goReviews()">

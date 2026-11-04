@@ -19,8 +19,10 @@ export function stackRows() {
   return state.review.stack.prs.map((pr) => {
     const status = state.stackStatus.find((candidate) => candidate.number === pr.number) || null
     const done = pr.state === 'merged' || pr.state === 'closed'
-    const action = status?.hasReview ? 'open' : done ? 'github' : !status || status.preparing || status.agentConnected ? 'none' : 'start'
-    return { number: pr.number, title: pr.title, url: pr.url, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action }
+    // The agent has not made the directory yet, so a start the reviewer already sent counts as preparing.
+    const asked = !status?.hasReview && state.reviewer.sent.some((sent) => sent.type === 'start-review' && sent.number === pr.number)
+    const action = status?.hasReview ? 'open' : done ? 'github' : !status || status.preparing || status.agentConnected || asked ? 'none' : 'start'
+    return { number: pr.number, title: pr.title, url: pr.url, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action, asked }
   })
 }
 
@@ -29,10 +31,22 @@ export function stackRowLabel(row) {
   if (row.approved) return 'Approved by you'
   if (row.state === 'merged') return 'Merged'
   if (row.status?.posted) return 'Review posted'
-  if (row.status?.preparing) return 'Preparing the review…'
-  if (row.status?.hasReview) return `${row.status.seen} of ${row.status.hunks} hunks seen`
+  if (row.status?.preparing || row.asked) return 'Preparing the review…'
+  if (row.status?.hasReview) {
+    const { seen, hunks, remarks } = row.status
+    return remarks ? `${seen} of ${hunks} hunks seen · ${remarks} remarks` : `${seen} of ${hunks} hunks seen`
+  }
   if (row.status?.agentConnected) return 'Reviewed in another session'
   return 'Not reviewed'
+}
+
+// Get the PR to review after this one: the first PR above it, else the first below it, that the reviewer can act on.
+// A PR is skipped when it is merged or closed, its final review is posted, or its action is none (unknown, preparing, another session).
+export function nextInStack() {
+  const rows = stackRows()
+  const at = rows.findIndex((row) => row.current)
+  const open = (row) => (row.action === 'open' || row.action === 'start') && row.state === 'open' && !row.status?.posted
+  return [...rows.slice(at + 1), ...rows.slice(0, at).reverse()].find(open) || null
 }
 
 // Get, for each acceptance criterion of this PR's tickets, the PRs of the stack that meet it.
