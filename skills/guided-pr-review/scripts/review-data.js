@@ -11,11 +11,15 @@
 //   node review-data.js own-diff <clone> <old-head> <first-subject>
 //                                                        Print the diff of a PR's own commits from before a rebase,
 //                                                        found by the subject of its first commit.
+//   node review-data.js waiting <question> <review-dir>...
+//                                                        Show the question the agent waits on in each review page.
+//   node review-data.js answered <review-dir>...         Remove that question from each review page.
 //   node review-data.js list                             Print the reviews that are not deleted, with their page URL
 //                                                        while the review server runs.
 //   node review-data.js watch <review-dir> [--worktree <path>]
 //                                                        Record this session in session.json, then print each new
 //                                                        event in events.jsonl as an "EVENT <json>" line until stopped.
+//                                                        Exit 4 when another running process watches this review.
 //                                                        While the review is paused, it prints only "PAUSED" when the
 //                                                        pause starts and "RESUMED" when it ends.
 'use strict';
@@ -27,7 +31,7 @@ const { execFileSync } = require('child_process');
 const { fromGitHubStack, fromBranches } = require('./stack.js');
 const { ownDiff } = require('./own-diff.js');
 
-const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews } = require('./reviews.js');
+const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews, setWaiting } = require('./reviews.js');
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
@@ -130,7 +134,7 @@ function checkStack(review) {
   const { stack } = review;
   if (!stack) return [];
   const problems = [];
-  const { prs } = stack;
+  const prs = stack.prs || [];
   if (prs.length < 2) problems.push('stack has fewer than 2 PRs, leave the stack field out');
   if (prs.length >= 2 && !prs.some((pr) => Number(pr.number) === Number(review.pr?.number))) problems.push(`stack.prs does not hold PR ${review.pr?.number}`);
   for (const field of ['coverage', 'outsideTickets']) {
@@ -203,6 +207,12 @@ function main([command, ...args]) {
     return 0;
   }
   if (command === 'watch' && (args.length === 1 || (args.length === 3 && args[1] === '--worktree'))) {
+    // Check-then-write is not atomic, which is fine: reviews start one at a time.
+    const holder = readJson(path.join(args[0], 'session.json'))?.watcherPid;
+    if (holder && holder !== process.pid && isRunning(holder)) {
+      console.log(`held: ${holder} watches this review (remove session.json if that process is not a watch)`);
+      return 4;
+    }
     writeSession(args[0], args[2] || null, process.pid);
     watchReview(args[0], (line) => console.log(`EVENT ${line}`), (paused) => console.log(paused ? 'PAUSED' : 'RESUMED'));
     return undefined;
@@ -216,6 +226,14 @@ function main([command, ...args]) {
     process.stdout.write(ownDiff(args[0], args[1], args[2]));
     return 0;
   }
+  if (command === 'waiting' && args.length >= 2 && args[0].trim() && args.slice(1).every((dir) => fs.existsSync(dir))) {
+    setWaiting(args.slice(1), args[0]);
+    return 0;
+  }
+  if (command === 'answered' && args.length >= 1 && args.every((dir) => fs.existsSync(dir))) {
+    setWaiting(args, null);
+    return 0;
+  }
   if (command === 'list' && args.length === 0) {
     const server = readJson(path.join(stateRoot(), 'server.json'));
     const base = server && isRunning(server.pid) ? server.url : null;
@@ -225,7 +243,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> | watch <review-dir> [--worktree <path>] | waiting <question> <review-dir>... | answered <review-dir>... | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | list');
   return 2;
 }
 

@@ -101,3 +101,17 @@ test('pauses and plays the agent of a review with a paused file', async () => {
   assert.ok(!fs.existsSync(paused));
   assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: 'yes' }))).status, 400);
 });
+
+test('stack lists the review state of each PR in the stack, or nothing without a stack', async () => {
+  assert.deepStrictEqual(await (await fetch(`${base}/7/stack`)).json(), []);
+  const dir = review('9', { number: 9 });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { number: 9 }, hunks, stack: { prs: [{ number: 7 }, { number: 8 }] } }));
+  const status = await (await fetch(`${base}/9/stack`)).json();
+  assert.deepStrictEqual(status.map((entry) => [entry.number, entry.page]), [[7, '/acme/shop/7'], [8, '/acme/shop/8']]);
+});
+
+test('waiting gives the open question of the agent, or null', async () => {
+  assert.strictEqual(await (await fetch(`${base}/7/waiting`)).json(), null);
+  fs.writeFileSync(path.join(small, 'waiting'), JSON.stringify({ question: 'Which angles?', since: '2026-01-01T00:00:00.000Z' }));
+  assert.strictEqual((await (await fetch(`${base}/7/waiting`)).json()).question, 'Which angles?');
+});

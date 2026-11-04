@@ -7,7 +7,8 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { parseDiff, mergeHunks, checkFlows } = require('../scripts/review-data.js');
-const { reviewDir, writeSession, listReviews, watchEvents, watchReview } = require('../scripts/reviews.js');
+const { execFileSync, spawnSync } = require('child_process');
+const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting } = require('../scripts/reviews.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
 index 1111111..2222222 100644
@@ -114,6 +115,7 @@ test('check rejects a stack field that a single PR should not have', () => {
   assert.ok(foreign.length === 1 && foreign[0].includes('15'));
   assert.deepStrictEqual(checkFlows({ ...base, stack: { prs: [pr(15), pr(16)] } }).stack, []);
   assert.deepStrictEqual(checkFlows(base).stack, []);
+  assert.deepStrictEqual(checkFlows({ ...base, stack: { number: 1 } }).stack, ['stack has fewer than 2 PRs, leave the stack field out']);
 });
 
 test('reviewDir uses XDG_STATE_HOME with one folder per repository and PR', (t) => {
@@ -227,4 +229,92 @@ test('watchReview says at once that a review is paused when the watch starts dur
   t.after(stop);
   await new Promise((resolve) => setTimeout(resolve, 80));
   assert.deepStrictEqual(states, [true]);
+});
+
+function stackRoot(t) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-stack-'));
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+  const dirOf = (number) => path.join(root, 'example-org', 'sample-widget', String(number));
+  const write = (number, name, content) => {
+    fs.mkdirSync(dirOf(number), { recursive: true });
+    fs.writeFileSync(path.join(dirOf(number), name), typeof content === 'string' ? content : JSON.stringify(content));
+  };
+  return { root, dirOf, write };
+}
+
+test("stackStatus reports each PR's review directory", (t) => {
+  const { root, write } = stackRoot(t);
+  const hunks = (n) => Array.from({ length: n }, (_, i) => ({ id: `h${i + 1}` }));
+  write(14, 'review.json', { pr: { headSha: 'new' }, hunks: hunks(3), posts: [{ eventId: 'e1', status: 'posted' }] });
+  write(14, 'reviewer.json', { sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: 'new' }] });
+  write(15, 'review.json', { pr: { headSha: 'a' }, hunks: hunks(2) });
+  write(15, 'reviewer.json', { seen: ['h1', 'removed'], remarks: [{ id: 'r1' }, { id: 'r2' }] });
+  write(16, 'preparing', '');
+  const status = stackStatus('example-org', 'sample-widget', [14, 15, 16, 17], root);
+  const expected = [
+    { number: 14, page: '/example-org/sample-widget/14', hasReview: true, posted: true, hunks: 3 },
+    { number: 15, hasReview: true, seen: 1, remarks: 2, posted: false },
+    { number: 16, hasReview: false, preparing: true },
+    { number: 17, hasReview: false, preparing: false },
+  ];
+  expected.forEach((entry, index) => assert.deepStrictEqual(Object.fromEntries(Object.keys(entry).map((key) => [key, status[index][key]])), entry));
+});
+
+test('stackStatus skips a number that is not a PR number', (t) => {
+  const { root } = stackRoot(t);
+  assert.deepStrictEqual(stackStatus('example-org', 'sample-widget', ['../../../other', 14], root).map((entry) => entry.number), [14]);
+});
+
+test('waiting and answered print usage and exit 2 for an empty question or a missing directory', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(14, 'review.json', {});
+  const run = (...args) => spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), ...args], { encoding: 'utf8' });
+  for (const args of [['waiting', '', dirOf(14)], ['waiting', 'Q?', dirOf(99)], ['answered', dirOf(99)]]) {
+    const result = run(...args);
+    assert.strictEqual(result.status, 2);
+    assert.match(result.stderr, /Usage/);
+  }
+});
+
+test('stackStatus does not count a review posted before the latest commits', (t) => {
+  const { root, write } = stackRoot(t);
+  write(14, 'review.json', { pr: { headSha: 'new' }, hunks: [], posts: [{ eventId: 'e1', status: 'posted' }] });
+  write(14, 'reviewer.json', { sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: 'old' }] });
+  assert.strictEqual(stackStatus('example-org', 'sample-widget', [14], root)[0].posted, false);
+});
+
+test("stackStatus gives each criterion's verdict", (t) => {
+  const { root, write } = stackRoot(t);
+  write(16, 'review.json', { hunks: [], context: { tickets: [{ acceptanceCriteria: [{ id: 'WX-42#3', verdict: 'met' }] }] } });
+  assert.deepStrictEqual(stackStatus('example-org', 'sample-widget', [16], root)[0].criteria, { 'WX-42#3': 'met' });
+});
+
+test('setWaiting writes and removes the marker in every review', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(14, 'review.json', {});
+  write(15, 'review.json', {});
+  const dirs = [dirOf(14), dirOf(15)];
+  setWaiting(dirs, 'Which angles?');
+  dirs.forEach((dir) => assert.strictEqual(readWaiting(dir).question, 'Which angles?'));
+  setWaiting(dirs, null);
+  dirs.forEach((dir) => assert.strictEqual(readWaiting(dir), null));
+});
+
+test('watch refuses a review that another live process watches', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(14, 'review.json', {});
+  writeSession(dirOf(14), null, process.pid);
+  const result = spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), 'watch', dirOf(14)], { encoding: 'utf8', timeout: 10000 });
+  assert.strictEqual(result.status, 4);
+  assert.match(result.stdout + result.stderr, /held:/);
+});
+
+test('waiting and answered set and remove the marker from the command line', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(14, 'review.json', {});
+  const run = (...args) => execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), ...args]);
+  run('waiting', 'Which angles?', dirOf(14));
+  assert.strictEqual(readWaiting(dirOf(14)).question, 'Which angles?');
+  run('answered', dirOf(14));
+  assert.strictEqual(readWaiting(dirOf(14)), null);
 });

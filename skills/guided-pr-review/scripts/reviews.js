@@ -154,4 +154,45 @@ function anyAgentConnected(root = stateRoot()) {
   return false;
 }
 
-module.exports = { stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };
+// What the stack bar shows for each PR: whether it has a review, how far the reviewer is, and whether the review is posted.
+// A final review posted before the latest commits does not count as posted.
+function stackStatus(owner, repo, numbers, root = stateRoot()) {
+  return numbers.filter((number) => /^\d+$/.test(String(number))).map((number) => {
+    const dir = path.join(root, owner, repo, String(number));
+    const review = readJson(path.join(dir, 'review.json'));
+    const reviewer = readJson(path.join(dir, 'reviewer.json')) || {};
+    const sent = reviewer.sent || [];
+    const hunkIds = new Set((review?.hunks || []).map((hunk) => hunk.id));
+    const watcherPid = readJson(path.join(dir, 'session.json'))?.watcherPid;
+    const criteria = {};
+    for (const ticket of review?.context?.tickets || []) {
+      for (const criterion of ticket.acceptanceCriteria || []) criteria[criterion.id] = criterion.verdict;
+    }
+    return {
+      number,
+      page: `/${owner}/${repo}/${number}`,
+      hasReview: Boolean(review),
+      preparing: fs.existsSync(path.join(dir, 'preparing')),
+      agentConnected: Boolean(watcherPid && isRunning(watcherPid)),
+      hunks: hunkIds.size,
+      seen: (reviewer.seen || []).filter((id) => hunkIds.has(id)).length,
+      remarks: (reviewer.remarks || []).length,
+      posted: (review?.posts || []).some((post) => post.status === 'posted' && sent.some((event) => event.id === post.eventId && event.type === 'post' && event.kind === 'final' && event.headSha === review.pr?.headSha)),
+      criteria,
+    };
+  });
+}
+
+// The agent writes the question it waits on into every review it handles, so each review page can show it.
+function setWaiting(dirs, question) {
+  for (const dir of dirs) {
+    if (question === null) fs.rmSync(path.join(dir, 'waiting'), { force: true });
+    else writeAtomic(path.join(dir, 'waiting'), JSON.stringify({ question, since: new Date().toISOString() }) + '\n');
+  }
+}
+
+function readWaiting(dir) {
+  return readJson(path.join(dir, 'waiting'));
+}
+
+module.exports = { stackStatus, setWaiting, readWaiting, stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };
