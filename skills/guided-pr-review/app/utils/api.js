@@ -44,6 +44,12 @@ export const transport = {
       throw new Error(`${error.statusCode} ${error.statusMessage}`)
     })
   },
+  // Delete another review and its worktree; the error says why the server kept it.
+  removeReview({ owner, repo, number }) {
+    return $fetch(`/api/reviews/${owner}/${repo}/${number}`, { method: 'DELETE', headers: GUARD }).catch((error) => {
+      throw new Error(error.statusMessage || `${error.statusCode}`)
+    })
+  },
   async saveReviewer(reviewer) {
     await $fetch(`${base}/reviewer`, { method: 'PUT', headers: GUARD, body: JSON.stringify(reviewer) }).catch((error) => {
       throw new Error(`Saving failed: ${error.statusCode} ${error.statusMessage}`)
@@ -90,6 +96,7 @@ if (STATIC_REVIEW) {
     loadStack: async () => [],
     loadReviews: async () => [],
     setPaused: noAgent,
+    removeReview: noAgent,
     startReview: noAgent,
     sendEvent: noAgent,
     loadFile: noAgent,

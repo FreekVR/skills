@@ -8,7 +8,7 @@ const os = require('os');
 const path = require('path');
 const { parseDiff, mergeHunks, checkFlows, parseWatchArgs } = require('../scripts/review-data.js');
 const { execFileSync, spawnSync, spawn } = require('child_process');
-const { reviewDir, writeSession, listReviews, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus, readPreparing, setPreparing } = require('../scripts/reviews.js');
+const { reviewDir, writeSession, listReviews, removeReview, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus, readPreparing, setPreparing } = require('../scripts/reviews.js');
 
 const DIFF = `diff --git a/src/cache.ts b/src/cache.ts
 index 1111111..2222222 100644
@@ -228,7 +228,7 @@ test('listReviews lists each review directory with a review.json, whether an age
   write('acme/shop/8', 'session.json', { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' });
   write('acme/shop/9', 'reviewer.json', {});
   write('acme/api/1', 'review.json', { pr: { title: 'Old review' } });
-  assert.deepStrictEqual(listReviews(root).map(({ dir, ...review }) => review), [
+  assert.deepStrictEqual(listReviews(root).map(({ dir, lastActivity, ...review }) => review), [
     { owner: 'acme', repo: 'api', number: 1, title: 'Old review', state: 'open', session: null, agentConnected: false, paused: false },
     { owner: 'acme', repo: 'shop', number: 7, title: 'Add a cache', state: 'merged', session: { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid }, agentConnected: true, paused: true },
     { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' }, agentConnected: false, paused: false },
@@ -244,9 +244,76 @@ test('listReviews leaves out a review whose review.json is broken, and reads a b
   write('acme/shop/7', 'review.json', '{"pr":');
   write('acme/shop/8', 'review.json', JSON.stringify({ pr: { title: 'Fix the cache' } }));
   write('acme/shop/8', 'session.json', '{"sessionId":');
-  assert.deepStrictEqual(listReviews(root).map(({ dir, ...review }) => review), [
+  assert.deepStrictEqual(listReviews(root).map(({ dir, lastActivity, ...review }) => review), [
     { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: null, agentConnected: false, paused: false },
   ]);
+});
+
+test('listReviews gives each review the time of its last activity: the newest change of review.json, reviewer.json or events.jsonl', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-root-'));
+  const dir = path.join(root, 'acme/shop/7');
+  fs.mkdirSync(dir, { recursive: true });
+  const at = (file, iso) => {
+    fs.writeFileSync(path.join(dir, file), '{}');
+    fs.utimesSync(path.join(dir, file), new Date(iso), new Date(iso));
+  };
+  at('review.json', '2026-10-01T10:00:00Z');
+  at('reviewer.json', '2026-10-03T10:00:00Z');
+  at('events.jsonl', '2026-10-02T10:00:00Z');
+  at('session.json', '2026-10-09T10:00:00Z');
+  assert.strictEqual(listReviews(root)[0].lastActivity, '2026-10-03T10:00:00.000Z');
+});
+
+// A review directory with a big PR's worktree in a fresh repository.
+function reviewWithWorktree() {
+  const base = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-rm-'));
+  const clone = path.join(base, 'clone');
+  const git = (...args) => execFileSync('git', args, { cwd: clone, stdio: 'pipe' });
+  fs.mkdirSync(clone);
+  git('init', '-q');
+  fs.writeFileSync(path.join(clone, 'a.txt'), 'a');
+  git('add', '.');
+  git('-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', 'commit', '-qm', 'a');
+  const worktree = path.join(base, 'pr-7');
+  git('worktree', 'add', '-q', '--detach', worktree);
+  const dir = path.join(base, 'state/acme/shop/7');
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { localPath: worktree } }));
+  fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify({ sessionId: null, cwd: base, worktree }));
+  return { base, clone, worktree, dir, git };
+}
+
+test('removeReview deletes the review directory and removes its worktree through git', () => {
+  const { clone, worktree, dir, git } = reviewWithWorktree();
+  removeReview(dir);
+  assert.strictEqual(fs.existsSync(dir), false);
+  assert.strictEqual(fs.existsSync(worktree), false);
+  assert.doesNotMatch(String(git('worktree', 'list')), /pr-7/);
+  assert.strictEqual(fs.existsSync(clone), true);
+});
+
+test('removeReview keeps the review directory when git refuses to remove the worktree, and says why', () => {
+  const { worktree, dir } = reviewWithWorktree();
+  fs.writeFileSync(path.join(worktree, 'a.txt'), 'changed');
+  assert.throws(() => removeReview(dir), /modified or untracked files/);
+  assert.strictEqual(fs.existsSync(dir), true);
+  assert.strictEqual(fs.existsSync(worktree), true);
+});
+
+test('removeReview leaves a main clone alone and deletes only the review directory', () => {
+  const { clone, dir } = reviewWithWorktree();
+  fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify({ sessionId: null, cwd: clone, worktree: null }));
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { localPath: clone } }));
+  removeReview(dir);
+  assert.strictEqual(fs.existsSync(dir), false);
+  assert.strictEqual(fs.existsSync(path.join(clone, 'a.txt')), true);
+});
+
+test('removeReview refuses while an agent watches the review', () => {
+  const { dir } = reviewWithWorktree();
+  fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify({ sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid }));
+  assert.throws(() => removeReview(dir), /agent/);
+  assert.strictEqual(fs.existsSync(dir), true);
 });
 
 test('watchEvents passes on each line added after the watch started, also a line written in two parts', async (t) => {

@@ -41,8 +41,8 @@ const stops = computed(() => {
   })
 })
 
-// The review on this page comes first, so the list starts with where the reviewer is.
-const reviews = computed(() => [...(state.reviews || [])].sort((a, b) => Number(isCurrentReview(b)) - Number(isCurrentReview(a))))
+const reviewCount = computed(() => state.reviews?.length || 0)
+const groups = computed(sessionGroups)
 const switcherOpen = computed({ get: () => Boolean(state.ui.switcherOpen), set: toggleSwitcher })
 const draftCount = computed(() => localCount())
 const waitingCount = computed(() => waitingRequests().length)
@@ -198,49 +198,23 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
         <span v-if="waitingCount" class="text-label" :class="AGENT_TEXT_COLORS[agentState()]">
           {{ waitingCount === 1 ? '1 request waits for the agent' : `${waitingCount} requests wait for the agent` }}
         </span>
-        <UPopover v-if="reviews.length" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
-          <UButton color="neutral" variant="soft" class="font-bold" icon="i-lucide-monitor-dot" :label="plural(reviews.length, 'session')" :aria-label="`${plural(reviews.length, 'session')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
+        <UPopover v-if="reviewCount" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
+          <UButton color="neutral" variant="soft" class="font-bold" icon="i-lucide-monitor-dot" :label="plural(reviewCount, 'session')" :aria-label="`${plural(reviewCount, 'session')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
           <template #content>
-            <ul role="list" class="m-0 grid max-h-(--reka-popover-content-available-height) w-[min(420px,calc(100vw-32px))] list-none gap-0.5 overflow-y-auto p-1.5">
-              <li
-                v-for="review in reviews"
-                :key="reviewRef(review)"
-                class="flex items-start gap-1 rounded-md text-label"
-                :class="isCurrentReview(review) ? 'mb-1 bg-accented px-2.5 py-2' : 'has-[a:hover]:bg-elevated'"
-                :aria-current="isCurrentReview(review) ? 'page' : undefined"
-              >
-                <div class="min-w-0 flex-1">
-                  <template v-if="isCurrentReview(review)">
-                    <span class="flex flex-wrap items-center gap-x-1.5 font-semibold">
-                      <UIcon name="i-lucide-check" class="size-3.5 text-success" aria-hidden="true" /><a :href="state.review.pr.url" target="_blank" rel="noopener" class="text-info underline-offset-3">{{ reviewRef(review) }}</a>{{ review.state === 'open' ? '' : ` · ${review.state}` }}
-                      <span class="rounded-sm bg-(--ui-text) px-1.5 text-tag font-semibold text-inverted">this page</span>
-                    </span>
-                    <span class="block text-muted">{{ review.title }}</span>
-                    <span v-if="review.paused" class="block text-warning">Agent paused</span>
-                  </template>
-                  <template v-else>
-                    <a :href="`/${review.owner}/${review.repo}/${review.number}`" class="grid gap-0.5 px-2.5 py-2 text-default no-underline">
-                      <span class="font-semibold">{{ reviewRef(review) }}{{ review.state === 'open' ? '' : ` · ${review.state}` }}</span>
-                      <span class="text-muted">{{ review.title }}</span>
-                      <span v-if="review.paused" class="text-warning">Agent paused</span>
-                    </a>
-                    <ResumeHelp v-if="!review.agentConnected" :help="resumeHelp(review)" lead="Not running. " class="px-2.5 pb-2 text-muted" />
-                  </template>
-                </div>
-                <UTooltip v-if="review.agentConnected" :text="review.paused ? 'Resume the agent' : 'Pause the agent'">
-                  <UButton
-                    :icon="review.paused ? 'i-lucide-play' : 'i-lucide-pause'"
-                    color="neutral"
-                    variant="ghost"
-                    size="sm"
-                    square
-                    class="mt-1.5 shrink-0"
-                    :aria-label="`${review.paused ? 'Resume' : 'Pause'} the agent of ${reviewRef(review)}`"
-                    @click="setPaused(review, !review.paused)"
-                  />
-                </UTooltip>
-              </li>
-            </ul>
+            <div class="max-h-(--reka-popover-content-available-height) w-[min(420px,calc(100vw-32px))] overflow-y-auto p-1.5">
+              <section v-for="group in groups" :key="group.repo" class="not-first:mt-2">
+                <h3 class="m-0 px-2.5 pt-1 pb-1.5 font-display text-meta tracking-[.1em] text-muted uppercase">{{ group.repo }}</h3>
+                <ul role="list" :aria-label="`Reviews in ${group.repo}`" class="m-0 grid list-none gap-0.5 p-0">
+                  <SessionRow v-for="review in group.recent" :key="reviewRef(review)" :review="review" />
+                </ul>
+                <details v-if="group.older.length" class="mt-0.5">
+                  <summary class="cursor-pointer px-2.5 py-1.5 text-label text-muted hover:text-toned">{{ group.older.length }} older merged or closed</summary>
+                  <ul role="list" class="m-0 grid list-none gap-0.5 p-0">
+                    <SessionRow v-for="review in group.older" :key="reviewRef(review)" :review="review" />
+                  </ul>
+                </details>
+              </section>
+            </div>
           </template>
         </UPopover>
 

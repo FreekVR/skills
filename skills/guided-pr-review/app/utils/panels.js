@@ -5,6 +5,24 @@ import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSever
 import { answerFor, buildPost, githubStatus, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, resolvedByOthers, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
+// A merged or closed PR whose review was quiet this many days folds away in the sessions list.
+const QUIET_DAYS = 14
+
+// Get the reviews of the sessions list by repository: the group of this page first, then by their newest review.
+// In a group the newest review comes first; merged and closed ones that were quiet for QUIET_DAYS go in `older`.
+export function sessionGroups() {
+  const groups = new Map()
+  const now = Date.now()
+  const newestFirst = [...(state.reviews || [])].sort((a, b) => (b.lastActivity || '').localeCompare(a.lastActivity || '') || b.number - a.number)
+  for (const review of newestFirst) {
+    const repo = `${review.owner}/${review.repo}`
+    if (!groups.has(repo)) groups.set(repo, { repo, recent: [], older: [] })
+    const quiet = review.state !== 'open' && !isCurrentReview(review) && now - Date.parse(review.lastActivity) > QUIET_DAYS * 24 * 3600 * 1000
+    groups.get(repo)[quiet ? 'older' : 'recent'].push(review)
+  }
+  return [...groups.values()].sort((a, b) => Number(b.recent.some(isCurrentReview)) - Number(a.recent.some(isCurrentReview)))
+}
+
 // Each kind of change on GitHub comes with the one action that deals with it.
 // `key` changes when the banner says something new, so the view can announce it once.
 export function updates() {

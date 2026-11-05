@@ -108,6 +108,12 @@ export async function setPaused(review, paused) {
   if (!paused && state.review && isCurrentReview(review)) deliver({ type: 'check' }).catch(() => {})
 }
 
+// Delete a review from the sessions list. An error stays with the caller, which shows it next to the review.
+export async function removeSession(review) {
+  await transport.removeReview(review)
+  state.reviews = state.reviews.filter((other) => other !== review)
+}
+
 // Resume the agent of the open review, or of the review the start came from while the agent prepares this one.
 // The page's own flag and the switch's entry for this review both follow once the server accepts it.
 export async function resumeAgent() {

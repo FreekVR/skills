@@ -91,3 +91,75 @@ test('pause and play the agent from the review switch, and play asks the agent t
   await expect(page.getByText('Agent paused.')).toBeHidden();
   await expect.poll(() => checks(review)).toBe(before + 1);
 });
+
+// Sets the time of the last activity of a review in the state directory, a number of days ago.
+function lastActive(review, owner, repo, number, daysAgo) {
+  const dir = path.join(review.stateHome, 'guided-pr-review', owner, repo, String(number));
+  const at = new Date(Date.now() - daysAgo * 24 * 3600 * 1000);
+  fs.utimesSync(path.join(dir, 'review.json'), at, at);
+}
+const prOf = (number, title, change = () => {}) => {
+  const data = fixture();
+  data.pr.number = number;
+  data.pr.title = title;
+  change(data);
+  return data;
+};
+const sessions = (page) => page.getByRole('banner').getByRole('button', { name: /sessions?:/ });
+
+test('the review switch groups the reviews by repository, the newest first', async ({ page }) => {
+  const review = await openReview(page, {
+    others: [prOf(9, 'chore: an older PR'), prOf(18, 'fix: round the temperature'), prOf(3, 'feat: the forecast endpoint', (data) => { data.pr.repo = 'sample-api'; })],
+  });
+  lastActive(review, 'example-org', 'sample-widget', 9, 6);
+  lastActive(review, 'example-org', 'sample-widget', 18, 2);
+  lastActive(review, 'example-org', 'sample-api', 3, 1);
+  await page.reload();
+  await sessions(page).click();
+  const groups = page.getByRole('list', { name: /^Reviews in / });
+  await expect(groups).toHaveCount(2);
+  await expect(groups.first()).toHaveAccessibleName('Reviews in example-org/sample-widget');
+  await expect(groups.first().getByRole('listitem')).toHaveText([/#17.*this page/, /#18.*2 days ago/, /#9.*last week/]);
+  await expect(groups.last().getByRole('listitem')).toHaveText([/sample-api#3.*yesterday/]);
+});
+
+test('the review switch folds away merged and closed reviews that were quiet for 14 days', async ({ page }) => {
+  const review = await openReview(page, {
+    others: [prOf(9, 'chore: an older PR', (data) => { data.remote = { state: 'merged' }; }), prOf(18, 'fix: round the temperature', (data) => { data.remote = { state: 'closed' }; })],
+  });
+  lastActive(review, 'example-org', 'sample-widget', 9, 20);
+  lastActive(review, 'example-org', 'sample-widget', 18, 3);
+  await page.reload();
+  await sessions(page).click();
+  await expect(page.getByText('fix: round the temperature')).toBeVisible();
+  await expect(page.getByText('chore: an older PR')).toBeHidden();
+  await page.getByText('1 older merged or closed').click();
+  await expect(page.getByText('chore: an older PR')).toBeVisible();
+});
+
+test('remove a review from the review switch after you confirm it', async ({ page }) => {
+  const review = await openReview(page, { others: [other()] });
+  const dir = path.join(review.stateHome, 'guided-pr-review', 'example-org', 'sample-widget', '18');
+  await sessions(page).click();
+  await page.getByRole('button', { name: 'Remove the review of example-org/sample-widget#18' }).click();
+  await expect(page.getByText('Delete the review folder of #18 and its worktree?')).toBeVisible();
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  expect(fs.existsSync(dir)).toBe(true);
+  await page.getByRole('button', { name: 'Remove the review of example-org/sample-widget#18' }).click();
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(page.getByText('fix: round the temperature')).toBeHidden();
+  expect(fs.existsSync(dir)).toBe(false);
+  await expect(page.getByRole('button', { name: /^Remove the review of .*#17$/ })).toHaveCount(0);
+});
+
+test('a review that cannot be removed stays in the switch with the reason', async ({ page }) => {
+  const review = await openReview(page, { others: [other()] });
+  const dir = path.join(review.stateHome, 'guided-pr-review', 'example-org', 'sample-widget', '18');
+  fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify({ sessionId: null, cwd: '/', worktree: review.stateHome }));
+  await sessions(page).click();
+  await page.getByRole('button', { name: 'Remove the review of example-org/sample-widget#18' }).click();
+  await page.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(page.getByText(/not a git repository/)).toBeVisible();
+  await expect(page.getByText('fix: round the temperature')).toBeVisible();
+  expect(fs.existsSync(dir)).toBe(true);
+});

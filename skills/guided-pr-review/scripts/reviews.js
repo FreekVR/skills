@@ -5,7 +5,7 @@
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { execFile } = require('child_process');
+const { execFile, execFileSync } = require('child_process');
 
 function stateRoot() {
   return path.join(process.env.XDG_STATE_HOME || path.join(os.homedir(), '.local', 'state'), 'guided-pr-review');
@@ -153,11 +153,37 @@ function listReviews(root = stateRoot()) {
           session,
           agentConnected: connected,
           paused,
+          lastActivity: lastActivity(dir),
         });
       }
     }
   }
   return reviews;
+}
+
+// The time the agent or the reviewer last changed the review, or sent an event; session.json is left out, a restart writes it.
+function lastActivity(dir) {
+  const times = ['review.json', 'reviewer.json', 'events.jsonl'].map((file) => {
+    try { return fs.statSync(path.join(dir, file)).mtimeMs; } catch { return 0; }
+  });
+  return new Date(Math.max(...times)).toISOString();
+}
+
+// Delete a review: first its worktree, through git, then its directory. A main clone is never removed, and a review
+// whose agent runs is kept. When git refuses, for example over uncommitted changes, the error says why and nothing is deleted.
+function removeReview(dir) {
+  if (agentStatus(dir).connected) throw new Error('The agent of this review is running. Stop it first.');
+  const worktree = readJson(path.join(dir, 'session.json'))?.worktree || readJson(path.join(dir, 'review.json'))?.pr?.localPath;
+  if (worktree && fs.existsSync(worktree)) {
+    const git = (...args) => execFileSync('git', args, { cwd: worktree, encoding: 'utf8', stdio: 'pipe' }).trim();
+    try {
+      const [gitDir, commonDir] = git('rev-parse', '--path-format=absolute', '--git-dir', '--git-common-dir').split('\n');
+      if (gitDir !== commonDir) execFileSync('git', ['--git-dir', commonDir, 'worktree', 'remove', worktree], { encoding: 'utf8', stdio: 'pipe' });
+    } catch (error) {
+      throw new Error(String(error.stderr || error.message).trim(), { cause: error });
+    }
+  }
+  fs.rmSync(dir, { recursive: true, force: true });
 }
 
 // Write to a temporary file first, so the agent never reads a half-written file.
@@ -273,4 +299,4 @@ function agentStatus(dir) {
   };
 }
 
-module.exports = { stackStatus, setWaiting, readWaiting, readPreparing, setPreparing, agentStatus, stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };
+module.exports = { removeReview, stackStatus, setWaiting, readWaiting, readPreparing, setPreparing, agentStatus, stateRoot, reviewDir, writeSession, readJson, isRunning, watchEvents, watchReview, listReviews, anyAgentConnected, writeAtomic, changedFile, revealInFolder };
