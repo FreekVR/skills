@@ -16,6 +16,15 @@ test('shows the file path, the status and the function of the hunk', async ({ pa
   await expect(page.getByRole('banner').getByText('export class Cache {').first()).toBeVisible();
 });
 
+// The map scrolls sideways; the legend sits above it, so the scroll bar is the bottom edge of the header.
+test('shows the legend above the flow map', async ({ page }) => {
+  await openReview(page);
+  await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
+  const legend = await page.getByRole('banner').getByText('Legend').boundingBox();
+  const map = await page.getByRole('navigation', { name: /^Hunks in/ }).boundingBox();
+  expect(legend.y).toBeLessThan(map.y);
+});
+
 test('shows where a renamed file came from', async ({ page }) => {
   await openReview(page);
   await openHunk(page, 'Moved and added files', /^C1 /);
@@ -84,10 +93,53 @@ test.describe('a finding', () => {
     }
   });
 
+  test('takes the colour of the chosen severity on its edge', async ({ page }) => {
+    const select = page.getByRole('combobox', { name: /^Severity/ });
+    const note = select.locator('xpath=ancestor::div[contains(@class, "border-r-8")][1]');
+    await select.selectOption('medium');
+    const fill = await select.evaluate((element) => getComputedStyle(element).backgroundColor);
+    await expect(note).toHaveCSS('border-right-color', fill);
+  });
+
+  test('starts with the AI finding tag and shows no state icon while it is open', async ({ page }) => {
+    const note = page.getByRole('combobox', { name: /^Severity/ }).locator('xpath=ancestor::div[contains(@class, "border-r-8")][1]');
+    await expect(note.locator('div').first()).toHaveText(/^AI finding\s*TTL is in milliseconds/);
+    await expect(note.locator('[data-note-state]')).toHaveCount(0);
+  });
+
+  test('shows its state as an icon whose label slides out on hover', async ({ page }) => {
+    await page.getByRole('button', { name: 'Accept' }).click();
+    const icon = page.getByRole('img', { name: /^In your review, not posted/ });
+    await expect(icon).toBeVisible();
+    await icon.hover();
+    await expect(icon.getByText('In your review, not posted')).toBeVisible();
+    await page.getByRole('button', { name: 'Dismiss' }).click();
+    await expect(page.getByRole('img', { name: 'Not in your review' })).toBeVisible();
+  });
+
   test('can be dismissed', async ({ page }) => {
     await page.getByRole('button', { name: 'Dismiss' }).click();
     await expectPoll(() => review.reviewer().decisions?.f1 === 'dismissed');
   });
+});
+
+const postedF1 = {
+  mutate: (data) => { data.posts = [{ eventId: 'e1', status: 'posted' }]; },
+  reviewer: { sent: [{ id: 'e1', type: 'post', kind: 'final', contents: [{ id: 'f1', body: 'The TTL is 60 seconds, not one hour.' }] }] },
+};
+
+test('a posted finding shows that it is on GitHub, also after you dismiss it', async ({ page }) => {
+  await openReview(page, { ...postedF1, reviewer: { ...postedF1.reviewer, decisions: { f1: 'accepted' } } });
+  await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
+  await expect(page.getByRole('img', { name: 'On GitHub' })).toBeVisible();
+  await page.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(page.getByRole('img', { name: 'On GitHub' })).toBeVisible();
+});
+
+test('a remark shows its GitHub state as an icon', async ({ page }) => {
+  await openReview(page, { reviewer: { remarks: [{ id: 'r1', hunkId: H.cache, line: 3, side: 'RIGHT', severity: 'minor', body: 'My own remark.' }] } });
+  await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
+  await expect(page.getByRole('img', { name: /^In your review, not posted/ })).toBeVisible();
 });
 
 test('shows the comment of someone else with reply, fix line and opinion', async ({ page }) => {

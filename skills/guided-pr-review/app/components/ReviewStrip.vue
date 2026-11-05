@@ -287,6 +287,23 @@ useEventListener(document, 'scroll', (event: Event) => {
         </div>
       </div>
 
+      <details class="legend-wrap compact-hide px-gutter" :open="state.ui.legendOpen" @toggle="state.ui.legendOpen = ($event.target as HTMLDetailsElement).open">
+        <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 text-meta text-muted hover:text-toned">
+          Legend
+        </summary>
+        <p class="m-0 flex flex-wrap items-center gap-4 pt-2 text-meta text-muted">
+          <span><span class="mr-1.5 inline-block size-4 rounded-full border-3 border-current align-[-3px]" />current hunk (bigger)</span>
+          <span><span class="mr-1.5 inline-block size-2.5 rounded-full border-2 border-current align-[-1px]" />not read</span>
+          <span><span class="mr-1.5 inline-block size-2.5 rounded-full border-2 border-current bg-current align-[-1px]" />read</span>
+          <span v-for="(label, verdict) in { approved: 'you approved', changes: 'you request changes', comment: 'you comment' }" :key="verdict">
+            <span class="mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 border-current bg-(--tick) align-[-4px]" :style="{ '--tick': TICK_COLORS[verdict] }">
+              <VerdictIcon :verdict="verdict" :class="verdict === 'approved' ? 'size-2' : 'size-3'" />
+            </span>{{ label }}
+          </span>
+          <span>also in <FlowBullet :line="{ name: 'Flow B', letter: 'B', color: 'line-b' }" mini />: the hunk is part of flow B too</span>
+        </p>
+      </details>
+
       <nav
         ref="map"
         class="map relative flex cursor-grab overflow-x-auto px-gutter pt-2.5 pb-2"
@@ -330,23 +347,6 @@ useEventListener(document, 'scroll', (event: Event) => {
         </div>
         <span class="map-hint end" aria-hidden="true" />
       </nav>
-
-      <details class="legend-wrap compact-hide px-gutter pb-2.5" :open="state.ui.legendOpen" @toggle="state.ui.legendOpen = ($event.target as HTMLDetailsElement).open">
-        <summary class="inline-flex cursor-pointer list-none items-center gap-1.5 text-meta text-muted hover:text-toned">
-          Legend
-        </summary>
-        <p class="m-0 flex flex-wrap items-center gap-4 pt-2 text-meta text-muted">
-          <span><span class="mr-1.5 inline-block size-4 rounded-full border-3 border-current align-[-3px]" />current hunk (bigger)</span>
-          <span><span class="mr-1.5 inline-block size-2.5 rounded-full border-2 border-current align-[-1px]" />not read</span>
-          <span><span class="mr-1.5 inline-block size-2.5 rounded-full border-2 border-current bg-current align-[-1px]" />read</span>
-          <span v-for="(label, verdict) in { approved: 'you approved', changes: 'you request changes', comment: 'you comment' }" :key="verdict">
-            <span class="mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 border-current bg-(--tick) align-[-4px]" :style="{ '--tick': TICK_COLORS[verdict] }">
-              <VerdictIcon :verdict="verdict" :class="verdict === 'approved' ? 'size-2' : 'size-3'" />
-            </span>{{ label }}
-          </span>
-          <span>also in <FlowBullet :line="{ name: 'Flow B', letter: 'B', color: 'line-b' }" mini />: the hunk is part of flow B too</span>
-        </p>
-      </details>
     </template>
   </header>
 </template>

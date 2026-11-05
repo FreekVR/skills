@@ -42,13 +42,14 @@ function save() {
 const struck = computed(() => decision.value === 'dismissed' && 'text-muted line-through decoration-1')
 
 // The edge of the note carries its severity; a dismissed finding loses it.
-const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented' : SEVERITY_EDGES[severityLevel(props.item.severity)]))
+const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented' : SEVERITY_EDGES[severityLevel(select.value?.current ?? props.item.severity)]))
 </script>
 
 <template>
   <div :class="[NOTE_BLOCK, edge]">
     <div class="flex flex-wrap items-center gap-2.5">
       <template v-if="select">
+        <AiTag label="AI finding" />
         <span class="font-display text-lead" :class="struck"><MarkupText :text="item.title" /></span>
         <span class="relative inline-flex items-center">
           <select
@@ -64,18 +65,13 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
           <UIcon name="i-lucide-chevron-down" class="pointer-events-none absolute right-1 size-3" :class="chevronColor" aria-hidden="true" />
         </span>
         <span v-if="select.changed" class="text-meta text-muted">AI said {{ select.suggested }}</span>
-        <AiTag label="AI finding" />
         <span v-if="item.rule" class="text-meta whitespace-nowrap text-muted">{{ item.rule }}</span>
-        <UBadge v-if="decision === 'accepted'" color="success" variant="solid" size="sm" class="rounded-full font-bold">Accepted</UBadge>
-        <UBadge v-else-if="decision === 'dismissed'" color="neutral" variant="soft" size="sm" class="rounded-full font-bold">Dismissed</UBadge>
-        <StatusBadge v-if="decision === 'accepted'" :id="item.id" :body="text" />
       </template>
       <template v-else>
         <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
         <DiffSeverity :severity="item.severity" />
         <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
         <span class="text-meta text-muted">{{ own ? 'Your pending remark from GitHub' : 'Your remark' }}{{ item.line ? ` · ${lineLabel(item)}` : '' }}</span>
-        <StatusBadge :id="item.id" :body="item.body" />
       </template>
     </div>
     <div v-if="editing">
@@ -107,6 +103,7 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
           <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit</UButton>
           <UButton color="error" variant="ghost" @click="deleteRemark(item.id)">Delete</UButton>
         </template>
+        <NoteState :id="item.id" :body="text" :decision="decision" />
       </div>
     </template>
   </div>

@@ -48,7 +48,7 @@ const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-
       >
         <HomeStatusIcon :tone="pill.tone" :icon="pill.icon" bare class="size-5!" />
         <span v-if="pill.count" class="tabular-nums">{{ pill.count }}</span>
-        <span class="inline-block max-w-0 overflow-hidden font-sans text-label font-semibold whitespace-nowrap opacity-0 transition-[max-width,opacity,margin] duration-300 ease-review group-hover:ml-1 group-hover:max-w-[40ch] group-hover:opacity-100 group-focus-visible:ml-1 group-focus-visible:max-w-[40ch] group-focus-visible:opacity-100 motion-reduce:transition-none" aria-hidden="true">{{ pill.text }}</span>
+        <SlideLabel class="font-sans text-label font-semibold group-hover:ml-1 group-focus-visible:ml-1">{{ pill.text }}</SlideLabel>
       </UButton>
     </div>
 
