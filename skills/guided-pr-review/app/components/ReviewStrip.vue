@@ -154,7 +154,7 @@ useEventListener(document, 'scroll', (event: Event) => {
         <UPopover v-if="reviews.length" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
           <UButton color="neutral" variant="soft" class="font-bold" icon="i-lucide-monitor-dot" :label="plural(reviews.length, 'session')" :aria-label="`${plural(reviews.length, 'session')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
           <template #content>
-            <ul role="list" class="m-0 grid w-[min(420px,calc(100vw-32px))] list-none gap-0.5 p-1.5">
+            <ul role="list" class="m-0 grid max-h-(--reka-popover-content-available-height) w-[min(420px,calc(100vw-32px))] list-none gap-0.5 overflow-y-auto p-1.5">
               <li
                 v-for="review in reviews"
                 :key="reviewRef(review)"

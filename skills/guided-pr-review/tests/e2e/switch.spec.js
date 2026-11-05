@@ -54,6 +54,21 @@ test('when the server stops the page says the review is not running and shows th
   await expect(page.getByText("cd '/work/sample widget' && claude --resume abc-123")).toBeVisible();
 });
 
+test('the review switch scrolls when its sessions do not fit in the window', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 500 });
+  const others = Array.from({ length: 12 }, (_, index) => {
+    const data = other();
+    data.pr.number = 100 + index;
+    data.pr.title = `fix: session ${index}`;
+    return data;
+  });
+  await openReview(page, { others });
+  await page.getByRole('banner').getByText('13 sessions').click();
+  const last = page.getByRole('link', { name: /fix: session 11/ });
+  await last.scrollIntoViewIfNeeded();
+  await expect(last).toBeInViewport();
+});
+
 const checks = (review) => review.events().filter((event) => event.type === 'check').length;
 
 test('pause and play the agent from the review switch, and play asks the agent to check GitHub', async ({ page }) => {
