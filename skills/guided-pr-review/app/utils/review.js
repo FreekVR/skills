@@ -184,7 +184,7 @@ export function fileName(path) { return path.split('/').pop() }
 
 // Get the title of the current view, for the review strip.
 export function viewTitle() {
-  if (state.view.kind === 'home') return 'Overview'
+  if (state.view.kind === 'home') return 'Home'
   if (state.view.kind === 'terminus') return postedReview() ? 'Review posted' : hasOwnReview() ? 'Post a new review' : 'Submit review'
   if (state.view.kind === 'reviews') return 'Existing reviews'
   const line = lineById(state.view.line)
@@ -205,6 +205,8 @@ export function flowVerdict(line) {
 export function noteFreshHunks() {
   const known = state.reviewer.knownHunks || []
   const current = allHunkIds()
+  // Hunks marked changed in an earlier load stay marked until the reviewer opens them.
+  for (const id of state.reviewer.changedHunks || []) if (current.includes(id) && !isSeen(id)) state.freshHunks.add(id)
   if (known.length) {
     for (const id of current) if (!known.includes(id) && !isSeen(id)) state.freshHunks.add(id)
     const added = current.filter((id) => !known.includes(id)).length
@@ -213,6 +215,7 @@ export function noteFreshHunks() {
     if (added || gone) state.reviewer.hunkChanges = { added: before.added + added, gone: before.gone + gone }
   }
   state.reviewer.knownHunks = current
+  state.reviewer.changedHunks = [...state.freshHunks]
 }
 
 export function ticketCriteria() { return (state.review.context.tickets || []).flatMap((ticket) => ticket.acceptanceCriteria || []) }

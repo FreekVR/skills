@@ -9,9 +9,12 @@ const flows = computed(() => lines().map((line: { id: string, stops: { hunkId: s
   verdict: flowVerdict(line),
 })))
 
-function tileLabel(flow: { line: { stops: unknown[] }, seen: number, verdict: string | null }) {
+function tileLabel(flow: { line: { stops: { hunkId: string }[] }, seen: number, verdict: string | null }) {
   if (flow.verdict) return FLOW_VERDICT_LABELS[flow.verdict]
-  return `${plural(flow.line.stops.length, 'hunk')}${flow.seen ? ` · ${flow.seen} seen` : ''}`
+  // The tile carries what the flows list on Home used to show: the seen count, the open findings and new or changed hunks.
+  const findings = flowFindingsPill(flow.line)
+  const fresh = flow.line.stops.some((stop: { hunkId: string }) => state.freshHunks.has(stop.hunkId))
+  return [plural(flow.line.stops.length, 'hunk'), flow.seen && `${flow.seen} seen`, findings?.text, fresh && 'changed'].filter(Boolean).join(' · ')
 }
 </script>
 

@@ -27,9 +27,8 @@ test('shows the flows and Home, without the agent features', async ({ page }) =>
   await expect(page.getByRole('button', { name: 'Explain more' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /^Post as draft/ })).toHaveCount(0);
   await page.getByRole('button', { name: 'Home' }).click();
-  const main = page.getByRole('main');
   await expect(page.getByRole('banner').getByRole('heading', { name: 'feat: add three-day forecast' })).toBeVisible();
-  await expect(main.getByRole('button', { name: /^Show the forecast ./ })).toBeVisible();
+  await expect(page.getByRole('banner').getByRole('button', { name: /Show the forecast/ })).toBeVisible();
 });
 
 test('keeps the reviewer state in the browser after a reload', async ({ page }) => {

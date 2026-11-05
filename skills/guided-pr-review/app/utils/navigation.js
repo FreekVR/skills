@@ -61,8 +61,6 @@ export function goTerminus() {
   savePosition()
 }
 
-export function goFirst() { return go(lines()[0].id, 0) }
-
 // Back to the hunk the reviewer last had open in this flow. A flow not opened yet, or one whose hunks changed since,
 // starts at its first unseen hunk. A position saved before the page kept the flow's hunks with it counts as changed.
 export function openFlow(lineId) {

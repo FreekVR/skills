@@ -1,300 +1,220 @@
 <script setup lang="ts">
-// The overview of the PR: what to look at first, the flows and the reviewer's progress.
+// The overview of the PR. The reading column holds the PR and its checks, worst first, each one line that opens in
+// place; the side panel holds what changed since the last review and the reviewer's own review, in view while scrolling.
 const data = computed(() => home())
 const criteria = computed(() => criteriaPanel())
 const findings = computed(() => findingsPanel())
+const checks = computed(() => homeChecks())
+const since = computed(() => sinceLastTime())
 const review = computed(() => state.review)
 const context = computed(() => state.review.context)
-
-const flows = computed(() => lines().map((line: { stops: { hunkId: string }[] }) => ({
-  line,
-  seen: line.stops.filter((stop) => isSeen(stop.hunkId)).length,
-  findings: flowFindingsPill(line),
-  verdict: flowVerdict(line),
-})))
-
-const GLANCE_COLORS: Record<string, 'success' | 'warning' | 'error' | 'info' | 'neutral'> = { ok: 'success', warn: 'warning', bad: 'error', info: 'info', quiet: 'neutral' }
 
 // A fold remembers that it is open, so a redraw or a return to Home keeps it open.
 function toggle(key: string, event: Event) {
   if ((event.target as HTMLDetailsElement).open) state.ui.openExplain.add(key)
   else state.ui.openExplain.delete(key)
 }
-
-function scrollTo(target: string) {
-  document.getElementById(target)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+function flip(key: string) {
+  if (state.ui.openExplain.has(key)) state.ui.openExplain.delete(key)
+  else state.ui.openExplain.add(key)
 }
 
-const groupTitle = 'm-0 flex flex-wrap items-center gap-3 font-display text-display'
-const changes = computed(() => changesSince())
-const group = 'mt-16'
+const label = 'm-0 mb-2.5 flex flex-wrap items-center gap-2 font-display text-meta tracking-[.1em] text-muted uppercase'
 const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-ui font-semibold text-default [&::-webkit-details-marker]:hidden'
+// A passed check carries a check mark; a check that only informs carries an info mark, so it never reads as passed.
+// The opened description also lists the AI summaries of the linked pull requests.
+const linkedSummaries = computed(() => (context.value.linkedPrs || []).some((pr: { summary?: string }) => pr.summary))
+const QUIET_ICONS: Record<string, { icon: string, color: string }> = { ok: { icon: 'i-lucide-circle-check', color: 'text-success' }, quiet: { icon: 'i-lucide-info', color: 'text-muted' } }
 </script>
 
 <template>
   <section class="page-column min-w-0 pt-8 pb-30 wrap-anywhere">
-    <!-- A pill shows its icon and count; its label slides out on hover and on focus, and is always read to a screen reader. -->
-    <div class="mb-7 flex flex-wrap gap-2.5" role="group" aria-label="What to look at first">
-      <UButton
-        v-for="pill in data.glance"
-        :key="pill.target"
-        :color="GLANCE_COLORS[pill.tone]"
-        :variant="['warn', 'bad'].includes(pill.tone) ? 'solid' : 'soft'"
-        size="lg"
-        class="group rounded-full py-2 pr-4 pl-3.5 font-display text-ui"
-        :aria-label="pill.text"
-        :title="pill.text"
-        @click="scrollTo(pill.target)"
-      >
-        <HomeStatusIcon :tone="pill.tone" :icon="pill.icon" bare class="size-5!" />
-        <span v-if="pill.count" class="tabular-nums">{{ pill.count }}</span>
-        <SlideLabel class="font-sans text-label font-semibold group-hover:ml-1 group-focus-visible:ml-1">{{ pill.label }}</SlideLabel>
-      </UButton>
-    </div>
-
-    <div v-if="context.summary" class="max-w-[70ch] text-lead leading-[1.55]">
-      <AiTag label="AI summary" class="mb-2" />
-      <SafeMarkdown :value="context.summary" />
-    </div>
-
-    <HomeStack v-if="hasStack()" />
-
-    <section v-if="changes" class="mt-5 max-w-[70ch] rounded-card bg-elevated px-4.5 py-3.5 text-body" aria-labelledby="changes-since">
-      <h3 id="changes-since" class="m-0 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-ui font-semibold">
-        Changed since your last review
-        <span class="text-label font-normal text-muted"><CommitLink :sha="changes.from" /> → <CommitLink :sha="changes.to" /></span>
-        <AiTag label="AI summary" />
-      </h3>
-      <div class="mt-1.5 text-toned [&>:first-child]:mt-0 [&>:last-child]:mb-0">
-        <SafeMarkdown :value="changes.summary" />
-      </div>
-    </section>
-
-    <details v-if="review.pr.body" class="group mt-5 rounded-card bg-elevated text-body" :open="state.ui.openExplain.has('pr-body')" @toggle="toggle('pr-body', $event)">
-      <summary class="flex cursor-pointer list-none items-center gap-2 px-4 py-2.5 text-ui font-semibold text-default [&::-webkit-details-marker]:hidden">
-        PR description
-        <UIcon name="i-lucide-chevron-down" class="ml-auto size-4 transition-transform group-open:rotate-180" aria-hidden="true" />
-      </summary>
-      <div class="px-4 pb-3.5 text-toned">
-        <SafeMarkdown :value="review.pr.body" />
-      </div>
-    </details>
-
-    <div :class="group">
-      <h3 :class="groupTitle">
-        Before you start
-      </h3>
-      <div class="mt-5 grid gap-3">
-        <HomePanel v-if="criteria.reason" id="home-criteria" tone="quiet" :icon="criteria.status.icon" title="Acceptance criteria">
-          <p class="m-0 mb-1.5 max-w-[72ch] text-body text-toned">
-            {{ criteria.reason }}
-          </p>
-        </HomePanel>
-        <HomePanel v-else id="home-criteria" :tone="criteria.status.tone" :icon="criteria.status.icon" title="Acceptance criteria">
-          <template #tag>
-            <AiTag label="checked by AI" />
-          </template>
-          <template #pills>
-            <HomePill :tone="criteria.status.tone">
-              {{ criteria.status.label }}
-            </HomePill>
-          </template>
-          <!-- In a stack, one list shows each criterion with every PR that meets it, this one included. -->
-          <CoverageList v-if="hasStack()" />
-          <template v-else>
-          <CriteriaRows v-if="criteria.rest.length" :criteria="criteria.rest" />
-          <details v-if="criteria.met.length" :open="state.ui.openExplain.has('criteria-met')" @toggle="toggle('criteria-met', $event)">
-            <summary :class="fold">
-              {{ criteria.rest.length ? `Show the ${plural(criteria.met.length, 'met criterion', 'met criteria')}` : `Show the ${plural(criteria.met.length, 'criterion', 'criteria')}` }}
-              <UIcon name="i-lucide-chevron-down" class="size-4 text-dimmed" aria-hidden="true" />
-            </summary>
-            <CriteriaRows :criteria="criteria.met" />
-          </details>
-          </template>
-        </HomePanel>
-
-        <HomePanel v-if="liveFindings().length" id="home-findings" :tone="findings.status.tone" :icon="findings.status.icon" title="What the AI found">
-          <template #tag>
-            <AiTag label="AI findings" />
-          </template>
-          <template #pills>
-            <template v-if="findings.status.open.length">
-              <HomePill v-for="{ severity, count } in findings.bySeverity" :key="severity" :tone="severityTone(severity)">
-                {{ count }} {{ severity }}
-              </HomePill>
+    <!-- Two columns only where the reading column keeps room next to the rail and the side panel. -->
+    <div class="grid gap-x-10 gap-y-8 rail:grid-cols-[minmax(0,1fr)_270px]">
+      <div class="min-w-0">
+        <section aria-labelledby="home-pr">
+          <h3 id="home-pr" :class="label">
+            This pull request <AiTag v-if="context.summary" label="AI summary" class="tracking-normal normal-case" />
+          </h3>
+          <div v-if="context.summary" class="max-w-[66ch] font-sans text-lead leading-[1.5] font-normal [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+            <SafeMarkdown :value="context.summary" />
+          </div>
+          <p class="mt-1.5 mb-0 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-label text-toned">
+            <button v-if="review.pr.body || linkedSummaries" class="inline-flex min-h-6 cursor-pointer items-center text-info" :aria-expanded="state.ui.openExplain.has('pr-body')" @click="flip('pr-body')">{{ review.pr.body ? 'Description' : 'Linked pull requests' }}</button>
+            <template v-for="ticket in context.tickets || []" :key="ticket.key">
+              <span aria-hidden="true">·</span><span>Ticket <a :href="ticket.url" target="_blank" rel="noopener" class="font-mono text-info" :title="`${ticket.key}: ${ticket.title}`">{{ ticket.key }}</a> {{ ticket.title }}</span>
             </template>
-            <HomePill v-else tone="ok">
-              {{ findings.status.label }}
-            </HomePill>
-            <HomePill tone="quiet">
-              {{ findings.whole.length }} on the whole PR
-            </HomePill>
-            <HomePill tone="quiet">
-              {{ findings.onHunks }} in the flows
-            </HomePill>
-          </template>
-          <ul v-if="findings.whole.length" role="list" class="m-0 mt-1 list-none p-0">
-            <HomeFinding v-for="finding in findings.whole" :key="finding.id" :finding="finding" />
-          </ul>
-        </HomePanel>
-
-        <HomePanel v-if="data.general.length" id="home-comments" tone="warn" icon="comment" title="Comments outside the diff">
-          <template #pills>
-            <HomePill tone="warn">
-              {{ data.general.length }} open
-            </HomePill>
-          </template>
-          <HomeComment v-for="comment in data.general" :key="comment.id" :comment="comment" />
-        </HomePanel>
-
-        <HomePanel v-if="context.coverage" id="home-coverage" tone="info" icon="coverage" title="Test coverage">
-          <template #tag>
-            <AiTag label="AI summary" />
-          </template>
-          <p class="m-0 mb-1.5 max-w-[72ch] text-body text-toned">
-            <MarkupText :text="context.coverage.summary" /> <span class="text-muted">Source: <MarkupText :text="context.coverage.source" /></span>
+            <template v-for="pr in context.linkedPrs || []" :key="`${pr.repo}#${pr.number}`">
+              <span aria-hidden="true">·</span><span>Linked <a :href="pr.url" target="_blank" rel="noopener" class="font-mono text-info" :title="pr.summary || pr.title">{{ pr.repo }}#{{ pr.number }}</a> {{ pr.state.toLowerCase() }}</span>
+            </template>
+            <template v-for="ticket in context.relatedTickets || []" :key="ticket.key">
+              <span aria-hidden="true">·</span><span>Related <a :href="ticket.url" target="_blank" rel="noopener" class="font-mono text-info" :title="`${ticket.key}: ${ticket.title}`">{{ ticket.key }}</a></span>
+            </template>
           </p>
-        </HomePanel>
+          <div v-if="(review.pr.body || linkedSummaries) && state.ui.openExplain.has('pr-body')" class="mt-3 max-w-[72ch] rounded-card bg-elevated px-4 py-3 text-body text-toned">
+            <div v-if="review.pr.body" class="[&>:first-child]:mt-0 [&>:last-child]:mb-0">
+              <SafeMarkdown :value="review.pr.body" />
+            </div>
+            <template v-if="linkedSummaries">
+              <h4 class="mt-3 mb-1 flex items-center gap-2 text-ui font-semibold text-default first:mt-0">
+                Linked pull requests <AiTag label="AI summaries" />
+              </h4>
+              <ul class="m-0 grid list-disc gap-1 pl-5 text-ui">
+                <li v-for="pr in context.linkedPrs" :key="`${pr.repo}#${pr.number}`">
+                  <MarkupText :text="`${pr.repo}#${pr.number}`" /> <span class="text-muted">{{ pr.state.toLowerCase() }}</span>: <MarkupText :text="pr.summary || pr.title" />
+                </li>
+              </ul>
+            </template>
+          </div>
+          <HomeStack v-if="hasStack()" />
+        </section>
 
-        <HomePanel v-if="data.skipped.length" id="home-skipped" tone="warn" icon="notRead" title="Not read by the AI">
-          <template #tag>
-            <AiTag />
-          </template>
-          <template #pills>
-            <HomePill tone="warn">
-              {{ plural(data.skipped.length, 'item') }}
-            </HomePill>
-          </template>
-          <ul class="m-0 grid list-disc gap-1 pl-5 text-body text-toned">
-            <li v-for="(text, index) in data.skipped" :key="index">
-              <MarkupText :text="text" />
-            </li>
-          </ul>
-        </HomePanel>
+        <div class="mt-12" role="group" aria-label="What needs your attention">
+          <h3 :class="label">
+            What needs your attention
+          </h3>
+          <p v-if="!checks.attention.length" class="m-0 text-body text-toned">
+            Nothing. Every check passed or has been decided.
+          </p>
+          <HomeCheck v-for="check in checks.attention" :id="check.id" :key="check.id" :level="check.level" :severity="check.severity" :icon="check.icon" :title="check.title" :line="check.line">
+            <template v-if="check.id === 'criteria'">
+              <!-- In a stack, one list shows each criterion with every PR that meets it, this one included. -->
+              <CoverageList v-if="hasStack()" />
+              <template v-else>
+                <CriteriaRows v-if="criteria.rest.length" :criteria="criteria.rest" />
+                <details v-if="criteria.met.length" :open="state.ui.openExplain.has('criteria-met')" @toggle="toggle('criteria-met', $event)">
+                  <summary :class="fold">
+                    Show the {{ plural(criteria.met.length, 'met criterion', 'met criteria') }}
+                    <UIcon name="i-lucide-chevron-down" class="size-4 text-dimmed" aria-hidden="true" />
+                  </summary>
+                  <CriteriaRows :criteria="criteria.met" />
+                </details>
+              </template>
+            </template>
+            <template v-else-if="check.id === 'findings'">
+              <p class="m-0 font-mono text-label text-toned">
+                {{ findings.bySeverity.map(({ severity, count }) => `${count} ${severity}`).join(' · ') }}
+              </p>
+              <p class="m-0 mt-0.5 text-label text-muted">
+                {{ findings.whole.length }} on the whole PR · {{ findings.onHunks }} in the flows
+              </p>
+              <!-- The check already folds, so each finding on the whole PR shows as its note, not as a second fold. -->
+              <ul v-if="findings.whole.length" role="list" class="m-0 mt-3 grid list-none gap-3 p-0">
+                <li v-for="finding in findings.whole" :key="finding.id">
+                  <NoteCard type="finding" :item="finding" />
+                </li>
+              </ul>
+            </template>
+            <template v-else-if="check.id === 'own'">
+              <p class="m-0 text-ui text-toned">
+                Resolve, leave open or reply on the Existing reviews page.
+              </p>
+              <UButton color="neutral" variant="soft" class="mt-2" @click="goReviews()">
+                Open Existing reviews
+              </UButton>
+            </template>
+            <template v-else-if="check.id === 'comments'">
+              <HomeComment v-for="comment in data.general" :key="comment.id" :comment="comment" />
+            </template>
+          </HomeCheck>
+        </div>
+
+        <div v-if="checks.quiet.length" class="mt-8" role="group" aria-label="Also checked">
+          <h3 :class="label">
+            Also checked
+          </h3>
+          <details v-for="item in checks.quiet" :id="`home-${item.id}`" :key="item.id" class="group" :open="state.ui.openExplain.has(`check-${item.id}`)" @toggle="toggle(`check-${item.id}`, $event)">
+            <summary class="flex cursor-pointer list-none items-center gap-2.5 py-1 text-ui text-toned hover:text-default [&::-webkit-details-marker]:hidden">
+              <UIcon :name="QUIET_ICONS[item.tone].icon" class="size-4 shrink-0" :class="QUIET_ICONS[item.tone].color" aria-hidden="true" />
+              <span class="min-w-0 truncate group-open:whitespace-normal"><MarkupText :text="item.title" /></span>
+              <UIcon name="i-lucide-chevron-down" class="size-3.5 shrink-0 text-dimmed transition-transform group-open:rotate-180" aria-hidden="true" />
+            </summary>
+            <div class="pt-1 pb-3 pl-5">
+              <template v-if="item.id === 'criteria'">
+                <p v-if="criteria.reason" class="m-0 max-w-[72ch] text-ui text-toned">
+                  {{ criteria.reason }}
+                </p>
+                <CoverageList v-else-if="hasStack()" />
+                <CriteriaRows v-else :criteria="criteria.met" />
+              </template>
+              <p v-else-if="item.id === 'coverage'" class="m-0 max-w-[72ch] text-ui text-toned">
+                <AiTag label="AI summary" class="mr-1.5" /><MarkupText :text="context.coverage.summary" /> <span class="text-muted">Source: <MarkupText :text="context.coverage.source" /></span>
+              </p>
+              <ul v-else-if="item.id === 'skipped'" class="m-0 grid list-disc gap-1 pl-5 text-ui text-toned">
+                <li v-for="(text, index) in data.skipped" :key="index">
+                  <MarkupText :text="text" />
+                </li>
+              </ul>
+              <p v-else-if="item.id === 'findings'" class="m-0 text-ui text-toned">
+                You accepted or dismissed every AI finding: {{ findings.whole.length }} on the whole PR · {{ findings.onHunks }} in the flows.
+              </p>
+            </div>
+          </details>
+        </div>
       </div>
 
-      <details v-if="data.relatedCounts.length" class="mt-4.5" :open="state.ui.openExplain.has('related')" @toggle="toggle('related', $event)">
-        <summary :class="fold">
-          <UIcon name="i-lucide-link" class="size-4 text-dimmed" aria-hidden="true" />{{ data.relatedCounts.join(' · ') }}
-          <UIcon name="i-lucide-chevron-down" class="size-4 text-dimmed" aria-hidden="true" />
-        </summary>
-        <div class="grid grid-cols-[repeat(auto-fit,minmax(300px,1fr))] gap-x-12">
-          <div v-if="context.tickets?.length" class="mt-6">
-            <h4 class="m-0 text-ui font-semibold">
-              Tickets
-            </h4>
-            <ul class="mt-2 mb-0 grid list-disc gap-1 pl-5 text-ui text-toned">
-              <li v-for="ticket in context.tickets" :key="ticket.key">
-                <a :href="ticket.url" target="_blank" rel="noopener" :title="`${ticket.key}: ${ticket.title}`" class="text-info">{{ ticket.key }}</a> {{ ticket.title }}
-              </li>
-            </ul>
+      <aside class="grid content-start gap-3.5 self-start max-rail:order-first rail:sticky rail:top-6" aria-label="Your progress">
+        <section v-if="since" class="rounded-card bg-[color-mix(in_srgb,var(--ui-warning)_12%,var(--ui-bg))] px-4 py-3.5" aria-labelledby="home-since">
+          <h3 id="home-since" :class="label" class="mb-1!">
+            {{ since.sinceReview ? 'Since your last review' : 'Since your last visit' }}
+          </h3>
+          <p v-if="since.changes" class="m-0 mb-2.5 font-mono text-meta text-muted">
+            <CommitLink :sha="since.changes.from" /> → <CommitLink :sha="since.changes.to" />
+          </p>
+          <p v-if="since.fresh.length" class="m-0 text-ui font-semibold">
+            {{ plural(since.fresh.length, 'new or changed hunk') }}
+          </p>
+          <p v-if="since.findings.length" class="m-0 text-label text-toned">
+            {{ plural(since.findings.length, 'open finding') }} on changed code
+          </p>
+          <!-- What changed is the first thing to read after new commits, so it starts open; the reviewer can fold it away. -->
+          <UButton v-if="since.fresh.length" color="neutral" variant="link" class="mt-1 min-h-6 p-0 text-label text-info" @click="showFirstChangedHunk()">
+            Show the first changed hunk
+          </UButton>
+          <div v-if="since.changes" class="mt-3">
+            <button class="group flex min-h-6 w-full cursor-pointer items-center gap-1.5 text-left text-label font-semibold" :aria-expanded="!state.ui.openExplain.has('since-folded')" @click="flip('since-folded')">
+              What changed <AiTag label="" />
+              <UIcon name="i-lucide-chevron-down" class="ml-auto size-4 text-dimmed transition-transform group-aria-expanded:rotate-180" aria-hidden="true" />
+            </button>
+            <div v-if="!state.ui.openExplain.has('since-folded')" class="mt-1 text-label leading-snug text-toned [&_li]:my-1 [&_li]:ps-0 [&_li]:leading-snug [&_ol]:my-0 [&_ol]:ps-4 [&_p]:my-0 [&_p]:leading-snug [&_ul]:my-0 [&_ul]:ps-4">
+              <SafeMarkdown :value="since.changes.summary" />
+            </div>
           </div>
-          <div v-if="context.linkedPrs?.length" class="mt-6">
-            <h4 class="m-0 flex flex-wrap items-center gap-2 text-ui font-semibold">
-              Linked pull requests <AiTag label="AI summaries" />
-            </h4>
-            <ul class="mt-2 mb-0 grid list-disc gap-1 pl-5 text-ui text-toned">
-              <li v-for="pr in context.linkedPrs" :key="`${pr.repo}#${pr.number}`">
-                <MarkupText :text="`${pr.repo}#${pr.number}`" /> <span class="text-muted">{{ pr.state.toLowerCase() }}</span><br>
-                <MarkupText :text="pr.summary || pr.title" />
-              </li>
-            </ul>
-          </div>
-        </div>
-      </details>
-    </div>
+        </section>
 
-    <div :class="group">
-      <h3 :class="groupTitle">
-        Flows <AiTag label="grouped and explained by AI" />
-      </h3>
-      <ul role="list" class="m-0 mt-4 list-none p-0">
-        <li v-for="{ line, seen, findings: pill, verdict } in flows" :key="line.id" class="mt-1.5 first:mt-0">
-          <button
-            class="grid w-full cursor-pointer grid-cols-[28px_1fr_auto] items-start gap-3.5 rounded-card px-3 py-3.5 text-left hover:bg-(--line)/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-info"
-            :style="{ '--line': `var(--color-${line.color})` }"
-            @click="openFlow(line.id)"
-          >
-            <FlowBullet :line="line" :hollow="line.id === '__none' || line.id === '__files'" />
-            <span class="grid min-w-0 gap-1">
-              <b class="font-display text-lead">
-                <FlowIcon :icon="line.icon" class="mr-[.4em] size-[1.05em] align-[-.15em]" :style="{ color: `var(--color-${line.color})` }" />{{ line.name }}
-              </b>
-              <span v-if="line.explanation" class="line-clamp-2 text-ui text-toned" :title="line.explanation"><MarkupText :text="line.explanation" /></span>
-            </span>
-            <span class="flex h-6 items-center gap-2">
-              <HomePill v-if="pill" :tone="pill.tone">{{ pill.text }}</HomePill>
-              <span v-if="verdict" class="grid size-6 place-items-center rounded-full text-inverted" :class="FLOW_VERDICT_COLORS[verdict]" :title="FLOW_VERDICT_LABELS[verdict]">
-                <VerdictIcon :verdict="verdict" class="size-3.5" />
-                <span class="sr-only">{{ FLOW_VERDICT_LABELS[verdict] }}</span>
-              </span>
-              <span class="font-mono text-meta leading-none text-muted">{{ seen }}/{{ line.stops.length }} seen</span>
-            </span>
-          </button>
-        </li>
-      </ul>
-    </div>
-
-    <div id="home-progress" :class="[group, 'scroll-mt-6']">
-      <h3 :class="groupTitle">
-        <HomeStatusIcon :tone="data.proposalTone" icon="progress" small />Your review so far
-        <HomePill :tone="data.proposalTone">
-          <template v-if="data.proposal">
-            <VerdictIcon :verdict="data.proposal.icon" class="size-3.5" />Proposed: {{ data.proposal.label }}
-          </template>
-          <template v-else>
-            No proposal yet: {{ undecidedLabel() }} to decide
-          </template>
-        </HomePill>
-      </h3>
-      <HomePanel :tone="data.proposalTone" icon="progress" class="mt-4">
-        <dl class="m-0 mb-5 flex flex-wrap gap-x-12 gap-y-4 [&>div]:flex [&>div]:flex-col-reverse">
-          <div>
-            <dt class="mb-1.5 text-label text-muted">
-              Hunks seen
-            </dt>
-            <dd class="m-0 font-display text-stat">
-              {{ data.seen }}<span class="text-lead text-muted">/{{ data.total }}</span>
-            </dd>
+        <section id="home-progress" class="rounded-card bg-elevated px-4 py-3.5" aria-labelledby="home-mine">
+          <h3 id="home-mine" :class="label">
+            Your review
+          </h3>
+          <dl class="m-0 flex gap-6 [&>div]:flex [&>div]:flex-col-reverse">
+            <div>
+              <dt class="text-label text-muted">
+                seen
+              </dt>
+              <dd class="m-0 font-display text-stat leading-none">
+                {{ data.seen }}<span class="text-lead text-muted">/{{ data.total }}</span>
+              </dd>
+            </div>
+            <div>
+              <dt class="text-label text-muted">
+                {{ data.items.length === 1 ? 'remark' : 'remarks' }}
+              </dt>
+              <dd class="m-0 font-display text-stat leading-none">
+                {{ data.items.length }}
+              </dd>
+            </div>
+          </dl>
+          <div class="mt-3 h-1.5 rounded-full bg-accented" aria-hidden="true">
+            <div class="h-1.5 rounded-full bg-(--ui-text)" :style="{ width: `${data.total ? (data.seen / data.total) * 100 : 0}%` }" />
           </div>
-          <div>
-            <dt class="mb-1.5 text-label text-muted">
-              approved · changes requested · commented
-            </dt>
-            <dd class="m-0 flex flex-wrap gap-x-3 font-display text-stat">
-              <span class="text-success">{{ data.verdictCounts.approved }}</span>
-              <span class="text-error">{{ data.verdictCounts.changes }}</span>
-              <span>{{ data.verdictCounts.comment }}</span>
-            </dd>
-          </div>
-          <div>
-            <dt class="mb-1.5 text-label text-muted">
-              {{ data.items.length ? `remarks to post · ${data.onGitHub} on GitHub, ${data.items.length - data.onGitHub} local only` : 'remarks to post' }}
-            </dt>
-            <dd class="m-0 font-display text-stat">
-              {{ data.items.length }}
-            </dd>
-          </div>
-        </dl>
-        <div class="flex flex-wrap gap-2">
-          <template v-if="data.seen < data.total">
-            <UButton color="neutral" size="lg" class="font-display" @click="nextUnseen()">
-              Continue reviewing
-            </UButton>
-            <UButton color="neutral" variant="ghost" @click="goTerminus()">
-              Submit review…
-            </UButton>
-          </template>
-          <template v-else>
-            <UButton color="neutral" size="lg" class="font-display" @click="goTerminus()">
-              Submit review…
-            </UButton>
-            <UButton color="neutral" variant="ghost" @click="goFirst()">
-              Go to the first hunk
-            </UButton>
-          </template>
-        </div>
-      </HomePanel>
+          <UButton v-if="data.seen < data.total" color="neutral" class="mt-3.5 w-full justify-center font-display" @click="nextUnseen()">
+            Continue reviewing
+          </UButton>
+          <UButton v-else color="neutral" class="mt-3.5 w-full justify-center font-display" @click="goTerminus()">
+            Submit review…
+          </UButton>
+        </section>
+      </aside>
     </div>
   </section>
 </template>

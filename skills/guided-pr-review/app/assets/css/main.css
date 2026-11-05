@@ -7,6 +7,10 @@
 /* The colours and type of the single-file review page, kept as the design tokens of this app.
    static: the flow colours are also read as var(--color-<name>) from inline styles, which Tailwind does not see. */
 @theme static {
+  /* The width from which the band and Home have room for their side-by-side layout next to the 340px rail. */
+  --breakpoint-rail: 1100px;
+  /* Ink on a severity fill: the fills keep their colour in both themes, so the ink does too. */
+  --color-ink: #121110;
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
   --ease-review: cubic-bezier(.33, 1, .68, 1);
@@ -16,7 +20,7 @@
   --color-del-bg: #fbe7e4;
   --color-del-ink: #8a2418;
   /* The line colours: saturated transit colours, used as fields (bands, disks, tiles), never as outlines. */
-  --color-line-a: #dc241f;
+  --color-line-a: #9d1a3c; /* crimson, apart from the signal red of the highest severity */
   --color-line-b: #0019a8;
   --color-line-c: #00782a;
   --color-line-d: #9b0058;
@@ -27,7 +31,7 @@
   --color-sev-0: #c9d6ea;
   --color-sev-1: #f2c200;
   --color-sev-2: #ef7b10;
-  --color-sev-3: #b3261e;
+  --color-sev-3: #dc241f;
 }
 
 /* The type scale. Use these names instead of arbitrary font sizes; app.config.ts tells Nuxt UI they are font sizes. */
@@ -104,7 +108,7 @@
   --color-del-bg: #3a1d19;
   --color-del-ink: #f2a79c;
   --color-unplaced: #8d8a83;
-  --color-line-a: #ff4d47;
+  --color-line-a: #ff6b85;
   --color-line-b: #5b74ff;
   --color-line-c: #2fb35a;
   --color-line-d: #e0569b;
@@ -183,5 +187,9 @@ body {
 
 /* Reduced motion: every transition and animation ends at once; the state change itself stays. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
+  *, *::before, *::after, details::details-content { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+/* A solid focus ring on buttons, in place of the faint default outline; the band sets it to white. */
+button[data-slot="base"]:focus-visible { outline: 2px solid var(--focus-ring, var(--ui-primary)) !important; outline-offset: 2px; }
+.band { --focus-ring: white; }

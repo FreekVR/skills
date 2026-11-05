@@ -1,8 +1,8 @@
 // The data parts of the old page's render functions. The view draws them; icon names here are names, not icons:
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
-import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityRank, severityTone, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { answerFor, buildPost, githubStatus, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
+import { answerFor, buildPost, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // A merged or closed PR whose review was quiet this many days folds away in the sessions list.
@@ -167,11 +167,9 @@ export function criteriaStatus() {
   const open = criteria.filter((criterion) => !['met', 'not-met', 'elsewhere'].includes(criterion.verdict)).length
   const elsewhere = criteria.some((criterion) => criterion.verdict === 'elsewhere')
   if (!criteria.length) return { tone: 'quiet', icon: 'none', label: 'No acceptance criteria' }
-  // `short` follows the count on the Home pill, so it leaves the count out.
-  const noun = (count) => (count === 1 ? 'criterion' : 'criteria')
-  if (notMet) return { tone: 'bad', icon: 'bad', label: `${notMet} of ${plural(criteria.length, 'criterion', 'criteria')} not met`, short: `${noun(criteria.length)} not met`, count: `${notMet}/${criteria.length}` }
-  if (open) return { tone: 'warn', icon: 'warn', label: `${plural(open, 'criterion', 'criteria')} unclear or not checked`, short: `${noun(open)} unclear or not checked`, count: String(open) }
-  return { tone: 'ok', icon: 'ok', label: `All ${plural(criteria.length, 'criterion', 'criteria')} met${elsewhere ? ' in the stack' : ''}`, short: `${noun(criteria.length)} met${elsewhere ? ' in the stack' : ''}`, count: String(criteria.length) }
+  if (notMet) return { tone: 'bad', icon: 'bad', label: `${notMet} of ${plural(criteria.length, 'criterion', 'criteria')} not met` }
+  if (open) return { tone: 'warn', icon: 'warn', label: `${plural(open, 'criterion', 'criteria')} unclear or not checked` }
+  return { tone: 'ok', icon: 'ok', label: `All ${plural(criteria.length, 'criterion', 'criteria')} met${elsewhere ? ' in the stack' : ''}` }
 }
 
 // The badge colour of each criterion verdict, in the criteria rows and in a flow's criteria.
@@ -183,19 +181,12 @@ export function criterionVerdictLabel(criterion) {
   return AC_VERDICTS[criterion.verdict || ''] || 'Not checked'
 }
 
-export function findingsStatus() {
-  const open = liveFindings().filter((finding) => decisionOf(finding) === 'open')
-  if (!liveFindings().length) return { tone: 'ok', icon: 'ok', label: 'No AI findings', open }
-  if (!open.length) return { tone: 'ok', icon: 'ok', label: 'All AI findings decided', short: `AI finding${liveFindings().length === 1 ? '' : 's'} decided`, open, count: String(liveFindings().length) }
-  return { tone: severityTone(worstOf(open).severity), icon: 'finding', label: plural(open.length, 'open AI finding'), short: `open AI finding${open.length === 1 ? '' : 's'}`, open, count: `${open.length}/${liveFindings().length}` }
-}
-
 // The findings on the whole PR, the count on hunks and the open findings per severity, worst first.
 export function findingsPanel() {
-  const status = findingsStatus()
+  const open = liveFindings().filter((finding) => decisionOf(finding) === 'open')
   const whole = liveFindings().filter((finding) => finding.hunkId === null)
-  const bySeverity = [...severities()].reverse().map((severity) => ({ severity, count: status.open.filter((finding) => finding.severity === severity).length })).filter(({ count }) => count)
-  return { status, whole, onHunks: liveFindings().length - whole.length, bySeverity }
+  const bySeverity = [...severities()].reverse().map((severity) => ({ severity, count: open.filter((finding) => finding.severity === severity).length })).filter(({ count }) => count)
+  return { whole, onHunks: liveFindings().length - whole.length, bySeverity }
 }
 
 // The data of the overview page.
@@ -204,36 +195,71 @@ export function home() {
   const context = review.context
   const total = review.hunks.length
   const seen = total - unseenHunks().length
-  const verdicts = Object.values(state.reviewer.hunkVerdicts)
-  const count = (verdict) => verdicts.filter((value) => value === verdict).length
   const items = acceptedItems()
-  const onGitHub = items.filter((item) => ['posted', 'draft'].includes(githubStatus(item.id, item.body))).length
-  const proposal = VERDICTS.find((option) => option.id === (state.reviewer.verdict || proposedVerdict()))
   const general = openReviewComments().filter((comment) => !comment.hunkId || !hunkById(comment.hunkId))
   const skipped = context.skipped || []
-  const relatedCounts = [
-    (context.tickets || []).length && plural(context.tickets.length, 'ticket'),
-    (context.linkedPrs || []).length && plural(context.linkedPrs.length, 'linked pull request'),
-  ].filter(Boolean)
-  const criteria = criteriaStatus()
-  const findings = findingsStatus()
-  const glance = [
-    // `text` is the whole sentence for a screen reader; `label` slides out next to the count, so it leaves the count out.
-    { target: 'home-criteria', tone: criteria.tone, icon: criteria.icon, text: criteria.label, label: criteria.short || criteria.label, count: criteria.count },
-    liveFindings().length && { target: 'home-findings', tone: findings.tone, icon: findings.icon, text: findings.label, label: findings.short, count: findings.count },
-    general.length && { target: 'home-comments', tone: 'warn', icon: 'comment', text: `${plural(general.length, 'open comment')} outside the diff`, label: `open comment${general.length === 1 ? '' : 's'} outside the diff`, count: String(general.length) },
-    skipped.length && { target: 'home-skipped', tone: 'warn', icon: 'notRead', text: `${skipped.length} not read by the AI`, label: 'not read by the AI', count: String(skipped.length) },
-    { target: 'home-progress', tone: seen === total ? 'ok' : 'info', icon: 'progress', text: `${seen} of ${plural(total, 'hunk')} seen`, label: `hunk${total === 1 ? '' : 's'} seen`, count: `${seen}/${total}` },
-  ].filter(Boolean)
-  const proposalTone = { APPROVE: 'ok', REQUEST_CHANGES: 'bad', COMMENT: 'info' }[proposal?.id] || 'quiet'
-  return { total, seen, verdictCounts: { approved: count('approved'), changes: count('changes'), comment: count('comment') }, items, onGitHub, proposal, proposalTone, general, skipped, relatedCounts, glance }
+  return { total, seen, items, general, skipped }
+}
+
+// The checks on Home. `attention` holds what the reviewer must look at, worst first; `level` is the severity level (0 to 3)
+// of its worst item, so the check takes the colour of a note with that severity, or null when nothing in it has a severity.
+// An unmet criterion counts as the worst severity. `quiet` holds the checks that need no action.
+export function homeChecks() {
+  const attention = []
+  const quiet = []
+  const criteria = ticketCriteria()
+  const status = criteriaStatus()
+  const notMet = criteria.filter((criterion) => criterion.verdict === 'not-met')
+  const unclear = criteria.filter((criterion) => !['met', 'not-met', 'elsewhere'].includes(criterion.verdict))
+  const criterionLine = (criterion) => `${criterion.id} ${criterion.text}${criterion.note ? ` ${criterion.note}` : ''}`
+  if (notMet.length) attention.push({ id: 'criteria', level: 3, severity: severities().at(-1), icon: 'bad', title: `${notMet.length} of ${plural(criteria.length, 'acceptance criterion', 'acceptance criteria')} not met`, line: criterionLine(notMet[0]) })
+  // An unclear criterion takes the middle severity of the repository's conventions.
+  else if (unclear.length) attention.push({ id: 'criteria', level: severityLevel(severities()[Math.floor((severities().length - 1) / 2)]), severity: severities()[Math.floor((severities().length - 1) / 2)], icon: 'warn', title: `${plural(unclear.length, 'acceptance criterion', 'acceptance criteria')} unclear or not checked`, line: criterionLine(unclear[0]) })
+  else quiet.push({ id: 'criteria', tone: criteria.length ? 'ok' : 'quiet', title: status.label })
+
+  const open = liveFindings().filter((finding) => decisionOf(finding) === 'open')
+  if (open.length) {
+    const worst = worstOf(open)
+    const station = worst.hunkId ? stationsOf(worst.hunkId)[0] : null
+    const where = station ? stationCode(station.line, station.index) : 'the whole PR'
+    attention.push({ id: 'findings', level: severityLevel(findingSeverity(worst)), severity: findingSeverity(worst), icon: 'finding', title: plural(open.length, 'open AI finding'), line: `Worst: ${worst.title} (${where}, ${findingSeverity(worst)})` })
+  } else if (liveFindings().length) quiet.push({ id: 'findings', tone: 'ok', title: 'All AI findings decided' })
+
+  const own = threadsNeedingCall()
+  if (own.length) {
+    const first = own[0]
+    const take = fixLine(first)
+    const worstOwn = own.map((remark) => remark.severity || severities()[0]).reduce((worst, severity) => (severityRank(severity) > severityRank(worst) ? severity : worst))
+    attention.push({ id: 'own', level: severityLevel(worstOwn), severity: worstOwn, icon: 'comment', title: `${plural(own.length, 'earlier comment')} of yours to decide`, line: `${first.path}${first.line ? ` line ${first.line}` : ''}${take ? `: AI says ${take.label}` : ''}` })
+  }
+
+  const general = openReviewComments().filter((comment) => !comment.hunkId || !hunkById(comment.hunkId))
+  if (general.length) attention.push({ id: 'comments', level: null, severity: null, icon: 'comment', title: `${plural(general.length, 'open comment')} by others outside the diff`, line: `@${general[0].author}${general[0].path ? ` on ${general[0].path}` : ''}: ${general[0].body.split('\n')[0]}` })
+
+  const context = state.review.context
+  if (context.coverage) quiet.push({ id: 'coverage', tone: 'quiet', title: `Coverage: ${context.coverage.summary}` })
+  if (context.skipped?.length) quiet.push({ id: 'skipped', tone: 'quiet', title: `${context.skipped.length} not read by the AI` })
+  attention.sort((a, b) => (b.level ?? -1) - (a.level ?? -1))
+  return { attention, quiet }
+}
+
+// What changed since the reviewer last looked: the new or changed hunks, the open findings on them and the agent's summary.
+// `sinceReview` is true when the summary starts at a commit the reviewer submitted a review on; without such a review it
+// starts at the commit the page showed before, their last visit. Null when nothing changed.
+export function sinceLastTime() {
+  const changes = changesSince()
+  const fresh = [...state.freshHunks]
+  if (!changes && !fresh.length) return null
+  const findings = liveFindings().filter((finding) => fresh.includes(finding.hunkId) && decisionOf(finding) === 'open')
+  const sameCommit = (a, b) => Boolean(a && b) && (a.startsWith(b) || b.startsWith(a))
+  const sinceReview = Boolean(changes) && (state.review.reviews || []).some((review) => review.author === viewerLogin() && sameCommit(review.commitId, changes.from))
+  return { changes, fresh, findings, sinceReview }
 }
 
 // Criteria that are not met stay in view; met ones fold away.
 export function criteriaPanel() {
   const criteria = ticketCriteria()
   return {
-    status: criteriaStatus(),
     met: criteria.filter((criterion) => criterion.verdict === 'met'),
     rest: criteria.filter((criterion) => criterion.verdict !== 'met'),
     reason: criteria.length ? '' : state.review.context.tickets?.length ? 'The linked tickets list no acceptance criteria, and the agent could not take any from their descriptions.' : 'No ticket is linked, so there are no acceptance criteria to check.',

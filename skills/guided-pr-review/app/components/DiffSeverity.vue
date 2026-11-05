@@ -1,10 +1,10 @@
 <script lang="ts">
 // One class list for each of the four levels of severityLevel(): the tag takes the colour of its level, from main.css.
 export const SEVERITY_CLASSES = [
-  'border-transparent bg-sev-0 text-[#121110]',
-  'border-transparent bg-sev-1 text-[#121110]',
-  'border-transparent bg-sev-2 text-[#121110]',
-  'border-transparent bg-sev-3 text-white font-extrabold dark:text-[#121110]',
+  'border-transparent bg-sev-0 text-ink',
+  'border-transparent bg-sev-1 text-ink',
+  'border-transparent bg-sev-2 text-ink',
+  'border-transparent bg-sev-3 text-white font-extrabold dark:text-ink',
 ]
 // A note on the diff: a white block with a thick edge on its right; SEVERITY_EDGES colours that edge per level.
 export const NOTE_BLOCK = 'relative border-r-8 bg-default px-5 pt-4 pb-4.5 font-sans whitespace-normal'

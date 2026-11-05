@@ -189,7 +189,8 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
     :style="line ? { '--line': `var(--color-${line.color})` } : undefined"
     @wheel="onHeaderWheel"
   >
-    <div class="strip-top flex items-center gap-5 px-gutter pt-5 max-md:flex-wrap" :class="{ 'pb-4': !line }">
+    <!-- The controls wrap below the title until the band is wide enough for both, also next to the rail on a tablet. -->
+    <div class="strip-top flex items-center gap-5 px-gutter pt-5 max-rail:flex-wrap" :class="{ 'pb-4': !line }">
       <div class="flex min-w-0 flex-1 items-center gap-3 max-md:basis-full">
         <FlowBullet v-if="line" :line="line" on-band class="size-9! text-lead!" />
         <div class="min-w-0">
@@ -202,7 +203,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
         </div>
       </div>
 
-      <div class="flex shrink-0 items-center gap-2 max-md:min-w-0 max-md:shrink max-md:flex-wrap">
+      <div class="flex shrink-0 items-center gap-2 max-rail:min-w-0 max-rail:shrink max-rail:flex-wrap">
         <StackSwitch v-if="hasStack()" />
         <span v-if="waitingCount" class="text-label" :class="AGENT_TEXT_COLORS[agentState()]">
           {{ waitingCount === 1 ? '1 request waits for the agent' : `${waitingCount} requests wait for the agent` }}

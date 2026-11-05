@@ -44,7 +44,7 @@ test('links the commit of the page and of each review', async ({ page }) => {
 
 test('links both commits of what changed since your last review', async ({ page }) => {
   await openHome(page, (data) => { data.changesSince = { from: '9f8e7d6c5b4a', to: 'aaa111', summary: 'Days come from the settings now.' }; });
-  const panel = main(page).getByRole('region', { name: 'Changed since your last review' });
+  const panel = main(page).getByRole('region', { name: /^Since your last/ });
   await expect(panel.getByRole('link', { name: '9f8e7d6', exact: true })).toHaveAttribute('href', `${COMMIT}9f8e7d6c5b4a`);
   await expect(panel.getByRole('link', { name: 'aaa111', exact: true })).toHaveAttribute('href', `${COMMIT}aaa111`);
 });
