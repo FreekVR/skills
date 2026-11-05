@@ -56,7 +56,7 @@ In a stack, also:
 
 Save the PR diff to a file in the review directory and run `node scripts/review-data.js hunks <diff-file> <review-dir>/review.json`. It writes the `hunks` array into `review.json` and prints one line per hunk: ID, file, and whether it is new. Every hunk MUST reach the reviewer, also renames, binary files and lockfiles.
 
-A tool, not a person, writes some files: dependency lockfiles, built bundles, snapshots, generated code. Such a file MUST be one hunk. When the output shows several hunks for such a file, run the command again with `--whole <path>` for each one.
+A tool, not a person, writes some files: dependency lockfiles, built bundles, snapshots, generated code. Such a file MUST be one hunk. When the output shows several hunks for such a file, run the command again with `--whole <path>` for each one. Write each `--whole` and each path out as separate arguments in the command; do not collect them in a shell variable, because zsh does not split a variable into words.
 
 Small PR: read the diff and the files you need through GitHub. Save the PR head version of every changed file that the PR does not remove to `<review-dir>/files/<path in the repository>`, so the review page can show the whole file.
 
