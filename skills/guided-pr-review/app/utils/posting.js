@@ -2,6 +2,7 @@ import { state, VERDICTS, REVIEW_EVENTS } from './state.js'
 import { acceptedItems, hunkById, openReviewComments, plural, severities, severityRank, verdictOf, viewerLogin } from './review.js'
 import { refreshState } from './panels.js'
 import { saveReviewer } from './actions.js'
+import { stackLine } from './stack.js'
 
 // Posting replaces the user's pending GitHub review, so its remarks and body must be in the page first.
 export function importOwnReview() {
@@ -25,7 +26,9 @@ export function importOwnReview() {
 // A finding opens with a header line like a conventional commit, `**minor(rule): title**`; a remark has only its severity.
 export function labelled(item) {
   if (!item.title) return `**${item.severity}:** ${item.body}`
-  return `**${item.severity}${item.rule ? `(${item.rule})` : ''}: ${item.title}**\n\n${item.body}`
+  const stack = stackLine(item)
+  const inStack = stack?.post ? `\n\nIn the stack: ${stack.text}` : ''
+  return `**${item.severity}${item.rule ? `(${item.rule})` : ''}: ${item.title}**\n\n${item.body}${inStack}`
 }
 
 // Only text the AI wrote gets the disclosure: findings, and remarks that started from an AI answer.

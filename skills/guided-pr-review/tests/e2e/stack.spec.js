@@ -446,3 +446,38 @@ test('a PR with remarks shows them next to the hunks seen in the stack switch', 
   await button(page).click();
   await expect(row(page, 16)).toContainText(/\d+ of \d+ hunks seen · 2 remarks/);
 });
+
+// f1 and f2 are on hunks; f3 is about the whole PR.
+const withStackTakes = (data) => {
+  onPage(data);
+  data.findings.find((finding) => finding.id === 'f1').stack = { verdict: 'fixed', pr: 16, prs: [16], note: 'PR 16 sets the TTL to one hour.' };
+  data.findings.find((finding) => finding.id === 'f2').stack = { verdict: 'untouched', prs: [14, 16], note: '' };
+};
+
+test('each finding in a stack says what the other PRs do with it, also when the agent did not check', async ({ page }) => {
+  await openReview(page, { mutate: withStackTakes });
+  await page.getByRole('complementary').getByRole('button', { name: /^Store the forecast/ }).click();
+  await expect(page.getByRole('main').getByText('In the stack: fixed in #16. PR 16 sets the TTL to one hour.')).toBeVisible();
+  await page.getByRole('complementary').getByRole('button', { name: /^Show the forecast/ }).click();
+  await page.getByRole('button', { name: /^A3 / }).click();
+  await expect(page.getByRole('main').getByText('In the stack: no other PR touches this code. Read #14, #16.')).toBeVisible();
+  await page.keyboard.press('s');
+  await expect(page.getByRole('main').getByText('In the stack: not checked against the other PRs.')).toBeVisible();
+});
+
+test('a posted finding carries its stack line when another PR fixes it, and not when no other PR touches it', async ({ page }) => {
+  const review = await openReview(page, { mutate: withStackTakes, reviewer: { decisions: { f1: 'accepted', f2: 'accepted' } } });
+  await page.keyboard.press('s');
+  await page.getByRole('main').getByRole('button', { name: /^Post as draft/ }).click();
+  const event = await eventOf(review, 'post');
+  const bodies = event.comments.map((comment) => comment.body);
+  expect(bodies.find((body) => body.includes('TTL is in milliseconds'))).toContain('The TTL is 60 seconds, not one hour.\n\nIn the stack: fixed in #16. PR 16 sets the TTL to one hour.');
+  expect(bodies.find((body) => body.includes('Name the map callback'))).not.toContain('In the stack');
+});
+
+test('a finding in no stack has no stack line', async ({ page }) => {
+  await openReview(page);
+  await page.getByRole('complementary').getByRole('button', { name: /^Store the forecast/ }).click();
+  await expect(page.getByRole('main').getByText('TTL is in milliseconds')).toBeVisible();
+  await expect(page.getByRole('main').getByText(/^In the stack:/)).toHaveCount(0);
+});

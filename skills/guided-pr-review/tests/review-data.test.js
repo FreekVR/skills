@@ -169,6 +169,27 @@ test('checkFlows passes when every hunk is placed, also in several flows', () =>
   assert.deepStrictEqual(checkFlows(review), { missing: [], unknown: [], withoutWhy: [], stack: [], criteria: [] });
 });
 
+test('check rejects a finding in a stack without its stack verdict, and a fixed or worse verdict that names no PR', () => {
+  const pr = (number) => ({ number, title: `PR ${number}`, url: '', state: 'open', draft: false, head: 'h', base: 'b' });
+  const finding = (id, stack) => ({ id, hunkId: null, severity: 'minor', title: 't', body: 'b', rule: 'r', ...(stack && { stack }) });
+  const review = {
+    pr: { number: 15 }, hunks: [], flows: [], stack: { prs: [pr(15), pr(16)] },
+    findings: [
+      finding('f1'),
+      finding('f2', { verdict: 'untouched', prs: [16], note: '' }),
+      finding('f3', { verdict: 'fixed', prs: [16], note: 'PR 16 sets the TTL.' }),
+      finding('f4', { verdict: 'fixed', pr: 16, prs: [16], note: 'PR 16 sets the TTL.' }),
+      finding('f5', { verdict: 'gone', prs: [16] }),
+    ],
+  };
+  assert.deepStrictEqual(checkFlows(review).stack, [
+    'finding f1 has no stack verdict',
+    'finding f3 is fixed in the stack but names no pr',
+    'finding f5 has the unknown stack verdict gone',
+  ]);
+  assert.deepStrictEqual(checkFlows({ ...review, stack: undefined }).stack, []);
+});
+
 test('check rejects a stack field that a single PR should not have', () => {
   const pr = (number) => ({ number, title: `PR ${number}`, url: '', state: 'open', draft: false, head: 'h', base: 'b' });
   const base = { pr: { number: 15 }, hunks: [], flows: [] };

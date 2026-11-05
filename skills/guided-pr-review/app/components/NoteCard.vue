@@ -8,6 +8,7 @@ interface NoteItem {
   body: string
   severity: string
   severitySource?: string
+  stack?: { verdict: string, pr?: number, prs?: number[], note?: string }
   rule?: string
   line?: number
   startLine?: number
@@ -91,6 +92,7 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
       <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0" :class="struck">
         <SafeMarkdown :value="text" />
       </div>
+      <StackLine v-if="isFinding" :finding="item" />
       <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" own />
       <div class="mt-2 flex flex-wrap items-center gap-1.5">
         <template v-if="isFinding">

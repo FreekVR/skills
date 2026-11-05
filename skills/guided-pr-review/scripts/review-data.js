@@ -181,6 +181,8 @@ function mergeHunks(hunks, previous) {
 
 function count(hunk, sign) { return hunk.lines.filter((line) => line[0] === sign).length; }
 
+const STACK_VERDICTS = ['fixed', 'worse', 'untouched', 'not-checked'];
+
 function checkStack(review) {
   const { stack } = review;
   if (!stack) return [];
@@ -190,6 +192,13 @@ function checkStack(review) {
   if (prs.length >= 2 && !prs.some((pr) => Number(pr.number) === Number(review.pr?.number))) problems.push(`stack.prs does not hold PR ${review.pr?.number}`);
   for (const field of ['coverage', 'outsideTickets']) {
     if (stack[field] && !stack[field].length) problems.push(`stack.${field} is empty, leave it out`);
+  }
+  // Each finding says what the agent found in the other PRs, so a missing take never reads as "nothing found".
+  for (const finding of review.findings || []) {
+    const verdict = finding.stack?.verdict;
+    if (!verdict) problems.push(`finding ${finding.id} has no stack verdict`);
+    else if (!STACK_VERDICTS.includes(verdict)) problems.push(`finding ${finding.id} has the unknown stack verdict ${verdict}`);
+    else if (['fixed', 'worse'].includes(verdict) && !finding.stack.pr) problems.push(`finding ${finding.id} is ${verdict} in the stack but names no pr`);
   }
   return problems;
 }

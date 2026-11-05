@@ -8,6 +8,18 @@ export function hasStack() {
   return prs.length > 1 && prs.some((pr) => pr.number === state.review.pr.number)
 }
 
+// Get what the agent found in the other PRs of the stack for a finding: the verdict and the text after "In the stack:".
+// A finding without a take says it was not checked, so silence never reads as "nothing found". In no stack: null.
+// `post` says whether the posted comment carries the line: the PR's author needs it unless no other PR touches the code.
+export function stackLine(finding) {
+  if (!hasStack()) return null
+  const take = finding.stack || {}
+  const read = take.prs?.length ? ` Read ${take.prs.map((number) => `#${number}`).join(', ')}.` : ''
+  const label = { fixed: `fixed in #${take.pr}.`, worse: `made worse in #${take.pr}.`, untouched: `no other PR touches this code.${read}`, 'not-checked': 'not checked.' }[take.verdict]
+  if (!label) return { verdict: 'not-checked', text: 'not checked against the other PRs.', post: false }
+  return { verdict: take.verdict, text: [label, take.note].filter(Boolean).join(' '), post: take.verdict !== 'untouched' }
+}
+
 // Get the 1-based place of this page's PR in its stack, counted from the bottom PR.
 export function stackPosition() {
   const prs = state.review.stack.prs
