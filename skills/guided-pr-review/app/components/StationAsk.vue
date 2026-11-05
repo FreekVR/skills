@@ -50,7 +50,8 @@ const content = {
       :title="label"
     >
       <span v-if="waiting" class="absolute top-0.5 left-0.5 size-3 motion-safe:animate-pulse rounded-full border-2 border-(--ui-bg) bg-warning" aria-hidden="true" />
-      <UIcon :name="open ? 'i-lucide-x' : 'i-lucide-message-square-text'" class="size-6.5 transition-transform duration-300" :class="open && 'rotate-90'" aria-hidden="true" />
+      <!-- A new icon element per state, so the close icon turns in each time the panel opens. -->
+      <UIcon :key="String(open)" :name="open ? 'i-lucide-x' : 'i-lucide-message-square-text'" class="size-6.5" :class="open && 'icon-turn'" aria-hidden="true" data-ask-icon />
       <span v-if="questions.length && !open" class="absolute -top-0.5 -right-0.5 grid h-[22px] min-w-[22px] place-items-center rounded-full border-2 border-(--ui-text) bg-default px-1.5 text-tag leading-none font-bold text-default">{{ questions.length }}</span>
     </button>
 
@@ -80,3 +81,8 @@ const content = {
     </template>
   </UPopover>
 </template>
+
+<style scoped>
+@keyframes icon-turn { from { opacity: 0; transform: rotate(-90deg) scale(.6); } }
+.icon-turn { animation: icon-turn .3s var(--ease-review); }
+</style>

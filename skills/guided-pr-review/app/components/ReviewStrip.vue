@@ -4,6 +4,7 @@ const STOP_WIDTH = 132
 const THEME_ICONS: Record<string, string> = { system: 'i-lucide-monitor', light: 'i-lucide-sun', dark: 'i-lucide-moon' }
 
 const header = useTemplateRef<HTMLElement>('header')
+const reducedMotion = usePreferredReducedMotion()
 const map = useTemplateRef<HTMLElement>('map')
 
 const line = computed(() => (state.view.kind === 'station' ? lineById(state.view.line) : null))
@@ -66,13 +67,14 @@ function onCriteriaToggle(event: Event) {
   if (open !== criteriaOpen.value) state.ui.criteriaOpen = open
 }
 
-// The map keeps the hunk in view in its middle.
-function centerMap() {
+// The map keeps the hunk in view in its middle. A move within the flow scrolls there smoothly; another flow starts there.
+function centerMap(smooth = false) {
   if (!map.value) return
-  map.value.scrollLeft = Math.max(0, index.value * STOP_WIDTH + STOP_WIDTH / 2 - map.value.clientWidth / 2)
+  const left = Math.max(0, index.value * STOP_WIDTH + STOP_WIDTH / 2 - map.value.clientWidth / 2)
+  map.value.scrollTo({ left, behavior: smooth && reducedMotion.value !== 'reduce' ? 'smooth' : 'instant' })
 }
-watch(() => (line.value ? `${line.value.id}:${index.value}` : null), centerMap, { flush: 'post' })
-onMounted(centerMap)
+watch(() => (line.value ? [line.value.id, index.value] : null), (now, before) => centerMap(Boolean(now && before && now[0] === before[0])), { flush: 'post' })
+onMounted(() => centerMap())
 
 // The map scrolls sideways with a vertical wheel and with a mouse drag. At either end the wheel scrolls the page again.
 function onWheel(event: WheelEvent) {
@@ -124,13 +126,58 @@ useEventListener(document, 'scroll', (event: Event) => {
   }
   state.ui.compactMap = compact
 }, { capture: true, passive: true })
+
+// Resting the pointer on the compact header shows it in full; a short delay keeps a passing pointer from opening it.
+const hovered = useElementHover(header, { delayEnter: 250 })
+const peek = computed(() => hovered.value && Boolean(state.ui.compactMap))
+
+// The header animates between its two layouts: the parts that only the full header shows fade out first, then the
+// height changes and the map slides to its new place; growing, those parts fade in at the end. A move to another hunk
+// switches at once, because the whole header changes then.
+const collapsed = computed(() => Boolean(line.value && state.ui.compactMap) && !peek.value)
+const shownCollapsed = ref(collapsed.value)
+const viewKey = computed(() => `${state.view.kind}:${state.view.line}:${state.view.index}`)
+const HEADER_EASE = 'cubic-bezier(.22, 1, .36, 1)'
+let running: Animation[] = []
+watch([collapsed, viewKey], ([collapse, view], [, oldView]) => {
+  running.forEach((animation) => animation.cancel())
+  running = []
+  const strip = header.value
+  if (!strip || reducedMotion.value === 'reduce' || view !== oldView) {
+    shownCollapsed.value = collapse
+    return
+  }
+  if (!collapse) return switchLayout(strip, false)
+  const fades = [...strip.querySelectorAll('.compact-hide')].map((part) => part.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 120, easing: 'ease-in', fill: 'forwards' }))
+  running = [...fades]
+  Promise.all(fades.map((fade) => fade.finished)).then(() => {
+    if (collapsed.value !== collapse) return
+    switchLayout(strip, true).then(() => fades.forEach((fade) => fade.cancel()))
+  }, () => {})
+})
+
+async function switchLayout(strip: HTMLElement, collapse: boolean) {
+  const from = strip.getBoundingClientRect().height
+  const mapFrom = map.value?.getBoundingClientRect().top ?? 0
+  shownCollapsed.value = collapse
+  await nextTick()
+  const to = strip.getBoundingClientRect().height
+  if (from === to) return
+  const timing = { duration: to > from ? 340 : 280, easing: HEADER_EASE }
+  strip.style.overflow = 'hidden'
+  const resize = strip.animate([{ height: `${from}px` }, { height: `${to}px` }], timing)
+  resize.onfinish = resize.oncancel = () => { strip.style.overflow = '' }
+  running.push(resize)
+  if (map.value) running.push(map.value.animate([{ transform: `translateY(${mapFrom - map.value.getBoundingClientRect().top}px)` }, { transform: 'none' }], timing))
+  if (!collapse) for (const part of strip.querySelectorAll('.compact-hide')) running.push(part.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 220, delay: 140, easing: 'ease-out', fill: 'backwards' }))
+}
 </script>
 
 <template>
   <header
     ref="header"
     class="band relative z-5"
-    :class="{ 'compact': line && state.ui.compactMap, 'band-line': line }"
+    :class="{ 'compact': shownCollapsed, 'band-line': line }"
     :style="line ? { '--line': `var(--color-${line.color})` } : undefined"
   >
     <div class="strip-top flex items-center gap-5 px-gutter pt-5 max-md:flex-wrap" :class="{ 'pb-4': !line }">
@@ -313,7 +360,12 @@ useEventListener(document, 'scroll', (event: Event) => {
         <span class="map-hint start" aria-hidden="true" />
         <div :key="line.id" class="relative flex w-max max-md:mr-gutter">
           <div class="absolute top-[34px] right-[66px] left-[66px] h-1.5 rounded-[3px] bg-white/40" />
-          <div class="absolute top-[34px] left-[66px] h-1.5 rounded-[3px] bg-white transition-[width] duration-[380ms] ease-review motion-reduce:transition-none" :style="{ width: `${index * STOP_WIDTH}px` }" />
+          <!-- The bar spans the whole line and is scaled to the current stop: a transform animates without a new layout. -->
+          <div
+            class="absolute top-[34px] left-[66px] h-1.5 origin-left rounded-[3px] bg-white transition-transform duration-[380ms] ease-review motion-reduce:transition-none"
+            :style="{ width: `${(stops.length - 1) * STOP_WIDTH}px`, transform: `scaleX(${stops.length > 1 ? index / (stops.length - 1) : 0})` }"
+            data-map-done
+          />
           <button
             v-for="stop in stops"
             :key="stop.at"

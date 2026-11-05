@@ -10,10 +10,18 @@ async function nextToDecide() {
   const all = [...document.querySelectorAll<HTMLElement>('[data-needs-decision]')]
   const target = all.find((el) => last?.isConnected && last.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING) || all[0]
   if (!target) return
-  for (let details = target.closest('details'); details; details = details.parentElement?.closest('details') ?? null) details.open = true
+  // A section that animates open takes no focus inside it, so the jump opens it at once.
+  const opened: HTMLDetailsElement[] = []
+  for (let details = target.closest('details'); details; details = details.parentElement?.closest('details') ?? null) {
+    if (details.open) continue
+    details.dataset.instant = ''
+    details.open = true
+    opened.push(details)
+  }
   await nextTick()
   target.scrollIntoView({ behavior: reducedMotion.value === 'reduce' ? 'auto' : 'smooth', block: 'start' })
   target.focus({ preventScroll: true })
+  opened.forEach((details) => delete details.dataset.instant)
   last = target
 }
 </script>

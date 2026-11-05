@@ -173,6 +173,14 @@ body {
 
 ::selection { background: color-mix(in srgb, var(--ui-primary) 22%, transparent); }
 
+/* Details sections open and close smoothly where the browser can animate to their natural height; elsewhere they jump. */
+@supports (interpolate-size: allow-keywords) {
+  :root { interpolate-size: allow-keywords; }
+  details::details-content { block-size: 0; overflow-y: clip; transition: block-size .3s var(--ease-review), content-visibility .3s allow-discrete; }
+  details[open]::details-content { block-size: auto; }
+  details[data-instant]::details-content { transition: none; }
+}
+
 /* Reduced motion: every transition and animation ends at once; the state change itself stays. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
