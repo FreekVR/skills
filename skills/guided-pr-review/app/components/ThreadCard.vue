@@ -29,8 +29,10 @@ const doubtful = computed(() => props.mine && doubtfulResolved(props.comment))
       <span class="inline-flex items-center gap-1 font-semibold text-warning"><UIcon name="i-lucide-circle-alert" class="size-3.5" aria-hidden="true" />Needs your decision</span>
       <span class="text-toned">{{ reasons.join(' · ') }}</span>
     </p>
-    <FixLine :item="comment" class="mt-0! mb-2.5" />
+    <FixLine v-if="!comment.resolved" :item="comment" class="mt-0! mb-2.5" />
     <component :is="comment.resolved ? 'summary' : 'div'" class="flex list-none flex-wrap items-center gap-x-2.5 gap-y-1.5" :class="{ 'cursor-pointer': comment.resolved }">
+      <!-- A resolved thread is closed, so its take sits in the summary, where it stays in view. -->
+      <FixLine v-if="comment.resolved" :item="comment" class="mt-0! w-full" />
       <span class="font-mono text-label wrap-anywhere text-toned">{{ threadPlace(comment) }}</span>
       <span v-if="comment.outdated" class="text-label text-dimmed">outdated</span>
       <span v-if="stations.length" class="ml-auto inline-flex flex-wrap items-center gap-1 text-label text-toned">

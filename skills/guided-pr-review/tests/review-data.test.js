@@ -155,7 +155,7 @@ test('checkFlows reports hunks that are not placed and IDs that are not hunks', 
     flows: [{ id: 'cache', steps: [{ hunkId: 'a', why: 'Start here.' }, { hunkId: 'z', why: '' }] }],
     notInAnyFlow: ['b'],
   };
-  assert.deepStrictEqual(checkFlows(review), { missing: ['c'], unknown: ['z'], withoutWhy: ['cache:z'], stack: [], criteria: [] });
+  assert.deepStrictEqual(checkFlows(review), { missing: ['c'], unknown: ['z'], withoutWhy: ['cache:z'], stack: [], criteria: [], fixes: [] });
 });
 
 test('checkFlows passes when every hunk is placed, also in several flows', () => {
@@ -166,7 +166,30 @@ test('checkFlows passes when every hunk is placed, also in several flows', () =>
       { id: 'write', steps: [{ hunkId: 'a', why: 'Data is saved.' }] },
     ],
   };
-  assert.deepStrictEqual(checkFlows(review), { missing: [], unknown: [], withoutWhy: [], stack: [], criteria: [] });
+  assert.deepStrictEqual(checkFlows(review), { missing: [], unknown: [], withoutWhy: [], stack: [], criteria: [], fixes: [] });
+});
+
+test('check rejects a resolved comment and a posted own comment without the AI take on whether it is fixed', () => {
+  const fix = { verdict: 'fixed', note: 'Line 3 changed.' };
+  const review = {
+    hunks: [], flows: [],
+    reviewComments: [
+      { id: 'c1', resolved: true },
+      { id: 'c2', resolved: true, fix },
+      { id: 'c3', resolved: false },
+    ],
+    ownRemarks: [
+      { id: 'gh-1', state: 'posted', resolved: true, resolvedBy: 'me' },
+      { id: 'gh-2', state: 'posted', resolved: false },
+      { id: 'gh-3', state: 'posted', resolved: true, fix },
+      { id: 'gh-4', state: 'pending' },
+    ],
+  };
+  assert.deepStrictEqual(checkFlows(review).fixes, [
+    'comment c1 is resolved but has no fix',
+    'own comment gh-1 is posted but has no fix',
+    'own comment gh-2 is posted but has no fix',
+  ]);
 });
 
 test('check rejects a finding in a stack without its stack verdict, and a fixed or worse verdict that names no PR', () => {

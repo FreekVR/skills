@@ -186,8 +186,8 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
     ref="header"
     class="band relative z-5"
     :class="{ 'compact': shownCollapsed, 'band-line': line }"
-    @wheel="onHeaderWheel"
     :style="line ? { '--line': `var(--color-${line.color})` } : undefined"
+    @wheel="onHeaderWheel"
   >
     <div class="strip-top flex items-center gap-5 px-gutter pt-5 max-md:flex-wrap" :class="{ 'pb-4': !line }">
       <div class="flex min-w-0 flex-1 items-center gap-3 max-md:basis-full">

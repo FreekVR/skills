@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityRank, severityTone, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { answerFor, buildPost, githubStatus, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, resolvedByOthers, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { answerFor, buildPost, githubStatus, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // A merged or closed PR whose review was quiet this many days folds away in the sessions list.
@@ -100,10 +100,10 @@ export function seenBefore(hunkId) {
   return Boolean(where && where !== state.view.line)
 }
 
-// A resolved comment only has a current check when someone else resolved it.
+// A resolved comment and a posted comment of the reviewer always get a take, so a missing one shows as not checked.
 export function fixLine(own) {
-  if (!own.fix || (own.resolved && !resolvedByOthers(own))) return null
-  return { verdict: own.fix.verdict, label: FIX_LABELS[own.fix.verdict] || FIX_LABELS.unclear, note: own.fix.note || '' }
+  if (own.fix) return { verdict: own.fix.verdict, label: FIX_LABELS[own.fix.verdict] || FIX_LABELS.unclear, note: own.fix.note || '' }
+  return own.resolved || own.state === 'posted' ? { verdict: 'unchecked', label: 'not checked', note: '' } : null
 }
 
 // Resolve or leave open. The AI's recommendation is the stronger button; a thread left open can get a reply.

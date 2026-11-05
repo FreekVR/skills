@@ -95,7 +95,7 @@ test('the Ask button turns its icon in when the panel opens', async ({ page }) =
   await openFlow(page);
   await page.getByRole('button', { name: 'Ask the agent about this hunk' }).click();
   const icon = page.getByRole('button', { name: 'Close the questions about this hunk' }).locator('[data-ask-icon]');
-  expect(await icon.evaluate((element) => element.getAnimations().some((animation) => animation.animationName.startsWith('icon-turn')))).toBe(true);
+  expect(await icon.evaluate((element) => getComputedStyle(element).animationName)).toMatch(/^icon-turn/);
 });
 
 test('the wheel over the header scrolls the hunk, so a tall header never blocks scrolling', async ({ page }) => {

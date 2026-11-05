@@ -203,6 +203,15 @@ function checkStack(review) {
   return problems;
 }
 
+// A resolved comment, by anyone, and every posted comment of the user get the AI's take on whether it is fixed, so a
+// missing take never reads as "nothing to say". A comment by others that is still open needs one only after new commits.
+function checkFixes(review) {
+  return [
+    ...(review.reviewComments || []).filter((comment) => comment.resolved && !comment.fix).map((comment) => `comment ${comment.id} is resolved but has no fix`),
+    ...(review.ownRemarks || []).filter((own) => own.state === 'posted' && !own.fix).map((own) => `own comment ${own.id} is posted but has no fix`),
+  ];
+}
+
 // A criterion that is not met needs one finding for the whole PR; a finding for any other verdict is stale.
 function checkCriteria(review) {
   const verdicts = new Map();
@@ -236,6 +245,7 @@ function checkFlows(review) {
   return {
     stack: checkStack(review),
     criteria: checkCriteria(review),
+    fixes: checkFixes(review),
     missing: [...hunkIds].filter((id) => !placed.has(id)),
     unknown: [...placed].filter((id) => !hunkIds.has(id)),
     withoutWhy,
@@ -388,15 +398,16 @@ function main([command, ...args]) {
   }
   if (command === 'check' && (args.length === 1 || (args.length === 3 && args[1] === '--diff'))) {
     const review = JSON.parse(fs.readFileSync(args[0], 'utf8'));
-    const { missing, unknown, withoutWhy, stack, criteria } = checkFlows(review);
+    const { missing, unknown, withoutWhy, stack, criteria, fixes } = checkFlows(review);
     const diff = args.length === 3 ? checkDiff(review, fs.readFileSync(args[2], 'utf8')) : [];
     missing.forEach((id) => console.log(`missing: ${id} is not in any flow and not in notInAnyFlow`));
     unknown.forEach((id) => console.log(`unknown: ${id} is not a hunk of this PR`));
     withoutWhy.forEach((step) => console.log(`no why: step ${step} does not say why it comes there`));
     stack.forEach((problem) => console.log(`stack: ${problem}`));
     criteria.forEach((problem) => console.log(`criteria: ${problem}`));
+    fixes.forEach((problem) => console.log(`fix: ${problem}`));
     diff.forEach((problem) => console.log(`diff: ${problem}`));
-    if (missing.length || unknown.length || withoutWhy.length || stack.length || criteria.length || diff.length) {
+    if (missing.length || unknown.length || withoutWhy.length || stack.length || criteria.length || fixes.length || diff.length) {
       return 1;
     }
     console.log('ok: every hunk is placed');

@@ -79,7 +79,7 @@ const TARGET = 'scroll-mt-24 outline-none focus:outline-2 focus:-outline-offset-
       </div>
       <OpinionLine v-if="!item.resolved" :opinion="item.opinion" own />
     </template>
-    <FixLine v-if="!item.resolved" :item="item" />
+    <FixLine :item="item" />
     <ThreadActions :own="item" />
   </div>
 

@@ -359,3 +359,17 @@ test('leaves a comment folded when someone else resolved it and the AI says it i
   await thread.locator('summary').click();
   await expect(thread.getByText('Line 3 still has MAX 10.')).toBeVisible();
 });
+
+// Every resolved comment and every posted comment of yours gets the AI's take on whether it is fixed; a missing take says so.
+test('a resolved comment shows the AI take on whether it is fixed, also one you resolved, and says when it was not checked', async ({ page }) => {
+  await openReview(page, {
+    mutate: (data) => {
+      Object.assign(data.ownRemarks[0], { resolved: true, resolvedBy: data.viewer.login, fix: { verdict: 'fixed', note: 'Commit abc changed MAX.' } });
+      Object.assign(data.reviewComments[1], { resolved: true, resolvedBy: 'sample-author' });
+    },
+  });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  const main = page.getByRole('main');
+  await expect(main.getByText('AI on the code: fixed. Commit abc changed MAX.')).toBeVisible();
+  await expect(main.locator('.thread, [data-thread]').filter({ hasText: 'The README does not mention the card.' }).getByText('AI on the code: not checked.')).toBeVisible();
+});
