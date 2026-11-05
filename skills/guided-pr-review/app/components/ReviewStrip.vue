@@ -50,16 +50,13 @@ const AGENT_TEXT_COLORS: Record<string, string> = { working: 'text-muted', pause
 const draftLabel = computed(() => (draftCount.value ? `Post as draft. ${plural(draftCount.value, 'remark')} not on GitHub yet.` : 'Post as draft'))
 const theme = computed(() => state.reviewer.theme || 'system')
 
-const TICK_COLORS: Record<string, string> = { approved: 'var(--ui-success)', changes: 'var(--ui-error)', comment: 'var(--ui-text-toned)' }
+// A verdict is a white disc with the icon in its colour, so it reads on a band of any colour and in both themes.
+const TICK_ICON_COLORS: Record<string, string> = { approved: 'text-success', changes: 'text-error', comment: 'text-neutral-700' }
 
+// On the band every tick is white. The current one is bigger.
 function tickClass(stop: { verdict?: string, seen: boolean, stamp: boolean }) {
-  if (stop.verdict) return ['-mt-px grid size-5 place-items-center border-white bg-(--tick) text-white', stop.stamp && 'stamp']
+  if (stop.verdict) return ['-mt-px grid size-5 place-items-center border-white bg-white', TICK_ICON_COLORS[stop.verdict], stop.stamp && 'stamp']
   return ['mt-0.5 size-3.5 border-white', stop.seen ? 'bg-white' : 'bg-(--line)']
-}
-
-// On the band every tick is white; a verdict keeps its colour inside a white ring. The current one is bigger.
-function tickStyle(stop: { verdict?: string }) {
-  return { '--tick': stop.verdict ? TICK_COLORS[stop.verdict] : 'white' }
 }
 
 function onCriteriaToggle(event: Event) {
@@ -327,7 +324,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
           <span><span class="mr-1.5 inline-block size-2.5 rounded-full border-2 border-current align-[-1px]" />not read</span>
           <span><span class="mr-1.5 inline-block size-2.5 rounded-full border-2 border-current bg-current align-[-1px]" />read</span>
           <span v-for="(label, verdict) in { approved: 'you approved', changes: 'you request changes', comment: 'you comment' }" :key="verdict">
-            <span class="mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 border-current bg-(--tick) align-[-4px]" :style="{ '--tick': TICK_COLORS[verdict] }">
+            <span class="mr-1.5 inline-grid size-4 place-items-center rounded-full border-2 border-white bg-white align-[-4px]" :class="TICK_ICON_COLORS[verdict]" data-legend-verdict>
               <VerdictIcon :verdict="verdict" :class="verdict === 'approved' ? 'size-2' : 'size-3'" />
             </span>{{ label }}
           </span>
@@ -365,7 +362,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
             <span
               class="relative mx-auto block rounded-full border-3 transition-[scale] duration-[380ms] ease-review motion-reduce:transition-none"
               :class="[tickClass(stop), stop.at === index && 'scale-[1.7] shadow-[0_0_0_2px_var(--line)]']"
-              :style="tickStyle(stop)"
+              data-tick
             >
               <VerdictIcon v-if="stop.verdict" :verdict="stop.verdict" :class="stop.verdict === 'approved' ? 'size-2.5' : 'size-3.5'" />
             </span>

@@ -144,3 +144,18 @@ test('a criterion verdict in the flow header is a round pill with an icon, reada
   expect(Math.abs(verdict.y - source.y)).toBeLessThanOrEqual(1);
   expect(Math.abs(verdict.height - source.height)).toBeLessThanOrEqual(1);
 });
+
+// On a band of any colour, a verdict stop is a white disc with the icon in the verdict colour, on the map and in the legend.
+test('verdict stops and their legend entries are white discs with a coloured icon', async ({ page }) => {
+  await openReview(page, { reviewer: { hunkVerdicts: { [H.client]: 'approved', [H.cache]: 'changes', [H.card]: 'comment' } } });
+  await openFlow(page, 'Show the forecast');
+  const colours = (locator) => locator.evaluate((element) => ({ disc: getComputedStyle(element).backgroundColor, icon: getComputedStyle(element.querySelector('.iconify, svg, span')).color }));
+  const red = await page.locator('body').evaluate(() => { const probe = document.createElement('span'); probe.className = 'text-error'; document.body.append(probe); const colour = getComputedStyle(probe).color; probe.remove(); return colour; });
+  for (const code of ['A1', 'A2', 'A3']) {
+    const { disc } = await colours(stop(page, code).locator('[data-tick]'));
+    expect(disc).toBe('rgb(255, 255, 255)');
+  }
+  expect((await colours(stop(page, 'A2').locator('[data-tick]'))).icon).toBe(red);
+  await page.getByText('Legend').click();
+  for (const entry of await page.locator('[data-legend-verdict]').all()) expect((await colours(entry)).disc).toBe('rgb(255, 255, 255)');
+});
