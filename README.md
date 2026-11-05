@@ -10,7 +10,31 @@ The skills use the open `SKILL.md` format, so they work in Claude Code, Codex, p
 
 | Skill | Category | What it does |
 | ----- | -------- | ------------ |
-| _None yet_ | | |
+| [guided-pr-review](skills/guided-pr-review) | Review/verification | Walks you through a GitHub pull request, flow by flow, with AI findings that you decide on before anything is posted. |
+
+## guided-pr-review
+
+A pull request on GitHub is a list of files in path order. You read them, try to keep the whole change in your head, and hope you did not miss the part that matters. AI review tools do the opposite: they read everything for you and drop a pile of comments on the PR.
+
+guided-pr-review sits between the two. Ask your agent to "guide me through PR 123". The agent reads the PR, its tickets and the earlier reviews, and opens a review page on your own computer. You do the review. The AI shows you the way and gives you a second opinion.
+
+![Walking through a flow: the header shrinks as you scroll, and each verdict moves you to the next hunk](docs/images/guided-pr-review/walk.gif)
+
+- **Read the change as flows, not as files.** The agent groups every hunk into flows through the code, like lines on a metro map. You follow one flow from where it starts to where it ends, and the map shows which stops you saw.
+- **AI findings that you decide on.** Each finding has a severity that you can change, and you accept, dismiss or edit it. Nothing reaches GitHub until you press a post button, as a draft or as your final review.
+- **Acceptance criteria, checked.** The agent checks the PR against the acceptance criteria of its tickets. Each flow shows the criteria it should meet, and a criterion that is not met becomes a finding.
+- **Earlier reviews, with a second opinion.** For every comment, yours and your colleagues', the AI says whether it agrees and whether the code fixed it. You resolve, unresolve and reply from the same page.
+- **Stacked pull requests.** Review one PR of a GitHub stack with the rest of the stack as context. Each finding says whether another PR in the stack fixes it or makes it worse, and you start the review of the next PR from the header.
+- **Ask about any hunk.** Ask the agent a question about the code in front of you, and turn the answer into a remark in your review.
+- **One page for all your reviews.** One local server serves every open review, grouped by repository. The agent stops after 30 minutes without requests, and you resume the review later.
+
+| Home | A hunk with an AI finding |
+| ---- | ------------------------- |
+| ![Home: the flows of the PR, what needs your attention, and the PR in its stack](docs/images/guided-pr-review/home.png) | ![A hunk with an AI finding, its place in the stack, and the AI's take on an earlier comment](docs/images/guided-pr-review/hunk.png) |
+| **The stack** | **Before you post** |
+| ![The stack of pull requests as a line, from the bottom PR to the top](docs/images/guided-pr-review/stack.png) | ![The checklist before you post: criteria, findings for the whole PR, and what you saw](docs/images/guided-pr-review/submit.png) |
+
+The screenshots show a made-up pull request. The skill needs Node.js, git, read and write access to GitHub, and a browser on the same computer.
 
 ## Installation
 
