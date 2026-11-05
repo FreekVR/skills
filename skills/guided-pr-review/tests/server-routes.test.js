@@ -1,0 +1,170 @@
+'use strict';
+// Run with: node --test skills/guided-pr-review/tests/*.test.js
+// Needs the built server in .output (npm run build).
+
+const test = require('node:test');
+const assert = require('node:assert');
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const { execFileSync } = require('child_process');
+
+const home = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-routes-'));
+const clone = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-clone-'));
+const hunks = [{ id: 'h1', file: 'src/cache.ts', status: 'modified', lines: [] }, { id: 'h2', file: 'src/old.ts', status: 'removed', lines: [] }];
+let base;
+
+// The review page sends this header with every change; another web page cannot.
+const send = (url, method, body, headers = { 'X-Guided-Review': '1' }) => fetch(url, { method, headers: { 'Content-Type': 'application/json', ...headers }, body });
+
+function review(name, pr) {
+  const dir = path.join(home, 'guided-pr-review', 'acme', 'shop', name);
+  fs.mkdirSync(path.join(dir, 'files', 'src'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr, hunks }));
+  return dir;
+}
+
+const small = review('7', { number: 7 });
+review('8', { number: 8, localPath: clone });
+fs.writeFileSync(path.join(small, 'files', 'src', 'cache.ts'), 'export const cache = 1;\n');
+fs.mkdirSync(path.join(clone, 'src'));
+fs.writeFileSync(path.join(clone, 'src', 'cache.ts'), 'from the clone\n');
+
+test.before(() => {
+  const output = execFileSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-server.js')], { env: { ...process.env, XDG_STATE_HOME: home } });
+  base = `${String(output).match(/READY (\S+)/)[1]}api/reviews/acme/shop`;
+});
+
+test.after(() => {
+  process.kill(JSON.parse(fs.readFileSync(path.join(home, 'guided-pr-review', 'server.json'), 'utf8')).pid);
+  fs.rmSync(home, { recursive: true, force: true });
+  fs.rmSync(clone, { recursive: true, force: true });
+});
+
+test('serves review.json and an empty reviewer state before the first save', async () => {
+  assert.deepStrictEqual((await (await fetch(`${base}/7/review`)).json()).pr, { number: 7 });
+  assert.deepStrictEqual(await (await fetch(`${base}/7/reviewer`)).json(), {});
+});
+
+test('answers 404 for a review that does not exist or a path that walks out of the state directory', async () => {
+  for (const asked of ['9/review', '..%2F..%2F7/review']) assert.strictEqual((await fetch(`${base}/${asked}`)).status, 404);
+  assert.strictEqual((await fetch(`${base.replace('/acme/', '/..%2F/')}/7/review`)).status, 404);
+});
+
+test('stores the reviewer state the page sends, and keeps it when the new state is not JSON', async () => {
+  const state = { seen: ['abc'] };
+  assert.strictEqual((await send(`${base}/7/reviewer`, 'PUT', JSON.stringify(state))).status, 204);
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(small, 'reviewer.json'), 'utf8')), state);
+  assert.strictEqual((await send(`${base}/7/reviewer`, 'PUT', '{broken')).status, 400);
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(small, 'reviewer.json'), 'utf8')), state);
+});
+
+test('appends each event to events.jsonl with an id and a time', async () => {
+  const response = await send(`${base}/7/events`, 'POST', JSON.stringify({ type: 'ask', hunkId: 'h1', question: 'Why seconds?' }));
+  const { id } = await response.json();
+  const stored = fs.readFileSync(path.join(small, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse).pop();
+  assert.strictEqual(stored.id, id);
+  assert.strictEqual(stored.question, 'Why seconds?');
+  assert.ok(stored.at);
+});
+
+test('serves a changed file from the saved files of a small PR and from the local clone of a big PR', async () => {
+  assert.strictEqual(await (await fetch(`${base}/7/file?path=src%2Fcache.ts`)).text(), 'export const cache = 1;\n');
+  assert.strictEqual(await (await fetch(`${base}/8/file?path=src%2Fcache.ts`)).text(), 'from the clone\n');
+});
+
+test('serves only files that the pull request changes and that still exist', async () => {
+  for (const asked of ['..%2Freview.json', 'src%2Fold.ts', 'src%2Fother.ts']) {
+    assert.strictEqual((await fetch(`${base}/7/file?path=${asked}`)).status, 404);
+  }
+});
+
+test('opens a folder only for a changed file of a local clone', async () => {
+  assert.strictEqual((await send(`${base}/7/open`, 'POST', JSON.stringify({ path: 'src/cache.ts' }))).status, 404);
+});
+
+test('accepts a change only from the review page, on a local host name, and not too large', async () => {
+  const before = fs.existsSync(path.join(small, 'events.jsonl')) ? fs.readFileSync(path.join(small, 'events.jsonl'), 'utf8') : '';
+  assert.strictEqual((await send(`${base}/7/events`, 'POST', '{"type":"ask"}', {})).status, 403);
+  assert.strictEqual((await send(`${base}/8/open`, 'POST', JSON.stringify({ path: 'src/cache.ts' }), {})).status, 403);
+  assert.strictEqual((await send(`${base}/7/events`, 'POST', JSON.stringify({ big: 'x'.repeat(6 * 1024 * 1024) }))).status, 413);
+  const rebound = await new Promise((resolve) => require('http').get(`${base}/7/review`, { headers: { Host: 'attacker.example' } }, resolve));
+  assert.strictEqual(rebound.statusCode, 403);
+  assert.strictEqual(fs.existsSync(path.join(small, 'events.jsonl')) ? fs.readFileSync(path.join(small, 'events.jsonl'), 'utf8') : '', before);
+});
+
+test('pauses and plays the agent of a review with a paused file', async () => {
+  const paused = path.join(small, 'paused');
+  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: true }))).status, 200);
+  assert.ok(fs.existsSync(paused));
+  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: false }))).status, 200);
+  assert.ok(!fs.existsSync(paused));
+  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: 'yes' }))).status, 400);
+});
+
+test('stack lists the review state of each PR in the stack, or nothing without a stack', async () => {
+  assert.deepStrictEqual(await (await fetch(`${base}/7/stack`)).json(), []);
+  const dir = review('9', { number: 9 });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { number: 9 }, hunks, stack: { prs: [{ number: 7 }, { number: 8 }] } }));
+  const status = await (await fetch(`${base}/9/stack`)).json();
+  assert.deepStrictEqual(status.map((entry) => [entry.number, entry.page]), [[7, '/acme/shop/7'], [8, '/acme/shop/8']]);
+});
+
+test('agent gives the connection, the pause and the open question of the agent', async (t) => {
+  t.after(() => { for (const file of ['waiting', 'session.json', 'paused']) fs.rmSync(path.join(small, file), { force: true }) });
+  assert.deepStrictEqual(await (await fetch(`${base}/7/agent`)).json(), { session: null, connected: false, paused: false, waiting: null, preparing: null });
+  fs.writeFileSync(path.join(small, 'waiting'), JSON.stringify({ question: 'Which angles?', since: '2026-01-01T00:00:00.000Z' }));
+  fs.writeFileSync(path.join(small, 'session.json'), JSON.stringify({ sessionId: 'sample-session', cwd: '/sample/dir', watcherPid: process.pid }));
+  fs.writeFileSync(path.join(small, 'paused'), '');
+  const status = await (await fetch(`${base}/7/agent`)).json();
+  assert.deepStrictEqual([status.connected, status.paused, status.waiting.question], [true, true, 'Which angles?']);
+  assert.deepStrictEqual(status.session, { sessionId: 'sample-session', cwd: '/sample/dir' });
+});
+
+test('start-review asks the agent for another PR of the stack and lets its page open before review.json exists', async () => {
+  const dir = review('20', { number: 20 });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { number: 20 }, hunks, stack: { prs: [{ number: 20 }, { number: 21 }, { number: 22 }] } }));
+  const target = path.join(home, 'guided-pr-review', 'acme', 'shop', '21');
+  const response = await send(`${base}/20/start-review`, 'POST', JSON.stringify({ number: 21 }));
+  assert.strictEqual(response.status, 200);
+  const { id, page } = await response.json();
+  assert.strictEqual(page, '/acme/shop/21');
+  const stored = fs.readFileSync(path.join(dir, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse).pop();
+  assert.deepStrictEqual({ ...stored, at: undefined }, { type: 'start-review', number: 21, review: 'acme/shop#20', id, at: undefined });
+  assert.ok(stored.at);
+  const preparing = JSON.parse(fs.readFileSync(path.join(target, 'preparing'), 'utf8'));
+  assert.deepStrictEqual([preparing.step, preparing.from], ['Waiting for the agent to start', 20]);
+  assert.ok(preparing.since);
+  assert.strictEqual((await fetch(`${base}/21/review`)).status, 404);
+  assert.strictEqual((await fetch(`${base}/21/reviewer`)).status, 404);
+  const agent = await fetch(`${base}/21/agent`);
+  assert.strictEqual(agent.status, 200);
+  assert.strictEqual((await agent.json()).preparing.from, 20);
+  assert.strictEqual((await fetch(`${base}/23/agent`)).status, 404);
+});
+
+test('start-review starts nothing for a PR that has a review or that the agent already prepares, and still gives its page', async () => {
+  const dir = review('24', { number: 24 });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { number: 24 }, hunks, stack: { prs: [{ number: 24 }, { number: 25 }, { number: 26 }] } }));
+  review('25', { number: 25 });
+  const preparing = path.join(home, 'guided-pr-review', 'acme', 'shop', '26', 'preparing');
+  fs.mkdirSync(path.dirname(preparing), { recursive: true });
+  fs.writeFileSync(preparing, JSON.stringify({ step: 'reading the PR', since: '2026-11-04T10:00:00Z' }));
+  for (const number of [25, 26]) {
+    assert.deepStrictEqual(await (await send(`${base}/24/start-review`, 'POST', JSON.stringify({ number }))).json(), { id: null, page: `/acme/shop/${number}` });
+  }
+  assert.ok(!fs.existsSync(path.join(dir, 'events.jsonl')));
+  assert.ok(!fs.existsSync(path.join(home, 'guided-pr-review', 'acme', 'shop', '25', 'preparing')));
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(preparing, 'utf8')), { step: 'reading the PR', since: '2026-11-04T10:00:00Z' });
+});
+
+test('start-review refuses a PR that is not in the stack, and a request from another page', async () => {
+  const dir = path.join(home, 'guided-pr-review', 'acme', 'shop', '20');
+  const before = fs.readFileSync(path.join(dir, 'events.jsonl'), 'utf8');
+  for (const number of [99, '21', null, 20]) assert.strictEqual((await send(`${base}/20/start-review`, 'POST', JSON.stringify({ number }))).status, 400);
+  assert.strictEqual((await send(`${base}/7/start-review`, 'POST', JSON.stringify({ number: 8 }))).status, 400);
+  assert.strictEqual((await send(`${base}/20/start-review`, 'POST', JSON.stringify({ number: 22 }), {})).status, 403);
+  assert.strictEqual(fs.readFileSync(path.join(dir, 'events.jsonl'), 'utf8'), before);
+  assert.ok(!fs.existsSync(path.join(home, 'guided-pr-review', 'acme', 'shop', '99')));
+  assert.ok(!fs.existsSync(path.join(home, 'guided-pr-review', 'acme', 'shop', '22')));
+});
