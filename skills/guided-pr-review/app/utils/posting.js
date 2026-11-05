@@ -22,7 +22,11 @@ export function importOwnReview() {
   }
 }
 
-export function labelled(severity, body) { return `**${severity}:** ${body}` }
+// A finding opens with a header line like a conventional commit, `**minor(rule): title**`; a remark has only its severity.
+export function labelled(item) {
+  if (!item.title) return `**${item.severity}:** ${item.body}`
+  return `**${item.severity}${item.rule ? `(${item.rule})` : ''}: ${item.title}**\n\n${item.body}`
+}
 
 // Only text the AI wrote gets the disclosure: findings, and remarks that started from an AI answer.
 export function withDisclosure(text, disclosure) { return disclosure ? `${text}\n\n${disclosure}` : text }
@@ -39,14 +43,14 @@ export function buildPost(kind) {
       general.push(item)
       continue
     }
-    const comment = { path: hunk.file, line: item.line, side: item.side || 'RIGHT', body: withDisclosure(labelled(item.severity, item.body), item.source === 'ai' && disclosure.comment) }
+    const comment = { path: hunk.file, line: item.line, side: item.side || 'RIGHT', body: withDisclosure(labelled(item), item.source === 'ai' && disclosure.comment) }
     if (item.startLine && (item.startLine !== item.line || item.startSide !== item.side)) Object.assign(comment, { start_line: item.startLine, start_side: item.startSide })
     comments.push(comment)
   }
   const parts = []
   if (state.reviewer.summary.trim()) parts.push(state.reviewer.summary.trim())
   // Lines after the first are indented, so a finding with several paragraphs stays one list item under its label.
-  if (general.length) parts.push(general.map((item) => `- ${labelled(item.severity, item.body).replace(/\n(?=.)/g, '\n  ')}`).join('\n'))
+  if (general.length) parts.push(general.map((item) => `- ${labelled(item).replace(/\n(?=.)/g, '\n  ')}`).join('\n'))
   const body = withDisclosure(parts.join('\n\n'), (state.reviewer.summaryAiSuggested || general.some((item) => item.source === 'ai')) && disclosure.review).trim()
   const event = { type: 'post', kind, body, comments }
   // A reply or a resolved thread shows on GitHub at once, so only the final review takes them; a draft stays private.

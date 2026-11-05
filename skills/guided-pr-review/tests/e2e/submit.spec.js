@@ -135,16 +135,16 @@ const draftOptions = {
   },
 };
 
-test('posts a draft with the remarks and the disclosure on AI text only', async ({ page }) => {
+test('posts a draft with the remarks, each finding headed by its severity, rule and title, and the disclosure on AI text only', async ({ page }) => {
   const review = await openSubmit(page, draftOptions);
   await page.getByRole('main').getByRole('button', { name: /^Post as draft/ }).click();
   const event = await eventOf(review, 'post');
   expect(event.kind).toBe('draft');
   expect(event.comments).toEqual([
-    { path: 'src/components/ForecastCard.tsx', line: 2, side: 'RIGHT', body: '**nit:** Use a named function for readability.\n\n_Written by AI_' },
+    { path: 'src/components/ForecastCard.tsx', line: 2, side: 'RIGHT', body: '**nit(style): Name the map callback**\n\nUse a named function for readability.\n\n_Written by AI_' },
     { path: 'src/cache.ts', line: 3, side: 'RIGHT', body: '**minor:** My own remark.' },
   ]);
-  expect(event.body).toBe('Nice work.\n\n- **medium:** The new card has no test.\n\n_Contains AI findings_');
+  expect(event.body).toBe('Nice work.\n\n- **medium(tests): No test for the card**\n\n  The new card has no test.\n\n_Contains AI findings_');
 });
 
 test('shows a draft as posted when the agent reports it', async ({ page }) => {

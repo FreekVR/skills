@@ -248,7 +248,7 @@ useEventListener(document, 'scroll', (event: Event) => {
           <span class="criteria-keys flex flex-wrap gap-x-3.5 gap-y-1.5">
             <span v-for="{ id, criterion } in criteria" :key="id" class="inline-flex items-center gap-1.5 font-mono text-label font-semibold text-toned">
               {{ id }}
-              <UBadge v-if="criterion.verdict" :color="AC_VERDICT_COLORS[criterion.verdict]" variant="solid" size="sm" class="font-sans font-bold">{{ criterionVerdictLabel(criterion) }}</UBadge>
+              <CriterionVerdict v-if="criterion.verdict" :criterion="criterion" />
             </span>
           </span>
         </summary>
@@ -261,9 +261,7 @@ useEventListener(document, 'scroll', (event: Event) => {
               :class="{ italic: criterionSource(criterion).kind === 'description' }"
               :title="criterionSource(criterion).title || undefined"
             >{{ criterionSource(criterion).label }}</span>
-            <UBadge v-if="criterion.verdict" :color="AC_VERDICT_COLORS[criterion.verdict]" variant="solid" size="sm" class="ml-2.5 align-[2px] font-sans font-bold" :title="criterion.note || undefined">
-              {{ criterionVerdictLabel(criterion) }}
-            </UBadge>
+            <CriterionVerdict v-if="criterion.verdict" :criterion="criterion" class="ml-2.5" :title="criterion.note || undefined" />
           </li>
         </ul>
       </details>

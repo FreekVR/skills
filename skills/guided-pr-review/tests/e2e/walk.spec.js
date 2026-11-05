@@ -125,3 +125,22 @@ test('a flow without criteria shows its reason', async ({ page }) => {
   await openFlow(page, 'Moved and added files');
   await expect(page.getByText('No acceptance criteria to check. These files change no behaviour.')).toBeVisible();
 });
+
+test('a criterion verdict in the flow header is a round pill with an icon, readable on any band colour', async ({ page }) => {
+  await openReview(page);
+  await openFlow(page, 'Show the forecast');
+  const pills = page.locator('[data-criterion-verdict]:visible');
+  await expect(pills.filter({ hasText: /^\s*Met\s*$/ }).first()).toBeVisible();
+  for (const pill of await pills.all()) {
+    await expect(pill).toHaveClass(/rounded-full/);
+    await expect(pill).toHaveClass(/bg-elevated/);
+    await expect(pill.locator('[data-verdict-icon]')).toHaveCount(1);
+  }
+  await expect(pills.first().locator('[data-verdict-icon]')).toHaveClass(/text-success/);
+  // It sits level with the source pill before it on the same line.
+  const row = page.locator('li', { has: pills.first() });
+  const source = await row.getByText('acceptance criterion').boundingBox();
+  const verdict = await pills.first().boundingBox();
+  expect(Math.abs(verdict.y - source.y)).toBeLessThanOrEqual(1);
+  expect(Math.abs(verdict.height - source.height)).toBeLessThanOrEqual(1);
+});

@@ -100,7 +100,7 @@ export function severitySelect(finding) {
 export function acceptedItems() {
   const findings = state.review.findings
     .filter((finding) => decisionOf(finding) === 'accepted' && !postedInEarlierRound(finding.id))
-    .map((finding) => ({ id: finding.id, hunkId: finding.hunkId, startLine: finding.startLine, startSide: finding.startSide, line: finding.line, side: finding.side, severity: findingSeverity(finding), body: findingText(finding), source: 'ai' }))
+    .map((finding) => ({ id: finding.id, hunkId: finding.hunkId, startLine: finding.startLine, startSide: finding.startSide, line: finding.line, side: finding.side, severity: findingSeverity(finding), title: finding.title, rule: finding.rule, body: findingText(finding), source: 'ai' }))
   const remarks = state.reviewer.remarks
     .filter((remark) => remark.hunkId === null || hunkById(remark.hunkId))
     .map((remark) => ({ ...remark, source: remark.aiSuggested ? 'ai' : 'reviewer' }))
