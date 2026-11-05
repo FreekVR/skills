@@ -87,6 +87,17 @@ function onWheel(event: WheelEvent) {
   element.scrollLeft = next
 }
 
+// Only the hunk below the header scrolls, so a wheel over the header that nothing in it used scrolls the hunk.
+// Where the page itself scrolls, as on a phone, the hunk is not a scroller and the wheel stays with the page.
+// A pinch, or Ctrl and the wheel, zooms. A wheel that counts in lines, as in Firefox, scrolls about 16 pixels per line.
+function onHeaderWheel(event: WheelEvent) {
+  const main = document.getElementById('main')
+  if (event.defaultPrevented || event.ctrlKey || !main || main.scrollHeight <= main.clientHeight) return
+  event.preventDefault()
+  const unit = event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? main.clientHeight : 1
+  main.scrollBy({ top: event.deltaY * unit })
+}
+
 // Once a drag moves, the map captures the pointer, so the button under it never gets the click.
 const drag = ref<{ x: number, left: number, moved: boolean } | null>(null)
 function onPointerDown(event: PointerEvent) {
@@ -178,6 +189,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
     ref="header"
     class="band relative z-5"
     :class="{ 'compact': shownCollapsed, 'band-line': line }"
+    @wheel="onHeaderWheel"
     :style="line ? { '--line': `var(--color-${line.color})` } : undefined"
   >
     <div class="strip-top flex items-center gap-5 px-gutter pt-5 max-md:flex-wrap" :class="{ 'pb-4': !line }">

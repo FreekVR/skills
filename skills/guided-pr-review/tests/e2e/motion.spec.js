@@ -97,3 +97,23 @@ test('the Ask button turns its icon in when the panel opens', async ({ page }) =
   const icon = page.getByRole('button', { name: 'Close the questions about this hunk' }).locator('[data-ask-icon]');
   expect(await icon.evaluate((element) => element.getAnimations().some((animation) => animation.animationName.startsWith('icon-turn')))).toBe(true);
 });
+
+test('the wheel over the header scrolls the hunk, so a tall header never blocks scrolling', async ({ page }) => {
+  await openFlow(page);
+  const main = page.locator('#main');
+  await page.mouse.move(700, 60);
+  await page.mouse.wheel(0, 300);
+  await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+});
+
+test('a pinch or Ctrl and the wheel over the header zooms, and does not scroll the hunk', async ({ page }) => {
+  await openFlow(page);
+  await page.mouse.move(700, 60);
+  const prevented = await page.locator('header.band').evaluate((header) => {
+    const event = new WheelEvent('wheel', { deltaY: 120, ctrlKey: true, bubbles: true, cancelable: true });
+    header.dispatchEvent(event);
+    return event.defaultPrevented;
+  });
+  expect(prevented).toBe(false);
+  expect(await page.locator('#main').evaluate((element) => element.scrollTop)).toBe(0);
+});
