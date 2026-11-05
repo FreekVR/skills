@@ -2,8 +2,6 @@
 name: guided-pr-review
 description: Use when a developer wants to review a GitHub pull request themselves with guidance, for example "guide me through PR 123", "walk me through this pull request", "help me review this PR step by step", "I need to review PR <url> but don't know this code", or "review the PR for ticket ABC-123 with me". Do not use when the user wants the agent to review a PR on its own and only report or post the result, to review local uncommitted changes, to answer review comments on their own PR, or for GitLab or Bitbucket.
 compatibility: Needs Node.js 22.22.3 or a newer 22, 24.15 or a newer 24, or 26 and up, git, read and write access to GitHub, and a browser on the same computer. Questions, longer explanations and posts from the review page also need a background process whose output the agent can watch; without one, the review page is a static file without them. The review page loads avatars from github.com; without internet it shows none.
-metadata:
-  internal: true
 ---
 
 # Guided PR review
