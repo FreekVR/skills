@@ -95,3 +95,17 @@ test('lists the flows with findings and seen counts, and your review so far', as
   await expect(main.locator('#home-progress').getByText('0/7', { exact: true })).toBeVisible();
   await expect(main.getByText('remarks to post · 0 on GitHub, 1 local only')).toBeVisible();
 });
+
+// The pill shows its count, so the label that slides out on hover names only what is counted.
+test('a pill label does not repeat the count next to it', async ({ page }) => {
+  await openReview(page, { mutate: (data) => { data.context.skipped = [{ file: 'package-lock.json', reason: 'generated' }]; } });
+  await page.getByRole('button', { name: 'Home' }).click();
+  const main = page.getByRole('main');
+  const pill = (name) => main.getByRole('button', { name, exact: true });
+  const slid = async (name) => (await pill(name).locator('span[aria-hidden="true"]').last().textContent()).trim();
+  await expect(pill('1 of 2 criteria not met')).toContainText('1/2');
+  expect(await slid('1 of 2 criteria not met')).toBe('criteria not met');
+  expect(await slid('0 of 7 hunks seen')).toBe('hunks seen');
+  expect(await slid('1 not read by the AI')).toBe('not read by the AI');
+  expect(await slid('3 open AI findings')).toBe('open AI findings');
+});

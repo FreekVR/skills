@@ -167,9 +167,11 @@ export function criteriaStatus() {
   const open = criteria.filter((criterion) => !['met', 'not-met', 'elsewhere'].includes(criterion.verdict)).length
   const elsewhere = criteria.some((criterion) => criterion.verdict === 'elsewhere')
   if (!criteria.length) return { tone: 'quiet', icon: 'none', label: 'No acceptance criteria' }
-  if (notMet) return { tone: 'bad', icon: 'bad', label: `${notMet} of ${plural(criteria.length, 'criterion', 'criteria')} not met`, count: `${notMet}/${criteria.length}` }
-  if (open) return { tone: 'warn', icon: 'warn', label: `${plural(open, 'criterion', 'criteria')} unclear or not checked`, count: String(open) }
-  return { tone: 'ok', icon: 'ok', label: `All ${plural(criteria.length, 'criterion', 'criteria')} met${elsewhere ? ' in the stack' : ''}`, count: String(criteria.length) }
+  // `short` follows the count on the Home pill, so it leaves the count out.
+  const noun = (count) => (count === 1 ? 'criterion' : 'criteria')
+  if (notMet) return { tone: 'bad', icon: 'bad', label: `${notMet} of ${plural(criteria.length, 'criterion', 'criteria')} not met`, short: `${noun(criteria.length)} not met`, count: `${notMet}/${criteria.length}` }
+  if (open) return { tone: 'warn', icon: 'warn', label: `${plural(open, 'criterion', 'criteria')} unclear or not checked`, short: `${noun(open)} unclear or not checked`, count: String(open) }
+  return { tone: 'ok', icon: 'ok', label: `All ${plural(criteria.length, 'criterion', 'criteria')} met${elsewhere ? ' in the stack' : ''}`, short: `${noun(criteria.length)} met${elsewhere ? ' in the stack' : ''}`, count: String(criteria.length) }
 }
 
 // The badge colour of each criterion verdict, in the criteria rows and in a flow's criteria.
@@ -184,8 +186,8 @@ export function criterionVerdictLabel(criterion) {
 export function findingsStatus() {
   const open = liveFindings().filter((finding) => decisionOf(finding) === 'open')
   if (!liveFindings().length) return { tone: 'ok', icon: 'ok', label: 'No AI findings', open }
-  if (!open.length) return { tone: 'ok', icon: 'ok', label: 'All AI findings decided', open, count: String(liveFindings().length) }
-  return { tone: severityTone(worstOf(open).severity), icon: 'finding', label: plural(open.length, 'open AI finding'), open, count: `${open.length}/${liveFindings().length}` }
+  if (!open.length) return { tone: 'ok', icon: 'ok', label: 'All AI findings decided', short: `AI finding${liveFindings().length === 1 ? '' : 's'} decided`, open, count: String(liveFindings().length) }
+  return { tone: severityTone(worstOf(open).severity), icon: 'finding', label: plural(open.length, 'open AI finding'), short: `open AI finding${open.length === 1 ? '' : 's'}`, open, count: `${open.length}/${liveFindings().length}` }
 }
 
 // The findings on the whole PR, the count on hunks and the open findings per severity, worst first.
@@ -216,11 +218,12 @@ export function home() {
   const criteria = criteriaStatus()
   const findings = findingsStatus()
   const glance = [
-    { target: 'home-criteria', tone: criteria.tone, icon: criteria.icon, text: criteria.label, count: criteria.count },
-    liveFindings().length && { target: 'home-findings', tone: findings.tone, icon: findings.icon, text: findings.label, count: findings.count },
-    general.length && { target: 'home-comments', tone: 'warn', icon: 'comment', text: `${plural(general.length, 'open comment')} outside the diff`, count: String(general.length) },
-    skipped.length && { target: 'home-skipped', tone: 'warn', icon: 'notRead', text: `${skipped.length} not read by the AI`, count: String(skipped.length) },
-    { target: 'home-progress', tone: seen === total ? 'ok' : 'info', icon: 'progress', text: `${seen} of ${plural(total, 'hunk')} seen`, count: `${seen}/${total}` },
+    // `text` is the whole sentence for a screen reader; `label` slides out next to the count, so it leaves the count out.
+    { target: 'home-criteria', tone: criteria.tone, icon: criteria.icon, text: criteria.label, label: criteria.short || criteria.label, count: criteria.count },
+    liveFindings().length && { target: 'home-findings', tone: findings.tone, icon: findings.icon, text: findings.label, label: findings.short, count: findings.count },
+    general.length && { target: 'home-comments', tone: 'warn', icon: 'comment', text: `${plural(general.length, 'open comment')} outside the diff`, label: `open comment${general.length === 1 ? '' : 's'} outside the diff`, count: String(general.length) },
+    skipped.length && { target: 'home-skipped', tone: 'warn', icon: 'notRead', text: `${skipped.length} not read by the AI`, label: 'not read by the AI', count: String(skipped.length) },
+    { target: 'home-progress', tone: seen === total ? 'ok' : 'info', icon: 'progress', text: `${seen} of ${plural(total, 'hunk')} seen`, label: `hunk${total === 1 ? '' : 's'} seen`, count: `${seen}/${total}` },
   ].filter(Boolean)
   const proposalTone = { APPROVE: 'ok', REQUEST_CHANGES: 'bad', COMMENT: 'info' }[proposal?.id] || 'quiet'
   return { total, seen, verdictCounts: { approved: count('approved'), changes: count('changes'), comment: count('comment') }, items, onGitHub, proposal, proposalTone, general, skipped, relatedCounts, glance }
