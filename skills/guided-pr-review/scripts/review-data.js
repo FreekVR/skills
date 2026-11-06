@@ -48,7 +48,7 @@ const { execFileSync, spawn } = require('child_process');
 const { fromGitHubStack, fromBranches } = require('./stack.js');
 const { ownDiff } = require('./own-diff.js');
 
-const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews, setWaiting, setPreparing } = require('./reviews.js');
+const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews, setWaiting, setPreparing, writeAtomic } = require('./reviews.js');
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
@@ -392,7 +392,7 @@ function main([command, ...args]) {
     const review = fs.existsSync(reviewFile) ? JSON.parse(fs.readFileSync(reviewFile, 'utf8')) : {};
     review.hunks = mergeHunks(parseDiff(fs.readFileSync(diffFile, 'utf8'), whole), review.hunks || []);
     review.wholeFiles = [...whole];
-    fs.writeFileSync(reviewFile, JSON.stringify(review) + '\n');
+    writeAtomic(reviewFile, JSON.stringify(review) + '\n');
     review.hunks.forEach((hunk) => console.log(`${hunk.id} ${hunk.file} ${hunk.explanation ? 'kept' : 'new'} +${count(hunk, '+')} -${count(hunk, '-')}`));
     return 0;
   }
