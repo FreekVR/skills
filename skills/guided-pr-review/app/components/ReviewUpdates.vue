@@ -22,9 +22,6 @@ const banners = computed(() => (state.static ? [] : updates()))
             <p class="m-0"><strong>This review is not running.</strong> The page cannot save your work or reach the agent.</p>
             <ResumeHelp :help="banner.resume" />
           </template>
-          <p v-else-if="banner.kind === 'paused'" class="m-0">
-            <strong>Agent paused.</strong> It does not check GitHub. Questions and posts wait until you resume it.
-          </p>
           <div v-else-if="banner.kind === 'preparing'">
             <p class="m-0">
               <strong>The agent is still preparing this review.</strong>
@@ -77,7 +74,6 @@ const banners = computed(() => (state.static ? [] : updates()))
             <UButton color="neutral" variant="ghost" @click="closeRefreshResult(banner.eventId)">Close</UButton>
           </template>
           <UButton v-if="banner.kind === 'comments'" color="neutral" variant="soft" @click="showNewComments()">Show</UButton>
-          <UButton v-if="banner.kind === 'paused'" color="neutral" variant="soft" icon="i-lucide-play" @click="resumeAgent">Resume</UButton>
         </template>
       </UAlert>
     </TransitionGroup>

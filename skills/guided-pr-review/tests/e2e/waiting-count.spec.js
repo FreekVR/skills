@@ -32,13 +32,3 @@ test('the header counts the requests that wait for the agent and drops them when
   review.update((data) => { data.answers.push(answer(asks[1])); });
   await expect(page.getByText(/waits? for the agent/)).toBeHidden();
 });
-
-test('the label turns to the warning colour while the agent is paused', async ({ page }) => {
-  const review = await openReview(page);
-  live(review);
-  fs.writeFileSync(path.join(review.dir, 'paused'), '');
-  await openHunk(page, 'Show the forecast', /^A1 /);
-  await page.getByRole('button', { name: 'Ask the agent about this hunk' }).click();
-  await ask(page, 'Why three days?');
-  await expect(page.getByText('1 request waits for the agent')).toHaveClass(/text-warning/);
-});

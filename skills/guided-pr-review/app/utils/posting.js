@@ -180,8 +180,7 @@ export function waitingRequests() {
 // Get what the agent of this review does. It counts as working until the page has an answer, so the page does not flash "No agent" on boot.
 export function agentState() {
   if (!state.agent) return 'working'
-  if (!state.agent.connected) return 'none'
-  return state.agent.paused ? 'paused' : 'working'
+  return state.agent.connected ? 'working' : 'none'
 }
 
 export function answerFor(eventId) { return (state.review.answers || []).find((answer) => answer.eventId === eventId) }

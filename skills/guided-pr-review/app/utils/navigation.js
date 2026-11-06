@@ -1,5 +1,5 @@
-import { state, PAGE_VIEWS, SHORTCUTS } from './state.js'
-import { hunkById, isSeen, lineById, lines, verdictOf } from './review.js'
+import { state, SHORTCUTS } from './state.js'
+import { hunkById, isSeen, lineById, lines, stationCode, verdictOf } from './review.js'
 import { postedReview } from './posting.js'
 import { markSeen, saveReviewer, setHunkVerdict } from './actions.js'
 
@@ -30,7 +30,8 @@ export function go(lineId, index) {
   state.ui.askOpen = false
   state.ui.criteriaOpen = undefined
   state.ui.compactMap = false
-  savePosition()
+  saveReviewer()
+  showInAddress()
   markCurrentSeen()
 }
 
@@ -40,25 +41,15 @@ export function showComment(commentId, lineId, index) {
   go(lineId, index)
 }
 
-export function goHome() {
-  state.view = { kind: 'home' }
-  state.ui.askOpen = false
-  state.ui.composer = null
-  savePosition()
-}
+export function goHome() { openPage('home') }
+export function goReviews() { openPage('reviews') }
+export function goTerminus() { openPage('terminus') }
 
-export function goReviews() {
-  state.view = { kind: 'reviews' }
+function openPage(kind) {
+  state.view = { kind }
   state.ui.askOpen = false
   state.ui.composer = null
-  savePosition()
-}
-
-export function goTerminus() {
-  state.view = { kind: 'terminus' }
-  state.ui.askOpen = false
-  state.ui.composer = null
-  savePosition()
+  showInAddress()
 }
 
 // Back to the hunk the reviewer last had open in this flow. A flow not opened yet, or one whose hunks changed since,
@@ -72,21 +63,43 @@ export function openFlow(lineId) {
   return go(line.id, remembered !== -1 ? remembered : unseen === -1 ? 0 : unseen)
 }
 
-// A reload reopens the hunk the reviewer was on, so questions and remarks on it stay in view.
-export function savePosition() {
-  state.reviewer.position = PAGE_VIEWS.includes(state.view.kind) ? { kind: state.view.kind } : { kind: 'hunk', line: state.view.line, hunkId: lineById(state.view.line).stops[state.view.index]?.hunkId }
-  saveReviewer()
+// Get the address of a view. Home is the PR's own address, so a link to a review always opens its Home;
+// a hunk is its station code, like /A2, and the other pages their name.
+export function viewPath(view = state.view) {
+  const { owner, repo, number } = state.review.pr
+  const base = `/${owner}/${repo}/${number}`
+  if (view.kind === 'home') return base
+  if (view.kind === 'reviews') return `${base}/reviews`
+  if (view.kind === 'terminus') return `${base}/submit`
+  return `${base}/${stationCode(lineById(view.line), view.index)}`
 }
 
-export function restorePosition() {
-  const position = state.reviewer.position
-  if (!position) return false
-  if (PAGE_VIEWS.includes(position.kind)) { state.view = { kind: position.kind }; return true }
-  const line = state.lines.find((candidate) => candidate.id === position.line)
-  const index = line ? line.stops.findIndex((stop) => stop.hunkId === position.hunkId) : -1
-  if (index === -1) return false
-  state.view = { kind: 'station', line: line.id, index }
-  return true
+// Open the view an address names, from the parts after the PR number. An address the review does not have opens Home.
+export function openPath(parts = []) {
+  correctingAddress = true
+  try { openNamedView(parts) } finally { correctingAddress = false }
+}
+
+function openNamedView(parts) {
+  const [name] = parts
+  if (name === 'reviews') return goReviews()
+  if (name === 'submit') return goTerminus()
+  const code = /^([A-Z]+)(\d+)$/.exec(name || '')
+  const line = code && lines().find((candidate) => candidate.letter === code[1])
+  if (line && Number(code[2]) >= 1 && Number(code[2]) <= line.stops.length) return go(line.id, Number(code[2]) - 1)
+  goHome()
+}
+
+// True while an address opens its view, so a correction of that address, like an unknown one that opens Home,
+// replaces it in the history and the back button does not return to it.
+let correctingAddress = false
+
+// Put the view in the address bar, so a reload keeps it and the browser's back button returns to the view before.
+// A static page has no server for these addresses, so its address stays as it is.
+function showInAddress() {
+  if (state.static) return
+  const path = viewPath()
+  if (window.location.pathname !== path) navigateTo(path, { replace: correctingAddress })
 }
 
 // Move one hunk forward or back in reading order. Past the last hunk comes Submit review.

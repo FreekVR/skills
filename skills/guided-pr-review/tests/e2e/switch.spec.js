@@ -69,29 +69,6 @@ test('the review switch scrolls when its sessions do not fit in the window', asy
   await expect(last).toBeInViewport();
 });
 
-const checks = (review) => review.events().filter((event) => event.type === 'check').length;
-
-test('pause and play the agent from the review switch, and play asks the agent to check GitHub', async ({ page }) => {
-  const review = await openReview(page);
-  const paused = path.join(review.dir, 'paused');
-  // The test runner stands in for the agent's watch process, so the review counts as running.
-  fs.writeFileSync(path.join(review.dir, 'session.json'), JSON.stringify({ sessionId: 'abc-123', cwd: '/work', worktree: null, watcherPid: process.pid }));
-  await page.reload();
-  await page.getByRole('banner').getByText('1 session').click();
-  await page.getByRole('button', { name: 'Pause the agent of example-org/sample-widget#17' }).click();
-  await expect.poll(() => fs.existsSync(paused)).toBe(true);
-  await expect(page.getByText('Agent paused.')).toBeVisible();
-
-  await page.reload();
-  await expect(page.getByText('Agent paused.')).toBeVisible();
-  const before = checks(review);
-  await page.getByRole('banner').getByText('1 session').click();
-  await page.getByRole('button', { name: 'Resume the agent of example-org/sample-widget#17' }).click();
-  await expect.poll(() => fs.existsSync(paused)).toBe(false);
-  await expect(page.getByText('Agent paused.')).toBeHidden();
-  await expect.poll(() => checks(review)).toBe(before + 1);
-});
-
 // Sets the time of the last activity of a review in the state directory, a number of days ago.
 function lastActive(review, owner, repo, number, daysAgo) {
   const dir = path.join(review.stateHome, 'guided-pr-review', owner, repo, String(number));
@@ -162,4 +139,10 @@ test('a review that cannot be removed stays in the switch with the reason', asyn
   await expect(page.getByText(/not a git repository/)).toBeVisible();
   await expect(page.getByText('fix: round the temperature')).toBeVisible();
   expect(fs.existsSync(dir)).toBe(true);
+});
+
+test('the review switch links to the address of another review, which opens its Home', async ({ page }) => {
+  await openReview(page, { others: [other()] });
+  await sessions(page).click();
+  await expect(page.getByRole('link', { name: /sample-widget#18/ }).first()).toHaveAttribute('href', '/example-org/sample-widget/18');
 });

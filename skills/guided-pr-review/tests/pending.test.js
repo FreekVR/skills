@@ -95,10 +95,8 @@ test('a check and a finish never wait', () => {
 test('the agent counts as working until the page has an answer, then follows the answer', () => {
   setup({ sent: [] });
   assert.strictEqual(posting.agentState(), 'working');
-  pageState.agent = { connected: false, paused: false, waiting: null };
+  pageState.agent = { connected: false, waiting: null };
   assert.strictEqual(posting.agentState(), 'none');
-  pageState.agent = { connected: true, paused: true, waiting: null };
-  assert.strictEqual(posting.agentState(), 'paused');
-  pageState.agent = { connected: true, paused: false, waiting: null };
+  pageState.agent = { connected: true, waiting: null };
   assert.strictEqual(posting.agentState(), 'working');
 });

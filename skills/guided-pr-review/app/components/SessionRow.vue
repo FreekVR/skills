@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { formatTimeAgo } from '@vueuse/core'
 
-// One review in the sessions list: a link to its page, when it was last active, its agent's pause button,
-// and a remove button that asks first. A review whose agent runs, and the review of this page, cannot be removed.
-interface Review { owner: string, repo: string, number: number, title: string, state: string, paused: boolean, agentConnected: boolean, lastActivity?: string, session?: unknown }
+// One review in the sessions list: a link to its page, when it was last active, and a remove button that asks first.
+// A review whose agent runs, and the review of this page, cannot be removed.
+interface Review { owner: string, repo: string, number: number, title: string, state: string, agentConnected: boolean, lastActivity?: string, session?: unknown }
 const props = defineProps<{ review: Review }>()
 
 const current = computed(() => isCurrentReview(props.review))
@@ -37,7 +37,6 @@ async function remove() {
             <span class="rounded-sm bg-(--ui-text) px-1.5 text-tag font-semibold text-inverted">this page</span>
           </span>
           <span class="block text-muted">{{ review.title }}</span>
-          <span v-if="review.paused" class="block text-warning">Agent paused</span>
         </template>
         <template v-else>
           <a :href="`/${review.owner}/${review.repo}/${review.number}`" class="grid gap-0.5 px-2.5 py-2 text-default no-underline">
@@ -46,24 +45,11 @@ async function remove() {
               <span class="shrink-0 text-meta text-muted">{{ when }}</span>
             </span>
             <span class="text-muted">{{ review.title }}</span>
-            <span v-if="review.paused" class="text-warning">Agent paused</span>
           </a>
           <ResumeHelp v-if="!review.agentConnected" :help="resumeHelp(review)" lead="Not running. " class="px-2.5 pb-2 text-muted" />
         </template>
       </div>
-      <UTooltip v-if="review.agentConnected" :text="review.paused ? 'Resume the agent' : 'Pause the agent'">
-        <UButton
-          :icon="review.paused ? 'i-lucide-play' : 'i-lucide-pause'"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          square
-          class="mt-1.5 shrink-0"
-          :aria-label="`${review.paused ? 'Resume' : 'Pause'} the agent of ${reviewRef(review)}`"
-          @click="setPaused(review, !review.paused)"
-        />
-      </UTooltip>
-      <UTooltip v-else-if="!current" text="Remove this review">
+      <UTooltip v-if="!current && !review.agentConnected" text="Remove this review">
         <UButton
           icon="i-lucide-trash-2"
           color="neutral"

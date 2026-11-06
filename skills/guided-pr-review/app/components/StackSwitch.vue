@@ -3,11 +3,9 @@ const position = computed(() => stackPosition())
 const rows = computed(() => stackRows())
 const label = computed(() => `${position.value.index} of ${position.value.size}`)
 
-// This page's row needs no link. A merged or closed PR without a review links to GitHub.
-function linkOf(row: { current: boolean, action: string, url: string, status: { page: string } | null }) {
-  if (row.action === 'open' && !row.current) return { href: row.status?.page }
-  if (row.action === 'github') return { href: row.url, target: '_blank', rel: 'noopener' }
-  return null
+// This page's row, and a PR whose review is not there yet, need no link.
+function linkOf(row: { current: boolean, action: string }) {
+  return !row.current && (row.action === 'open' || row.action === 'github') ? stackLink(row) : null
 }
 </script>
 

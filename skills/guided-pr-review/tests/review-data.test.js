@@ -259,7 +259,7 @@ test('writeSession records the agent session, the directory it runs from and the
   assert.deepStrictEqual(writeSession(dir, null, 42), { sessionId: null, cwd: process.cwd(), worktree: null, watcherPid: 42 });
 });
 
-test('listReviews lists each review directory with a review.json, whether an agent watches it, and whether it is paused', () => {
+test('listReviews lists each review directory with a review.json and whether an agent watches it', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-root-'));
   const write = (dir, file, content) => {
     fs.mkdirSync(path.join(root, dir), { recursive: true });
@@ -267,15 +267,14 @@ test('listReviews lists each review directory with a review.json, whether an age
   };
   write('acme/shop/7', 'review.json', { pr: { title: 'Add a cache' }, remote: { state: 'merged' } });
   write('acme/shop/7', 'session.json', { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid });
-  write('acme/shop/7', 'paused', '');
   write('acme/shop/8', 'review.json', { pr: { title: 'Fix the cache' } });
   write('acme/shop/8', 'session.json', { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' });
   write('acme/shop/9', 'reviewer.json', {});
   write('acme/api/1', 'review.json', { pr: { title: 'Old review' } });
   assert.deepStrictEqual(listReviews(root).map(({ dir, lastActivity, ...review }) => review), [
-    { owner: 'acme', repo: 'api', number: 1, title: 'Old review', state: 'open', session: null, agentConnected: false, paused: false },
-    { owner: 'acme', repo: 'shop', number: 7, title: 'Add a cache', state: 'merged', session: { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid }, agentConnected: true, paused: true },
-    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' }, agentConnected: false, paused: false },
+    { owner: 'acme', repo: 'api', number: 1, title: 'Old review', state: 'open', session: null, agentConnected: false },
+    { owner: 'acme', repo: 'shop', number: 7, title: 'Add a cache', state: 'merged', session: { sessionId: 's1', cwd: '/work', worktree: null, watcherPid: process.pid }, agentConnected: true },
+    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: { sessionId: null, cwd: '/work', worktree: '/clones/shop-pr-8' }, agentConnected: false },
   ]);
 });
 
@@ -289,7 +288,7 @@ test('listReviews leaves out a review whose review.json is broken, and reads a b
   write('acme/shop/8', 'review.json', JSON.stringify({ pr: { title: 'Fix the cache' } }));
   write('acme/shop/8', 'session.json', '{"sessionId":');
   assert.deepStrictEqual(listReviews(root).map(({ dir, lastActivity, ...review }) => review), [
-    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: null, agentConnected: false, paused: false },
+    { owner: 'acme', repo: 'shop', number: 8, title: 'Fix the cache', state: 'open', session: null, agentConnected: false },
   ]);
 });
 
@@ -373,40 +372,6 @@ test('watchEvents passes on each line added after the watch started, also a line
   assert.deepStrictEqual(lines, ['{"type":"ask"}', '{"type":"check"}']);
 });
 
-test('watchReview holds events while the review is paused, drops check events, and prints the rest in order on play', async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-'));
-  const file = path.join(dir, 'events.jsonl');
-  const pause = (paused) => (paused ? fs.writeFileSync(path.join(dir, 'paused'), '') : fs.rmSync(path.join(dir, 'paused'), { force: true }));
-  const wait = () => new Promise((resolve) => setTimeout(resolve, 80));
-  const lines = [];
-  const states = [];
-  pause(false);
-  const stop = watchReview(dir, (line) => lines.push(line), (paused) => states.push(paused ? 'PAUSED' : 'RESUMED'), 20);
-  t.after(stop);
-  fs.appendFileSync(file, '{"type":"ask","n":1}\n');
-  await wait();
-  pause(true);
-  fs.appendFileSync(file, '{"type":"check"}\n{"type":"ask","n":2}\n{"type":"post","n":3}\n');
-  await wait();
-  assert.deepStrictEqual(lines, ['{"type":"ask","n":1}']);
-  pause(false);
-  await wait();
-  fs.appendFileSync(file, '{"type":"check"}\n');
-  await wait();
-  assert.deepStrictEqual(lines, ['{"type":"ask","n":1}', '{"type":"ask","n":2}', '{"type":"post","n":3}', '{"type":"check"}']);
-  assert.deepStrictEqual(states, ['PAUSED', 'RESUMED']);
-});
-
-test('watchReview says at once that a review is paused when the watch starts during a pause', async (t) => {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-'));
-  fs.writeFileSync(path.join(dir, 'paused'), '');
-  const states = [];
-  const stop = watchReview(dir, () => {}, (paused) => states.push(paused), 20);
-  t.after(stop);
-  await new Promise((resolve) => setTimeout(resolve, 80));
-  assert.deepStrictEqual(states, [true]);
-});
-
 function idleDir(t, session) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -422,7 +387,7 @@ const LIMIT = 0.01;
 test('watchReview calls onIdle when no event came for the idle limit, and sets lastEventAt at the start', async (t) => {
   const dir = idleDir(t, { watcherPid: 1 });
   let idle = 0;
-  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
+  t.after(watchReview(dir, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
   assert.ok(lastEventAtOf(dir));
   await sleep(300);
   assert.strictEqual(idle, 0);
@@ -433,7 +398,7 @@ test('watchReview calls onIdle when no event came for the idle limit, and sets l
 test('watchReview does not reset the idle timer on a check event', async (t) => {
   const dir = idleDir(t, { watcherPid: 1 });
   let idle = 0;
-  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
+  t.after(watchReview(dir, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
   const started = lastEventAtOf(dir);
   await sleep(300);
   fs.appendFileSync(path.join(dir, 'events.jsonl'), '{"type":"check"}\n');
@@ -445,7 +410,7 @@ test('watchReview does not reset the idle timer on a check event', async (t) => 
 test('watchReview resets the idle timer on another event', async (t) => {
   const dir = idleDir(t, { watcherPid: 1 });
   let idle = 0;
-  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
+  t.after(watchReview(dir, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
   const started = lastEventAtOf(dir);
   await sleep(400);
   fs.appendFileSync(path.join(dir, 'events.jsonl'), '{"type":"ask"}\n');
@@ -454,35 +419,13 @@ test('watchReview resets the idle timer on another event', async (t) => {
   assert.strictEqual(idle, 0);
 });
 
-test('watchReview counts a paused review as idle', async (t) => {
-  const dir = idleDir(t, { watcherPid: 1 });
-  fs.writeFileSync(path.join(dir, 'paused'), '');
-  let idle = 0;
-  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
-  await sleep(900);
-  assert.strictEqual(idle, 1);
-});
-
-test('watchReview counts a held event as activity when it arrives', async (t) => {
-  const dir = idleDir(t, { watcherPid: 1 });
-  fs.writeFileSync(path.join(dir, 'paused'), '');
-  let idle = 0;
-  t.after(watchReview(dir, () => {}, () => {}, 20, { idleMinutes: LIMIT, onIdle: () => idle++ }));
-  await sleep(400);
-  fs.appendFileSync(path.join(dir, 'events.jsonl'), '{"type":"ask"}\n');
-  await sleep(400);
-  assert.strictEqual(idle, 0);
-  await sleep(500);
-  assert.strictEqual(idle, 1);
-});
-
 test('watchReview with restart prints the events written while no watch ran, and is not idle then', async (t) => {
   const old = new Date(Date.now() - 5 * 60000).toISOString();
   const dir = idleDir(t, { watcherPid: null, lastEventAt: old, eventsOffset: 0 });
   fs.writeFileSync(path.join(dir, 'events.jsonl'), '{"type":"check"}\n{"type":"ask","n":1}\n');
   const lines = [];
   let idle = 0;
-  t.after(watchReview(dir, (line) => lines.push(line), () => {}, 20, { restart: true, onIdle: () => idle++ }));
+  t.after(watchReview(dir, (line) => lines.push(line), 20, { restart: true, onIdle: () => idle++ }));
   assert.deepStrictEqual(lines, ['{"type":"check"}', '{"type":"ask","n":1}']);
   assert.strictEqual(idle, 0);
   assert.strictEqual(JSON.parse(fs.readFileSync(path.join(dir, 'session.json'), 'utf8')).eventsOffset, fs.statSync(path.join(dir, 'events.jsonl')).size);
@@ -493,7 +436,7 @@ test('watchReview without restart starts at the end of events.jsonl and saves th
   const file = path.join(dir, 'events.jsonl');
   fs.writeFileSync(file, '{"type":"ask","n":1}\n');
   const lines = [];
-  t.after(watchReview(dir, (line) => lines.push(line), () => {}, 20));
+  t.after(watchReview(dir, (line) => lines.push(line), 20));
   fs.appendFileSync(file, '{"type":"ask","n":2}\n');
   await sleep(300);
   assert.deepStrictEqual(lines, ['{"type":"ask","n":2}']);
@@ -503,12 +446,12 @@ test('watchReview without restart starts at the end of events.jsonl and saves th
 test('watchReview is idle at once when lastEventAt is older than the limit, and runs on when it is recent', (t) => {
   const old = idleDir(t, { watcherPid: 1, lastEventAt: new Date(Date.now() - 31 * 60000).toISOString() });
   let idle = 0;
-  t.after(watchReview(old, () => {}, () => {}, 20, { onIdle: () => idle++ }));
+  t.after(watchReview(old, () => {}, 20, { onIdle: () => idle++ }));
   assert.strictEqual(idle, 1);
   const recentAt = new Date(Date.now() - 5 * 60000).toISOString();
   const recent = idleDir(t, { watcherPid: 1, lastEventAt: recentAt });
   let idleRecent = 0;
-  t.after(watchReview(recent, () => {}, () => {}, 20, { onIdle: () => idleRecent++ }));
+  t.after(watchReview(recent, () => {}, 20, { onIdle: () => idleRecent++ }));
   assert.strictEqual(idleRecent, 0);
   assert.strictEqual(lastEventAtOf(recent), recentAt);
 });
@@ -557,18 +500,16 @@ function stackRoot(t) {
   return { root, dirOf, write };
 }
 
-test('agentStatus reports a live agent, a dead one, a pause and a waiting question', (t) => {
+test('agentStatus reports a live agent, a dead one and a waiting question', (t) => {
   const { dirOf: dir, write } = stackRoot(t);
   write(1, 'review.json', {});
-  assert.deepStrictEqual(agentStatus(dir(1)), { session: null, connected: false, paused: false, waiting: null, preparing: null });
+  assert.deepStrictEqual(agentStatus(dir(1)), { session: null, connected: false, waiting: null, preparing: null });
   write(2, 'session.json', { sessionId: 'sample-session', cwd: '/sample/dir', watcherPid: process.pid });
   assert.strictEqual(agentStatus(dir(2)).connected, true);
   assert.deepStrictEqual(agentStatus(dir(2)).session, { sessionId: 'sample-session', cwd: '/sample/dir' });
   const dead = spawnSync(process.execPath, ['-e', '']);
   write(3, 'session.json', { watcherPid: dead.pid });
   assert.strictEqual(agentStatus(dir(3)).connected, false);
-  write(4, 'paused', '');
-  assert.strictEqual(agentStatus(dir(4)).paused, true);
   write(5, 'review.json', {});
   setWaiting([dir(5)], 'Which angles?');
   assert.strictEqual(agentStatus(dir(5)).waiting.question, 'Which angles?');
@@ -577,14 +518,13 @@ test('agentStatus reports a live agent, a dead one, a pause and a waiting questi
 test('agentStatus of a review that waits for its agent reports the agent of the review the start came from', (t) => {
   const { dirOf, write } = stackRoot(t);
   write(15, 'session.json', { sessionId: 'session-15', cwd: '/work', watcherPid: process.pid });
-  write(15, 'paused', '');
   write(16, 'preparing', { step: 'Waiting for the agent to start', since: '2026-11-04T10:00:00Z', from: 15 });
   const status = agentStatus(dirOf(16));
-  assert.deepStrictEqual([status.connected, status.paused, status.session], [true, true, { sessionId: 'session-15', cwd: '/work' }]);
+  assert.deepStrictEqual([status.connected, status.session], [true, { sessionId: 'session-15', cwd: '/work' }]);
   assert.strictEqual(status.preparing.from, 15);
   write(17, 'preparing', { step: 'Waiting for the agent to start', from: 15 });
   write(17, 'session.json', { sessionId: 'session-17', cwd: '/other', watcherPid: process.pid });
-  assert.deepStrictEqual([agentStatus(dirOf(17)).paused, agentStatus(dirOf(17)).session.sessionId], [false, 'session-17']);
+  assert.strictEqual(agentStatus(dirOf(17)).session.sessionId, 'session-17');
   write(18, 'preparing', { step: 'Waiting for the agent to start', from: 19 });
   assert.deepStrictEqual([agentStatus(dirOf(18)).connected, agentStatus(dirOf(18)).session], [false, null]);
 });
