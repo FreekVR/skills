@@ -20,6 +20,8 @@
 //   node review-data.js preparing <review-dir> "<step>"  Show in the review page that the agent still prepares the review,
 //                                                        and what it does now.
 //   node review-data.js prepared <review-dir>            Remove that notice from the review page.
+//   node review-data.js checked <review-dir>             Record that the hunks of the PR's head commit (pr.headSha) went
+//                                                        through steps 3 to 5, in checkedSha.
 //   node review-data.js list                             Print the reviews that are not deleted, with their page URL
 //                                                        while the review server runs.
 //   node review-data.js watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart]
@@ -46,7 +48,7 @@ const { execFileSync, spawn } = require('child_process');
 const { fromGitHubStack, fromBranches } = require('./stack.js');
 const { ownDiff } = require('./own-diff.js');
 
-const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews, setWaiting, setPreparing } = require('./reviews.js');
+const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews, setWaiting, setPreparing, writeAtomic } = require('./reviews.js');
 
 const HUNK_HEADER = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(.*)$/;
 
@@ -456,6 +458,12 @@ function main([command, ...args]) {
     setPreparing(args[0], null);
     return 0;
   }
+  const checkedFile = command === 'checked' && args.length === 1 && path.join(args[0], 'review.json');
+  const checkedReview = checkedFile && readJson(checkedFile);
+  if (checkedReview?.pr?.headSha) {
+    writeAtomic(checkedFile, JSON.stringify({ ...checkedReview, checkedSha: checkedReview.pr.headSha }) + '\n');
+    return 0;
+  }
   if (command === 'static' && args.length === 2 && fs.existsSync(path.join(args[0], 'review.json'))) {
     writeStatic(args[0], args[1]).catch((error) => {
       console.error(`The static page was not written: ${error.message}`);
@@ -472,7 +480,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> [--diff <diff-file>] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | static <review-dir> <out-file> | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> [--diff <diff-file>] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | checked <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | static <review-dir> <out-file> | list');
   return 2;
 }
 
