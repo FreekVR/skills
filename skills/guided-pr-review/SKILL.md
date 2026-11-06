@@ -109,7 +109,7 @@ Give each subagent a brief with these parts, and nothing more:
 
 1. The checks it runs: one review skill, or one or more of the built-in checks below, with their text. Run the test coverage check yourself, not in a subagent, because it reads the CI checks and bot comments with this session's tools.
 2. Where the PR is: the repository, the PR number, the head commit, the path of the diff file from step 2, and the list of hunks with their ID, file and line ranges. For a big PR, also the worktree path. Tell the subagent where its review skill reads the code: for a big PR, run the skill from the worktree, because a skill such as security-review reviews the git diff of the folder it runs in; for a small PR, give the skill the diff file instead.
-3. The scope and the history. You MUST give every subagent: the tickets and issues as read in step 1, with their comments, and what they say about the scope; and the earlier requests on this PR: each submitted review body and each review thread, by the user and by others, with its replies and whether it is resolved.
+3. The scope and the history. You MUST give every subagent: the tickets and issues as read in step 1, with their comments, and what they say about the scope; and the earlier requests on this PR: each submitted review body, each review thread with its replies and whether it is resolved, and each comment in the PR conversation, by the user and by others; and the user's remarks in `reviewer.json` that are not posted yet.
 4. The code rules, and the severity labels with their meanings from step 4.
 5. The answer format: a JSON list of findings, each with `hunkId` (null for the whole PR), `line`, `side`, `severity`, `title`, `body` and `rule`; an empty list when the checks find nothing. The acceptance criteria check also returns, per criterion ID, a `verdict` and a one-line `note`.
 
@@ -139,7 +139,7 @@ In a stack, also:
 - Use the acceptance criteria IDs and texts of the first review in this stack. Check a criterion in the highest PR that completes it. In a lower PR, give it the verdict `elsewhere` with `pr` set to that PR's number, and no finding.
 - Work in this PR that belongs to another PR's ticket is a finding.
 
-Then you MUST compare each finding, except an `acceptance-criteria` finding, with the earlier requests: the review bodies and the review threads with their replies from step 1, by the user and by others, and the `ownRemarks` that `review.json` already holds from an earlier round. When a finding asks for the opposite of an earlier request that the author followed, or that a reply settled, you MUST drop the finding. When you think the earlier request was wrong, keep the finding, and its `body` MUST name that comment and say why the advice changes.
+Then you MUST compare each finding, except an `acceptance-criteria` finding, with the earlier requests: the review bodies, the review threads with their replies and the PR conversation comments from step 1, by the user and by others, the `ownRemarks` that `review.json` already holds from an earlier round, and the user's remarks in `reviewer.json` that are not posted yet. When a finding asks for the opposite of an earlier request that the author followed or that a reply settled, or of one of the user's remarks, you MUST drop the finding. When you think the earlier request or remark was wrong, keep the finding, and its `body` MUST name that comment or remark and say why the advice changes.
 
 Always verify the existing review comments from step 1, whatever the user chose above:
 
