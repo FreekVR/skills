@@ -77,15 +77,21 @@ test('with every criterion met, the criteria check moves to Also checked', async
   await expect(page.getByRole('main').getByRole('group', { name: 'Also checked' })).toContainText('All 2 criteria met');
 });
 
-test('the PR section names the tickets and linked pull requests in one line, the description opens on click', async ({ page }) => {
+test('the PR section names the ticket it resolves; the description, related tickets and other PRs open on request', async ({ page }) => {
   await openHome(page);
   const pr = page.getByRole('main').getByRole('region', { name: 'This pull request' });
-  await expect(pr.getByRole('link', { name: 'WX-42', exact: true })).toBeVisible();
-  await expect(pr.getByRole('link', { name: 'example-org/sample-api#8' })).toHaveAttribute('title', /Adds the endpoint this PR calls./);
+  await expect(pr.getByText('Resolves WX-42 Three-day forecast')).toBeVisible();
   await expect(pr.getByText('forecast card.')).toBeHidden();
-  await pr.getByText('Description', { exact: true }).click();
+  await pr.locator('summary', { hasText: 'Description' }).click();
   await expect(pr.getByText('forecast card.')).toBeVisible();
-  await expect(pr.getByText('Adds the endpoint this PR calls.')).toBeVisible();
+  const more = pr.locator('summary', { hasText: 'Related tickets and other PRs' });
+  await expect(more).toContainText('1 ticket · 1 PR');
+  await expect(pr.getByRole('link', { name: 'WX-57' })).toBeHidden();
+  await more.click();
+  await expect(pr.getByRole('listitem').filter({ hasText: 'WX-57' })).toContainText('Cache forecasts per region');
+  const linked = pr.getByRole('listitem').filter({ hasText: 'example-org/sample-api#8' });
+  await expect(linked).toContainText('feat: forecast endpoint merged');
+  await expect(linked).toContainText('Adds the endpoint this PR calls.');
 });
 
 test('the flow tiles carry the findings and the seen count, and your review sits in the side panel', async ({ page }) => {

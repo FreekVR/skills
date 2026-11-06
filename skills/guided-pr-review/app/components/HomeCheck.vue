@@ -18,7 +18,7 @@ function onToggle(event: Event) {
 
 <template>
   <details :id="`home-${id}`" class="group border-t border-default first:border-t-0" :open="open" @toggle="onToggle">
-    <summary class="flex cursor-pointer list-none items-start gap-3 py-3 [&::-webkit-details-marker]:hidden">
+    <summary class="flex cursor-pointer list-none items-start gap-3.5 py-4 [&::-webkit-details-marker]:hidden">
       <span
         class="mt-0.5 grid size-6.5 shrink-0 place-items-center rounded-full"
         :class="level === null ? 'bg-(--ui-text-muted) text-inverted' : SEVERITY_CLASSES[level]"
@@ -33,7 +33,7 @@ function onToggle(event: Event) {
       </span>
       <UIcon name="i-lucide-chevron-down" class="mt-1.5 size-4 shrink-0 text-dimmed transition-transform group-open:rotate-180" aria-hidden="true" />
     </summary>
-    <div class="pb-4 pl-9.5">
+    <div class="pb-5 pl-10">
       <slot />
     </div>
   </details>

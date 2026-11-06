@@ -20,6 +20,12 @@ export function stackLine(finding) {
   return { verdict: take.verdict, text: [label, take.note].filter(Boolean).join(' '), post: take.verdict !== 'untouched' }
 }
 
+// Whether a linked PR is one of the PRs in this PR's stack; those show in the stack box, not with the other linked PRs.
+export function inStack(pr) {
+  const { owner, repo } = state.review.pr
+  return hasStack() && pr.repo === `${owner}/${repo}` && state.review.stack.prs.some((stacked) => stacked.number === pr.number)
+}
+
 // Get the 1-based place of this page's PR in its stack, counted from the bottom PR.
 export function stackPosition() {
   const prs = state.review.stack.prs

@@ -50,7 +50,7 @@ async function toggle() {
 </script>
 
 <template>
-  <section class="mt-5 max-w-[560px] rounded-card bg-elevated px-4 py-3 text-label [--line:var(--ui-primary)]" aria-label="This PR in its stack">
+  <section class="mt-6 max-w-[640px] rounded-card bg-elevated px-5 py-4 text-label [--line:var(--ui-primary)]" aria-label="This PR in its stack">
     <div class="flex flex-wrap items-center gap-x-3">
       <h3 class="m-0 text-meta font-normal text-muted">
         Stack<template v-if="stack.number"> #{{ stack.number }}</template> · {{ stack.prs.length }} PRs · base {{ stack.base }}

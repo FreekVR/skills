@@ -22,54 +22,83 @@ function flip(key: string) {
 const label = 'm-0 mb-2.5 flex flex-wrap items-center gap-2 font-display text-meta tracking-[.1em] text-muted uppercase'
 const fold = 'inline-flex cursor-pointer list-none items-center gap-2 py-2 text-ui font-semibold text-default [&::-webkit-details-marker]:hidden'
 // A passed check carries a check mark; a check that only informs carries an info mark, so it never reads as passed.
-// The opened description also lists the AI summaries of the linked pull requests.
-const linkedSummaries = computed(() => (context.value.linkedPrs || []).some((pr: { summary?: string }) => pr.summary))
+// Related tickets and the linked PRs outside this PR's stack open on request; the stack box shows the PRs in the stack.
+const related = computed(() => context.value.relatedTickets || [])
+const otherPrs = computed(() => (context.value.linkedPrs || []).filter((pr: { repo: string, number: number }) => !inStack(pr)))
+const relatedCount = computed(() => [related.value.length && plural(related.value.length, 'ticket'), otherPrs.value.length && plural(otherPrs.value.length, 'PR')].filter(Boolean).join(' · '))
 const QUIET_ICONS: Record<string, { icon: string, color: string }> = { ok: { icon: 'i-lucide-circle-check', color: 'text-success' }, quiet: { icon: 'i-lucide-info', color: 'text-muted' } }
 </script>
 
 <template>
-  <section class="page-column min-w-0 pt-8 pb-30 wrap-anywhere">
+  <!-- Home uses the full width of the main column: the reading column grows with the window. -->
+  <section class="min-w-0 px-gutter pt-10 pb-30 wrap-anywhere rail:px-14">
     <!-- Two columns only where the reading column keeps room next to the rail and the side panel. -->
-    <div class="grid gap-x-10 gap-y-8 rail:grid-cols-[minmax(0,1fr)_270px]">
+    <div class="grid gap-x-14 gap-y-10 rail:grid-cols-[minmax(0,1fr)_340px]">
       <div class="min-w-0">
-        <section aria-labelledby="home-pr">
-          <h3 id="home-pr" :class="label">
-            This pull request <AiTag v-if="context.summary" label="AI summary" class="tracking-normal normal-case" />
-          </h3>
-          <div v-if="context.summary" class="max-w-[66ch] font-sans text-lead leading-[1.5] font-normal [&>:first-child]:mt-0 [&>:last-child]:mb-0">
-            <SafeMarkdown :value="context.summary" />
-          </div>
-          <p class="mt-1.5 mb-0 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-label text-toned">
-            <button v-if="review.pr.body || linkedSummaries" class="inline-flex min-h-6 cursor-pointer items-center text-info" :aria-expanded="state.ui.openExplain.has('pr-body')" @click="flip('pr-body')">{{ review.pr.body ? 'Description' : 'Linked pull requests' }}</button>
-            <template v-for="ticket in context.tickets || []" :key="ticket.key">
-              <span aria-hidden="true">·</span><span>Ticket <a :href="ticket.url" target="_blank" rel="noopener" class="font-mono text-info" :title="`${ticket.key}: ${ticket.title}`">{{ ticket.key }}</a> {{ ticket.title }}</span>
-            </template>
-            <template v-for="pr in context.linkedPrs || []" :key="`${pr.repo}#${pr.number}`">
-              <span aria-hidden="true">·</span><span>Linked <a :href="pr.url" target="_blank" rel="noopener" class="font-mono text-info" :title="pr.summary || pr.title">{{ pr.repo }}#{{ pr.number }}</a> {{ pr.state.toLowerCase() }}</span>
-            </template>
-            <template v-for="ticket in context.relatedTickets || []" :key="ticket.key">
-              <span aria-hidden="true">·</span><span>Related <a :href="ticket.url" target="_blank" rel="noopener" class="font-mono text-info" :title="`${ticket.key}: ${ticket.title}`">{{ ticket.key }}</a></span>
-            </template>
-          </p>
-          <div v-if="(review.pr.body || linkedSummaries) && state.ui.openExplain.has('pr-body')" class="mt-3 max-w-[72ch] rounded-card bg-elevated px-4 py-3 text-body text-toned">
-            <div v-if="review.pr.body" class="[&>:first-child]:mt-0 [&>:last-child]:mb-0">
-              <SafeMarkdown :value="review.pr.body" />
+        <!-- On a wide screen the stack sits next to the PR text, so the reading column uses its width. -->
+        <section aria-labelledby="home-pr" class="min-[1600px]:grid min-[1600px]:grid-cols-[minmax(0,1fr)_minmax(0,560px)] min-[1600px]:gap-x-14">
+          <div class="min-w-0">
+            <h3 id="home-pr" :class="label">
+              This pull request <AiTag v-if="context.summary" label="AI summary" class="tracking-normal normal-case" />
+            </h3>
+            <div v-if="context.summary" class="max-w-[66ch] font-sans text-lead leading-[1.5] font-normal [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+              <SafeMarkdown :value="context.summary" />
             </div>
-            <template v-if="linkedSummaries">
-              <h4 class="mt-3 mb-1 flex items-center gap-2 text-ui font-semibold text-default first:mt-0">
-                Linked pull requests <AiTag label="AI summaries" />
-              </h4>
-              <ul class="m-0 grid list-disc gap-1 pl-5 text-ui">
-                <li v-for="pr in context.linkedPrs" :key="`${pr.repo}#${pr.number}`">
-                  <MarkupText :text="`${pr.repo}#${pr.number}`" /> <span class="text-muted">{{ pr.state.toLowerCase() }}</span>: <MarkupText :text="pr.summary || pr.title" />
-                </li>
-              </ul>
-            </template>
+            <p v-for="ticket in context.tickets || []" :key="ticket.key" class="m-0 mt-3 text-ui">
+              Resolves <a :href="ticket.url" target="_blank" rel="noopener" class="font-mono text-info">{{ ticket.key }}</a> <b>{{ ticket.title }}</b>
+            </p>
+            <div class="mt-2">
+              <details v-if="review.pr.body" :open="state.ui.openExplain.has('pr-body')" @toggle="toggle('pr-body', $event)">
+                <summary :class="fold">
+                  Description
+                  <UIcon name="i-lucide-chevron-down" class="size-4 text-dimmed" aria-hidden="true" />
+                </summary>
+                <div class="max-w-[72ch] pb-3 text-body text-toned [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+                  <SafeMarkdown :value="review.pr.body" />
+                </div>
+              </details>
+              <details v-if="related.length || otherPrs.length" :open="state.ui.openExplain.has('related')" @toggle="toggle('related', $event)">
+                <summary :class="fold">
+                  Related tickets and other PRs
+                  <span class="text-label font-normal text-muted">{{ relatedCount }}</span>
+                  <UIcon name="i-lucide-chevron-down" class="size-4 text-dimmed" aria-hidden="true" />
+                </summary>
+                <div class="max-w-[72ch] pb-3">
+                  <template v-if="related.length">
+                    <h4 class="m-0 text-ui font-semibold">
+                      Related tickets
+                    </h4>
+                    <p class="m-0 mb-1.5 text-label text-muted">
+                      Open tickets on the same code, found by the agent. A finding may already be planned in one of them.
+                    </p>
+                    <ul class="m-0 grid list-disc gap-1 pl-5 text-ui text-toned">
+                      <li v-for="ticket in related" :key="ticket.key">
+                        <a :href="ticket.url" target="_blank" rel="noopener" class="font-mono text-info">{{ ticket.key }}</a> {{ ticket.title }}
+                      </li>
+                    </ul>
+                  </template>
+                  <template v-if="otherPrs.length">
+                    <h4 class="m-0 text-ui font-semibold" :class="related.length && 'mt-4'">
+                      Other PRs <AiTag v-if="otherPrs.some((pr: { summary?: string }) => pr.summary)" label="AI summaries" class="ml-1" />
+                    </h4>
+                    <p class="m-0 mb-1.5 text-label text-muted">
+                      Linked from the tickets or this PR, outside its stack.
+                    </p>
+                    <ul class="m-0 grid list-disc gap-1 pl-5 text-ui text-toned">
+                      <li v-for="pr in otherPrs" :key="`${pr.repo}#${pr.number}`">
+                        <a :href="pr.url" target="_blank" rel="noopener" class="font-mono text-info">{{ pr.repo }}#{{ pr.number }}</a> {{ pr.title }} <span class="text-muted">{{ pr.state.toLowerCase() }}</span>
+                        <span v-if="pr.summary" class="block text-label text-muted"><MarkupText :text="pr.summary" /></span>
+                      </li>
+                    </ul>
+                  </template>
+                </div>
+              </details>
+            </div>
           </div>
-          <HomeStack v-if="hasStack()" />
+          <HomeStack v-if="hasStack()" class="min-[1600px]:mt-0 min-[1600px]:self-start" />
         </section>
 
-        <div class="mt-12" role="group" aria-label="What needs your attention">
+        <div class="mt-14" role="group" aria-label="What needs your attention">
           <h3 :class="label">
             What needs your attention
           </h3>
@@ -119,7 +148,7 @@ const QUIET_ICONS: Record<string, { icon: string, color: string }> = { ok: { ico
           </HomeCheck>
         </div>
 
-        <div v-if="checks.quiet.length" class="mt-8" role="group" aria-label="Also checked">
+        <div v-if="checks.quiet.length" class="mt-12" role="group" aria-label="Also checked">
           <h3 :class="label">
             Also checked
           </h3>
@@ -153,8 +182,8 @@ const QUIET_ICONS: Record<string, { icon: string, color: string }> = { ok: { ico
         </div>
       </div>
 
-      <aside class="grid content-start gap-3.5 self-start max-rail:order-first rail:sticky rail:top-6" aria-label="Your progress">
-        <section v-if="since" class="rounded-card bg-[color-mix(in_srgb,var(--ui-warning)_12%,var(--ui-bg))] px-4 py-3.5" aria-labelledby="home-since">
+      <aside class="grid content-start gap-4 self-start max-rail:order-first rail:sticky rail:top-6" aria-label="Your progress">
+        <section v-if="since" class="rounded-card bg-[color-mix(in_srgb,var(--ui-warning)_12%,var(--ui-bg))] px-5 py-5" aria-labelledby="home-since">
           <h3 id="home-since" :class="label" class="mb-1!">
             {{ since.sinceReview ? 'Since your last review' : 'Since your last visit' }}
           </h3>
@@ -182,7 +211,7 @@ const QUIET_ICONS: Record<string, { icon: string, color: string }> = { ok: { ico
           </div>
         </section>
 
-        <section id="home-progress" class="rounded-card bg-elevated px-4 py-3.5" aria-labelledby="home-mine">
+        <section id="home-progress" class="rounded-card bg-elevated px-5 py-5" aria-labelledby="home-mine">
           <h3 id="home-mine" :class="label">
             Your review
           </h3>
