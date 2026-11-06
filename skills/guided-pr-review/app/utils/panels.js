@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { answerFor, buildPost, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { agentState, answerFor, buildPost, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // A merged or closed PR whose review was quiet this many days folds away in the sessions list.
@@ -34,16 +34,17 @@ export function updates() {
     banners.push({ kind: 'offline', key: 'offline', resume: resumeHelp(current || { owner, repo, number }) })
   }
   if (state.agent?.preparing) banners.push({ kind: 'preparing', key: 'preparing', step: state.agent.preparing.step })
+  else if (state.openCheckSince && !state.offline && !remote.error) banners.push({ kind: 'checking', key: 'checking' })
   if (remote.state === 'merged' || remote.state === 'closed') {
     banners.push({ kind: 'state', key: `state-${remote.state}`, state: remote.state, finishing: isFinishing() })
   }
   // One banner about new commits at a time: loading, then the result of the last load, else an offer to load them.
   const load = refreshState()
   const shown = load && state.reviewer.closedRefresh !== load.eventId
-  const newer = remote.headSha && remote.headSha !== state.review.pr.headSha
+  const newer = newerOnGitHub()
   const loading = load?.status === 'loading'
   if (shown && !loading && (load.status === 'error' || !newer)) banners.push({ kind: 'refreshed', key: `refreshed-${load.eventId}`, ...load })
-  else if (loading || newer) banners.push({ kind: 'head', key: 'head', updating: loading, canStartRound: Boolean(postedReview()) })
+  else if (newer) banners.push({ kind: 'head', key: 'head', updating: loading, canStartRound: Boolean(postedReview()) })
   if (remote.error) banners.push({ kind: 'remote-error', key: `remote-error-${remote.error}`, message: remote.error })
   const fresh = newComments()
   if (fresh.length) {
@@ -59,8 +60,8 @@ export function refreshState() {
   const sent = sentEvents('refresh').at(-1)
   if (!sent) return null
   const result = (state.review.refreshes || []).find((candidate) => candidate.eventId === sent.id)
-  const newer = state.review.remote?.headSha && state.review.remote.headSha !== state.review.pr.headSha
-  if (!result) return newer ? { status: 'loading', eventId: sent.id } : null
+  const newer = newerOnGitHub()
+  if (!result) return newer || headUnchecked() ? { status: 'loading', eventId: sent.id } : null
   // A changed hunk gets a new ID, so its old ID counts as gone too; removed hunks only count when nothing is new.
   const { added = 0, gone = 0 } = state.reviewer.hunkChanges || {}
   const counts = added ? `${plural(added, 'hunk')} new or changed` : gone ? `${plural(gone, 'hunk')} removed` : 'No hunk changed'
@@ -242,17 +243,34 @@ export function homeChecks() {
   return { attention, quiet }
 }
 
+// Whether GitHub has a newer head commit than the one on this page, as far as the agent's last check found.
+export function newerOnGitHub() {
+  const head = state.review.remote?.headSha
+  return Boolean(head) && head !== state.review.pr.headSha
+}
+
+// Whether the agent has not taken the hunks of the page's head commit through its checks yet. A review from before
+// `checkedSha` existed says nothing, so it never counts as unchecked.
+export function headUnchecked() {
+  const { checkedSha, pr } = state.review
+  return Boolean(checkedSha) && checkedSha !== pr.headSha
+}
+
 // What changed since the reviewer last looked: the new or changed hunks, the open findings on them and the agent's summary.
 // `sinceReview` is true when the summary starts at a commit the reviewer submitted a review on; without such a review it
-// starts at the commit the page showed before, their last visit. Null when nothing changed.
+// starts at the commit the page showed before, their last visit. `check` is `running` while the agent works on the
+// head commit and `needed` when the head commit is not checked and nothing works on it. Null when nothing changed.
 export function sinceLastTime() {
   const changes = changesSince()
   const fresh = [...state.freshHunks]
-  if (!changes && !fresh.length) return null
+  // Without an agent nothing answers, so the reviewer gets the instruction to resume it.
+  const working = () => agentState() !== 'none' && (Boolean(state.agent?.preparing || state.openCheckSince) || refreshState()?.status === 'loading')
+  const check = headUnchecked() ? (working() ? 'running' : 'needed') : null
+  if (!changes && !fresh.length && !check) return null
   const findings = liveFindings().filter((finding) => fresh.includes(finding.hunkId) && decisionOf(finding) === 'open')
   const sameCommit = (a, b) => Boolean(a && b) && (a.startsWith(b) || b.startsWith(a))
   const sinceReview = Boolean(changes) && (state.review.reviews || []).some((review) => review.author === viewerLogin() && sameCommit(review.commitId, changes.from))
-  return { changes, fresh, findings, sinceReview }
+  return { changes, fresh, findings, sinceReview, check }
 }
 
 // Criteria that are not met stay in view; met ones fold away.
