@@ -27,7 +27,8 @@ async function recordMotion(page) {
 }
 const motion = (page) => page.evaluate(() => window.__motion);
 
-const flowRow = (page, name) => page.getByRole('main').getByRole('button', { name: new RegExp(`^${name} .`) });
+// On Home the flows are the tiles on the band.
+const flowRow = (page, name) => page.getByRole('banner').getByRole('button', { name: new RegExp(name) });
 const stop = (page, code) => page.getByRole('button', { name: new RegExp(`^${code} `) });
 
 async function openFlow(page) {
@@ -35,6 +36,8 @@ async function openFlow(page) {
   await recordMotion(page);
   await openReview(page);
   await flowRow(page, 'Show the forecast').click();
+  // The tile sits on the band, so the pointer moves off the header, where it would open the compact header in full.
+  await page.mouse.move(700, 540);
   await expect(stop(page, 'A1')).toHaveAttribute('aria-current', 'step');
 }
 

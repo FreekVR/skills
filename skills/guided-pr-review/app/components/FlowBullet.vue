@@ -10,8 +10,9 @@ const PATHS: Record<string, string> = {
   hexagon: 'M12 1.75l9 5.1v10.3l-9 5.1-9-5.1V6.85z',
 }
 const shape = computed(() => props.line.shape || 'circle')
-const fill = computed(() => (props.hollow ? 'fill-(--ui-bg) stroke-(--line)' : props.onBand ? 'fill-white stroke-white' : 'fill-(--line) stroke-(--line)'))
-const ink = computed(() => (props.hollow ? 'text-default' : props.onBand ? 'text-(--line)' : 'text-white'))
+// On a band the text colours turn white, so a hollow bullet there is a white dashed ring with a white letter.
+const fill = computed(() => (props.hollow ? (props.onBand ? 'fill-transparent stroke-white' : 'fill-(--ui-bg) stroke-(--line)') : props.onBand ? 'fill-white stroke-white' : 'fill-(--line) stroke-(--line)'))
+const ink = computed(() => (props.hollow ? (props.onBand ? 'text-white' : 'text-default') : props.onBand ? 'text-(--line)' : 'text-white'))
 </script>
 
 <template>

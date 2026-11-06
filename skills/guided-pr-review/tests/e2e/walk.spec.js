@@ -5,7 +5,8 @@ const { H } = require('./fixture.js');
 
 const stop = (page, code) => page.getByRole('button', { name: new RegExp(`^${code} `) });
 
-const flowRow = (page, name) => page.getByRole('main').getByRole('button', { name: new RegExp(`^${name} .`) });
+// On Home the flows are the tiles on the band.
+const flowRow = (page, name) => page.getByRole('banner').getByRole('button', { name: new RegExp(name) });
 
 const hasSeen = (review, hunkId) => (review.reviewer().seen || []).includes(hunkId);
 
@@ -30,8 +31,8 @@ test('a hunk in two flows counts as seen in both', async ({ page }) => {
   await stop(page, 'A2').click();
   await expect(stop(page, 'A2')).toHaveAccessibleName(/src\/cache\.ts, seen$/);
   await page.getByRole('button', { name: 'Home' }).click();
-  await expect(flowRow(page, 'Show the forecast')).toContainText('2/3 seen');
-  await expect(flowRow(page, 'Store the forecast')).toContainText('1/2 seen');
+  await expect(flowRow(page, 'Show the forecast')).toContainText('3 hunks · 2 seen');
+  await expect(flowRow(page, 'Store the forecast')).toContainText('2 hunks · 1 seen');
   await expectPoll(() => hasSeen(review, H.cache));
   expect(review.reviewer().seen.filter((id) => id === H.cache)).toHaveLength(1);
 });
@@ -100,9 +101,9 @@ test('keyboard: h goes Home, s goes to the submit page, ? opens the shortcut lis
   await openReview(page);
   await page.keyboard.press('j');
   await page.keyboard.press('h');
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   await page.keyboard.press('s');
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeHidden();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeHidden();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Post a new review');
   await page.keyboard.press('?');
   const dialog = page.getByRole('dialog');

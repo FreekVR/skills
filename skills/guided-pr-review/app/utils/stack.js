@@ -1,5 +1,5 @@
 import { state } from './state.js'
-import { ticketCriteria } from './review.js'
+import { plural, ticketCriteria } from './review.js'
 import { agentState } from './posting.js'
 
 // A stack of one PR is no stack, and a stack without this PR is not its stack: the page shows no stack switch for them.
@@ -20,6 +20,12 @@ export function stackLine(finding) {
   return { verdict: take.verdict, text: [label, take.note].filter(Boolean).join(' '), post: take.verdict !== 'untouched' }
 }
 
+// Whether a linked PR is one of the PRs in this PR's stack; those show in the stack box, not with the other linked PRs.
+export function inStack(pr) {
+  const { owner, repo } = state.review.pr
+  return hasStack() && pr.repo === `${owner}/${repo}` && state.review.stack.prs.some((stacked) => stacked.number === pr.number)
+}
+
 // Get the 1-based place of this page's PR in its stack, counted from the bottom PR.
 export function stackPosition() {
   const prs = state.review.stack.prs
@@ -36,7 +42,7 @@ export function stackRows() {
     const asked = !status?.hasReview && state.reviewer.sent.some((sent) => sent.type === 'start-review' && sent.number === pr.number)
     const action = status?.hasReview ? 'open' : done ? 'github' : !status || status.preparing || status.agentConnected || asked ? 'none' : 'start'
     const page = status?.page || `/${state.review.pr.owner}/${state.review.pr.repo}/${pr.number}`
-    return { number: pr.number, title: pr.title, url: pr.url, page, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action, asked }
+    return { number: pr.number, title: pr.title, summary: pr.summary || '', url: pr.url, page, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action, asked }
   })
 }
 
@@ -48,7 +54,7 @@ export function stackRowLabel(row) {
   if (row.status?.preparing || row.asked) return agentState() === 'none' ? 'Waits for an agent' : 'Preparing the review…'
   if (row.status?.hasReview) {
     const { seen, hunks, remarks } = row.status
-    return remarks ? `${seen} of ${hunks} hunks seen · ${remarks} remarks` : `${seen} of ${hunks} hunks seen`
+    return remarks ? `${seen} of ${hunks} hunks seen · ${plural(remarks, 'remark')}` : `${seen} of ${hunks} hunks seen`
   }
   if (row.status?.agentConnected) return 'Reviewed in another session'
   return 'Not reviewed'

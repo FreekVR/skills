@@ -154,16 +154,18 @@ const mergedWithCriteria = () => {
 };
 
 const homeStack = (page) => page.getByRole('region', { name: 'This PR in its stack' });
+// The criteria and the stack's coverage of them open from the criteria check on Home.
+const openCriteria = (page) => page.locator('#home-criteria summary').click();
 
-test('Home shows the stack with one AI line per PR', async ({ page }) => {
+test('Home shows the stack bottom to top, with each PR\'s AI line on hover', async ({ page }) => {
   await openReview(page, { mutate: onHome, others: [mergedWithCriteria()] });
   const rows = homeStack(page).getByRole('list', { name: 'PRs in this stack, bottom to top' }).getByRole('listitem');
   await expect(rows).toHaveCount(4);
   for (const [at, number] of [14, 15, 16, 17].entries()) {
     await expect(rows.nth(at)).toContainText(`#${number} ${TITLES[number]}`);
-    await expect(rows.nth(at)).toContainText(SUMMARIES[number]);
+    await expect(rows.nth(at).locator(`[title="${SUMMARIES[number]}"]`)).toHaveCount(1);
   }
-  await expect(homeStack(page)).toContainText('stack #31, 4 PRs, base main');
+  await expect(homeStack(page)).toContainText('Stack #31 · 4 PRs · base main');
   await expect(rows.nth(0)).toContainText('Approved by you');
   await expect(rows.nth(1)).toContainText('this page');
   await expect(rows.nth(2)).toContainText('Not reviewed');
@@ -172,6 +174,7 @@ test('Home shows the stack with one AI line per PR', async ({ page }) => {
 
 test('the coverage table marks criteria confirmed, expected, not met and in no PR', async ({ page }) => {
   await openReview(page, { mutate: onHome, others: [mergedWithCriteria()] });
+  await openCriteria(page);
   const table = page.getByRole('main').getByRole('list', { name: 'Does the stack cover WX-42?' });
   await expect(homeStack(page).getByRole('list', { name: /Does the stack cover/ })).toHaveCount(0);
   const cell = (id, number) => coverageCell(page, id, number);
@@ -191,7 +194,8 @@ test('in a stack, a criterion another PR meets shows that PR as expected in the 
     data.context.tickets[0].acceptanceCriteria[0] = { ...data.context.tickets[0].acceptanceCriteria[0], verdict: 'elsewhere', pr: 16 };
   } });
   const panel = page.locator('#home-criteria');
-  await expect(panel).toContainText('1 of 2 criteria not met');
+  await expect(panel).toContainText('1 of 2 acceptance criteria not met');
+  await openCriteria(page);
   await expect(page.getByRole('main').getByRole('list', { name: 'Where WX-42#1 is met' })).toContainText('#16 · expected');
 });
 
@@ -218,6 +222,7 @@ const coverageCell = (page, id, number) => page.getByRole('main').getByRole('lis
 
 test('the legend explains only the marks the list shows', async ({ page }) => {
   await openReview(page, { mutate: (data) => { onHome(data); data.context.tickets[0].acceptanceCriteria = [{ id: 'WX-42#1', text: 'Fetches a three-day forecast.', source: 'ticket', verdict: 'met' }]; data.stack.coverage = []; } });
+  await openCriteria(page);
   await expect(page.getByRole('main').getByRole('list', { name: 'What the marks mean' }).getByRole('listitem')).toHaveText([/^Confirmed:/]);
 });
 
@@ -225,6 +230,7 @@ test("another PR's own review that does not meet a criterion shows not met in th
   const other = mergedWithCriteria();
   other.context.tickets[0].acceptanceCriteria.push({ id: 'WX-42#2', text: 'Caches the forecast for one hour.', source: 'ticket', verdict: 'not-met', note: 'No cache yet.' });
   await openReview(page, { mutate: onHome, others: [other] });
+  await openCriteria(page);
   await expect(coverageCell(page, 'WX-42#2', 14)).toHaveText(/not met/);
   await expect(coverageCell(page, 'WX-42#2', 14)).not.toContainText('No cache yet.');
   await expect(coverageCell(page, 'WX-42#2', 15)).toContainText('The TTL is one minute.');
@@ -232,6 +238,7 @@ test("another PR's own review that does not meet a criterion shows not met in th
 
 test('a criterion this PR places in another PR is expected there, even without stack coverage', async ({ page }) => {
   await openReview(page, { mutate: (data) => { onHome(data); data.stack.coverage = []; }, others: [mergedWithCriteria()] });
+  await openCriteria(page);
   await expect(coverageCell(page, 'WX-42#3', 16)).toHaveText(/expected/);
   await expect(criterionRow(page, 'WX-42#3')).not.toContainText('Not found');
 });
@@ -426,7 +433,7 @@ test('a stack read from the branches has no number, so the page shows no "#" for
     data.stack.number = null;
   };
   await openReview(page, { mutate: fromBranches, others: [mergedWithCriteria()] });
-  await expect(homeStack(page)).toContainText('stack, 4 PRs, base main');
+  await expect(homeStack(page)).toContainText('Stack · 4 PRs · base main');
   await expect(homeStack(page)).not.toContainText('stack #');
   await button(page).click();
   const dialog = page.getByRole('dialog');
@@ -480,4 +487,24 @@ test('a finding in no stack has no stack line', async ({ page }) => {
   await page.getByRole('complementary').getByRole('button', { name: /^Store the forecast/ }).click();
   await expect(page.getByRole('main').getByText('TTL is in milliseconds')).toBeVisible();
   await expect(page.getByRole('main').getByText(/^In the stack:/)).toHaveCount(0);
+});
+
+// A deep stack shows this PR and its neighbours, folds the PRs further below and above, and opens them all in place.
+test('Home folds a deep stack around this PR and opens it in full', async ({ page }) => {
+  const numbers = Array.from({ length: 15 }, (_, at) => 20 + at);
+  await openReview(page, { mutate: (data) => {
+    data.pr.number = 28;
+    data.stack = { number: 31, source: 'github', base: 'main', prs: numbers.map((number) => ({ number, title: `PR ${number}`, url: '', state: number < 28 ? 'merged' : 'open', approved: false, summary: '' })) };
+  } });
+  const box = homeStack(page);
+  const rows = box.getByRole('list', { name: 'PRs in this stack, bottom to top' }).getByRole('listitem');
+  await expect(rows).toHaveText([/7 PRs below: #20 to #26.*all merged/, /#27/, /#28.*this page/, /#29/, /5 PRs above: #30 to #34/]);
+  await expect(rows.first().getByRole('button')).toHaveAttribute('aria-expanded', 'false');
+  await expect(box.getByRole('heading')).toHaveText('Stack #31 · 15 PRs · base main');
+  await box.getByRole('button', { name: 'Show all 15' }).click();
+  await expect(rows).toHaveCount(15);
+  await box.getByRole('button', { name: 'Show less' }).click();
+  await expect(rows).toHaveCount(5);
+  await rows.first().getByRole('button').click();
+  await expect(rows).toHaveCount(15);
 });

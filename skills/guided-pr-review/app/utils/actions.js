@@ -38,6 +38,7 @@ export function markSeen(hunkId, lineId) {
     state.reviewer.seenIn = { ...state.reviewer.seenIn, [hunkId]: lineId }
     state.seen.add(hunkId)
     state.freshHunks.delete(hunkId)
+    state.reviewer.changedHunks = (state.reviewer.changedHunks || []).filter((id) => id !== hunkId)
     saveReviewer()
   }
 }

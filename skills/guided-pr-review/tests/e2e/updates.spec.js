@@ -96,7 +96,7 @@ test('loaded new commits: the banner says what changed, that no reload is needed
   await expect(banner).toContainText('1 hunk new or changed');
   await expect(banner).toContainText('The page is up to date; no reload needed.');
   await expect(main(page).getByText('The card now shows a compact day.').first()).toBeVisible();
-  await page.getByRole('button', { name: 'Show the first changed hunk' }).click();
+  await page.getByRole('button', { name: 'Show the first changed hunk' }).first().click();
   await expect(page.getByRole('button', { name: /^A3 / })).toHaveAttribute('aria-current', 'step');
   await page.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(main(page).getByText('Loaded the new commits')).toBeHidden();
@@ -113,7 +113,7 @@ test('loading new commits failed: the banner shows the error and asks again', as
 
 test('home shows what changed since your last review, for the commit on this page only', async ({ page }) => {
   const review = await openReview(page, { mutate: (data) => { data.changesSince = { from: '9f8e7d6c5b4a', to: 'aaa111', summary: '- Days come from the settings now.\n- The TTL is one hour.' }; } });
-  const panel = main(page).getByRole('region', { name: 'Changed since your last review' });
+  const panel = main(page).getByRole('region', { name: /^Since your last/ });
   await expect(panel).toContainText('9f8e7d6 → aaa111');
   await expect(panel.locator('li')).toHaveCount(2);
   review.update((data) => { data.changesSince.to = 'an-older-commit'; });

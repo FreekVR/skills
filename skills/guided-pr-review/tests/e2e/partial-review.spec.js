@@ -24,7 +24,7 @@ test('a review.json with only the PR and its hunks opens Home with the preparing
   fs.writeFileSync(path.join(review.dir, 'preparing'), JSON.stringify({ step: 'finding the flows', since: new Date().toISOString() }));
   await expect(page.getByText('The agent is still preparing this review.')).toBeVisible();
   await expect(page.getByText('Now: finding the flows.')).toBeVisible();
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
 
   await page.evaluate(() => { window.sameDocument = true; });
   const full = fixture();
@@ -55,7 +55,7 @@ for (const [name, partial] of [['an empty object', {}], ['only a PR title', { pr
     const full = fixture();
     review.update((data) => Object.assign(data, full));
     await expect(page.getByRole('heading', { name: 'The agent is preparing this review' })).toBeHidden();
-    await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
     expect(await page.evaluate(() => window.sameDocument)).toBe(true);
     expect(errors).toEqual([]);
   });
@@ -64,9 +64,9 @@ for (const [name, partial] of [['an empty object', {}], ['only a PR title', { pr
 test('a review.json that loses its PR after the page booted keeps the review on screen', async ({ page }) => {
   const errors = collectErrors(page);
   const review = await openReview(page);
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   fs.writeFileSync(path.join(review.dir, 'review.json'), JSON.stringify({}));
   await page.waitForTimeout(4000);
-  await expect(page.getByRole('heading', { name: 'Overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
