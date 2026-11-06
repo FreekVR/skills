@@ -46,7 +46,7 @@ Read these, and only these. Fetch each PR, issue and ticket once; skip a link to
 
 - The PR: title, description, author, head commit, CI checks, and all comments, including bot comments. Also the login of the authenticated GitHub user, for `viewer`.
 - The PR's reviews and review comments, with their threads, also resolved ones. Keep apart the ones by the user (the authenticated GitHub user) and the ones by others. You need each thread's GraphQL ID, `isResolved`, `resolvedBy`, `isOutdated`, `viewerCanResolve` and `viewerCanUnresolve`, so read the threads with `gh api graphql` (`pullRequest.reviewThreads`).
-- The Jira keys (`ABC-123`) and GitHub issues named in the PR description. For Jira you need a tool that can read Jira. Without one, skip Jira and add that to `context.skipped`.
+- The Jira keys (`ABC-123`) and GitHub issues named in the PR description. You MUST read the description and all comments of each one. For Jira you need a tool that can read Jira. Without one, skip Jira and add that to `context.skipped`.
 - The PRs that those tickets link to.
 - The PRs that the reviewed PR links to directly, also in other repositories.
 - Open tickets about the code this PR changes, in the trackers of the linked tickets. Search by the changed file paths, the module and component names, and the key terms of the PR title. Put the ten most relevant in `context.relatedTickets`, or leave it empty when none match. Without a tool that can search a tracker, add that to `context.skipped`.
@@ -57,7 +57,7 @@ In a stack, also:
 
 - Read every ticket that any PR in the stack links, and use them as this PR's tickets.
 - Read the other PRs only as highlights: title, description, changed files with line counts, and linked tickets. You MUST NOT read their full diffs here.
-- When an earlier review in this stack has a `review.json`, reuse its tickets, related tickets, linked PRs and conventions, and do not read them again.
+- When an earlier review in this stack has a `review.json`, reuse its tickets, related tickets, linked PRs and conventions, and do not read them again. You MUST still read the comments of those tickets.
 - Write `stack` as described in `references/review-data.md`: one line per PR on what it does and how it relates to the PRs next to it, the criteria that another PR is expected to meet, and the changes that no ticket asks for.
 
 ### 2. Get the hunks
@@ -94,7 +94,12 @@ Then run `node scripts/review-data.js check <review-dir>/review.json --diff <dif
 Read the target repository's contribution guide and agent instruction files, if it has them. Also read the reviewer's own user-level agent instruction files, if your harness has them. Give the code rules from both to every review check in step 5.
 
 - AI disclosure: if they describe how to disclose AI use in reviews or comments, put the exact text in `conventions.disclosure`. If they do not, leave it empty.
-- Severity: if they define severity labels for review remarks, use those. Otherwise use `nit`, `minor`, `medium`, `major`, with `requestChangesFrom` set to `minor`.
+- Severity: if they define severity labels for review remarks, use those. Otherwise use `nit`, `minor`, `medium`, `major`, with `requestChangesFrom` set to `minor`. You MUST give each finding the label whose meaning below fits it. With the repository's own labels, use the label nearest to that meaning:
+  - `major`: the PR breaks behaviour, data, security or a public API in the scope of its tickets, or does not meet an acceptance criterion.
+  - `medium`: wrong behaviour in a case that the tickets cover, or a problem that the next change to this code will hit.
+  - `minor`: the code works, but breaks a convention or leaves a gap that is quick to close in this PR.
+  - `nit`: wording, naming or style.
+  - Out of scope: a problem outside what the tickets ask for, such as an edge case that a ticket marked as a quick fix or a limited change does not cover, MUST get the lowest label. Its body MUST name the open ticket in `context.relatedTickets` that covers it, or else propose a follow-up ticket, not a change in this PR. What the conventions and the tickets with their comments say about the scope decides what is out of scope.
 
 ### 5. Run the AI reviews
 
@@ -104,8 +109,8 @@ Give each subagent a brief with these parts, and nothing more:
 
 1. The checks it runs: one review skill, or one or more of the built-in checks below, with their text. Run the test coverage check yourself, not in a subagent, because it reads the CI checks and bot comments with this session's tools.
 2. Where the PR is: the repository, the PR number, the head commit, the path of the diff file from step 2, and the list of hunks with their ID, file and line ranges. For a big PR, also the worktree path. Tell the subagent where its review skill reads the code: for a big PR, run the skill from the worktree, because a skill such as security-review reviews the git diff of the folder it runs in; for a small PR, give the skill the diff file instead.
-3. The tickets as read in step 1, only for the checks of acceptance criteria and scope.
-4. The code rules and the severity labels from step 4.
+3. The scope and the history. You MUST give every subagent: the tickets and issues as read in step 1, with their comments, and what they say about the scope; and the earlier requests on this PR: each submitted review body and each review thread, by the user and by others, with its replies and whether it is resolved.
+4. The code rules, and the severity labels with their meanings from step 4.
 5. The answer format: a JSON list of findings, each with `hunkId` (null for the whole PR), `line`, `side`, `severity`, `title`, `body` and `rule`; an empty list when the checks find nothing. The acceptance criteria check also returns, per criterion ID, a `verdict` and a one-line `note`.
 
 Leave out your own view of the PR, the flows, and the findings of other checks, so each subagent reviews the code without your conclusions. When a review skill answers in its own format, convert its findings to this format yourself and keep its wording in `body`.
@@ -133,6 +138,8 @@ In a stack, also:
 - You MUST give every finding a `stack` field: what the other PRs do with it. `verdict` is `fixed` or `worse` when another PR fixes the problem or makes it worse, with that PR in `pr`; `untouched` when no other PR touches the finding's code; `not-checked` when you only expect it from the highlights. `prs` lists the PRs you read, and `note` says in one line what you found there and which files you read. Do not write it into `body`: the review page shows it with each finding and posts it with the comment. `check` rejects a finding in a stack without it. The finding keeps its severity when another PR fixes it or makes it worse.
 - Use the acceptance criteria IDs and texts of the first review in this stack. Check a criterion in the highest PR that completes it. In a lower PR, give it the verdict `elsewhere` with `pr` set to that PR's number, and no finding.
 - Work in this PR that belongs to another PR's ticket is a finding.
+
+Then you MUST compare each finding, except an `acceptance-criteria` finding, with the earlier requests: the review bodies and the review threads with their replies from step 1, by the user and by others, and the `ownRemarks` that `review.json` already holds from an earlier round. When a finding asks for the opposite of an earlier request that the author followed, or that a reply settled, you MUST drop the finding. When you think the earlier request was wrong, keep the finding, and its `body` MUST name that comment and say why the advice changes.
 
 Always verify the existing review comments from step 1, whatever the user chose above:
 
