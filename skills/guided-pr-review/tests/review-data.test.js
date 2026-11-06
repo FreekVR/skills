@@ -77,7 +77,7 @@ test('parseDiff maps each file block to its own path', () => {
   assert.deepStrictEqual(parseDiff(diff).map((hunk) => hunk.file), ['a b.txt', 'c.txt']);
 });
 
-test('parseDiff gives the old path of each file in a diff with an add, a rename and a delete', () => {
+test('parseDiff gives the old path and the status of each file in a diff with an add, a rename and a delete', () => {
   const diff = [
     'diff --git a/add.txt b/add.txt', 'new file mode 100644', '--- /dev/null', '+++ b/add.txt', '@@ -0,0 +1 @@', '+x',
     'diff --git a/old name.txt b/new name.txt', 'similarity index 100%', 'rename from old name.txt', 'rename to new name.txt',
@@ -85,8 +85,8 @@ test('parseDiff gives the old path of each file in a diff with an add, a rename 
     '',
   ].join('\n');
   assert.deepStrictEqual(
-    parseDiff(diff).map((hunk) => [hunk.file, hunk.oldFile]),
-    [['add.txt', 'add.txt'], ['new name.txt', 'old name.txt'], ['del.txt', 'del.txt']],
+    parseDiff(diff).map((hunk) => [hunk.file, hunk.oldFile, hunk.status]),
+    [['add.txt', 'add.txt', 'added'], ['new name.txt', 'old name.txt', 'renamed'], ['del.txt', 'del.txt', 'removed']],
   );
 });
 
