@@ -109,7 +109,7 @@ function parseDiff(text, whole = new Set()) {
     } else if (line.startsWith('new file mode')) {
       file.status = 'added';
     } else if (line.startsWith('deleted file mode')) {
-      file.status = 'deleted';
+      file.status = 'removed';
     } else if (line.startsWith('rename from ')) {
       file.status = 'renamed';
     } else if (line.startsWith('Binary files ')) {
