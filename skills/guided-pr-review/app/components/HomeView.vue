@@ -41,7 +41,7 @@ const QUIET_ICONS: Record<string, { icon: string, color: string }> = { ok: { ico
             <h3 id="home-pr" :class="label">
               This pull request <AiTag v-if="context.summary" label="AI summary" class="tracking-normal normal-case" />
             </h3>
-            <div v-if="context.summary" class="max-w-[66ch] font-sans text-lead leading-[1.5] font-normal [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+            <div v-if="context.summary" class="lead [&>:first-child]:mt-0 [&>:last-child]:mb-0">
               <SafeMarkdown :value="context.summary" />
             </div>
             <p v-for="ticket in context.tickets || []" :key="ticket.key" class="m-0 mt-3 text-ui">
