@@ -80,14 +80,11 @@ function watchEvents(file, onLine, interval = 300, startOffset = null, onOffset 
   return () => clearInterval(timer);
 }
 
-// While the review server keeps a `paused` file in the review directory, the agent gets no events: check events are
-// dropped, because they only poll GitHub, and the others wait until the reviewer presses play.
-// onPause tells the agent when a pause starts and ends, so a quiet page does not look like a closed one.
-// onIdle runs when no event other than check came for idleMinutes, also while paused. The page sends a check every
-// 5 minutes while it is open, so checks must not keep the agent alive. An event counts when it arrives, also while it
-// is held. session.json keeps lastEventAt and eventsOffset (how far events.jsonl is read), so a restart of a watch
-// that ended (restart: true) prints the events written in the gap and can tell at once that the review was quiet.
-function watchReview(dir, print, onPause, interval = 300, { idleMinutes = 30, onIdle = () => {}, restart = false } = {}) {
+// onIdle runs when no event other than check came for idleMinutes. The page sends a check every 5 minutes while it is
+// open, so checks must not keep the agent alive. session.json keeps lastEventAt and eventsOffset (how far events.jsonl
+// is read), so a restart of a watch that ended (restart: true) prints the events written in the gap and can tell at
+// once that the review was quiet.
+function watchReview(dir, print, interval = 300, { idleMinutes = 30, onIdle = () => {}, restart = false } = {}) {
   const sessionFile = path.join(dir, 'session.json');
   const idleMs = idleMinutes * 60000;
   const save = (fields) => {
@@ -105,30 +102,15 @@ function watchReview(dir, print, onPause, interval = 300, { idleMinutes = 30, on
     idle = true;
     onIdle();
   };
-  const held = [];
-  let wasPaused = false;
-  // Both the timer and a new event check the pause here, so the agent always reads RESUMED before the events it lets go.
-  const sync = () => {
-    const paused = fs.existsSync(path.join(dir, 'paused'));
-    if (paused !== wasPaused) onPause(paused);
-    wasPaused = paused;
-    if (!paused) held.splice(0).forEach(print);
-    return paused;
-  };
   const stopEvents = watchEvents(eventsFile, (line) => {
-    const isCheck = JSON.parse(line).type === 'check';
-    if (!isCheck) {
+    if (JSON.parse(line).type !== 'check') {
       lastEventAt = new Date();
       save({ lastEventAt: lastEventAt.toISOString() });
     }
-    if (!sync()) print(line);
-    else if (!isCheck) held.push(line);
+    print(line);
   }, interval, startOffset, (eventsOffset) => save({ eventsOffset }));
   if (startOffset === null) save({ eventsOffset: fs.existsSync(eventsFile) ? fs.statSync(eventsFile).size : 0 });
-  const timer = setInterval(() => {
-    sync();
-    checkIdle();
-  }, interval);
+  const timer = setInterval(checkIdle, interval);
   checkIdle();
   return () => {
     stopEvents();
@@ -145,14 +127,13 @@ function listReviews(root = stateRoot()) {
         const review = readJson(path.join(dir, 'review.json'));
         if (!review) continue;
         const session = readJson(path.join(dir, 'session.json'));
-        const { connected, paused } = agentStatus(dir);
+        const { connected } = agentStatus(dir);
         reviews.push({
           owner, repo, number: Number(number), dir,
           title: review.pr?.title || '',
           state: review.remote?.state || 'open',
           session,
           agentConnected: connected,
-          paused,
           lastActivity: lastActivity(dir),
         });
       }
@@ -278,22 +259,17 @@ function setPreparing(dir, step) {
   writeAtomic(path.join(dir, 'preparing'), JSON.stringify({ step, since: new Date().toISOString(), ...(from && { from }) }) + '\n');
 }
 
-// Whether an agent watches this review, whether the reviewer paused it, the question the agent waits on,
+// Whether an agent watches this review, the question the agent waits on,
 // whether the agent still prepares the review, and the session to resume when no agent runs.
 // Until a review that another review's page started has a watch of its own, the agent of that other review stands in.
 function agentStatus(dir) {
   const preparing = readPreparing(dir);
-  let agentDir = dir;
   let session = readJson(path.join(dir, 'session.json'));
   const live = (candidate) => Boolean(candidate?.watcherPid && isRunning(candidate.watcherPid));
-  if (!live(session) && preparing?.from) {
-    agentDir = path.join(path.dirname(dir), String(preparing.from));
-    session = readJson(path.join(agentDir, 'session.json'));
-  }
+  if (!live(session) && preparing?.from) session = readJson(path.join(path.dirname(dir), String(preparing.from), 'session.json'));
   return {
     session: session ? { sessionId: session.sessionId || null, cwd: session.cwd || null } : null,
     connected: live(session),
-    paused: fs.existsSync(path.join(agentDir, 'paused')),
     waiting: readWaiting(dir),
     preparing,
   };
