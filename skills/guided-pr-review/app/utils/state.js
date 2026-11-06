@@ -18,6 +18,8 @@ export const state = reactive({
   waiting: null,
   stackStatus: [],
   offline: false,
+  // When the page sent its first check. Until the agent answers it, the page can show an old head commit.
+  openCheckSince: null,
   bootError: null,
   // The PR of a page whose review.json the agent has not written yet.
   preparing: null,

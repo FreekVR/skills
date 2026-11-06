@@ -635,6 +635,16 @@ test('preparing and prepared set and remove the marker from the command line', (
   assert.strictEqual(readPreparing(dirOf(14)), null);
 });
 
+test('checked records the head commit of the review as checked, and prints usage without a head commit', (t) => {
+  const { dirOf, write } = stackRoot(t);
+  write(14, 'review.json', { pr: { headSha: 'abc123' }, hunks: [] });
+  write(15, 'review.json', { pr: {} });
+  const run = (...args) => spawnSync(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), ...args], { encoding: 'utf8' });
+  assert.strictEqual(run('checked', dirOf(14)).status, 0);
+  assert.deepStrictEqual(JSON.parse(fs.readFileSync(path.join(dirOf(14), 'review.json'), 'utf8')), { pr: { headSha: 'abc123' }, hunks: [], checkedSha: 'abc123' });
+  for (const args of [['checked', dirOf(15)], ['checked', dirOf(99)], ['checked']]) assert.strictEqual(run(...args).status, 2);
+});
+
 test('preparing and prepared print usage and exit 2 for an empty step or a missing directory', (t) => {
   const { dirOf, write } = stackRoot(t);
   write(14, 'review.json', {});

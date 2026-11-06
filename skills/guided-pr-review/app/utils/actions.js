@@ -5,7 +5,7 @@ import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isS
 import { answerFor, applySummaryDraft, buildPost, ghCommand, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, openPath } from './navigation.js'
-import { composerKey } from './panels.js'
+import { composerKey, newerOnGitHub, refreshState } from './panels.js'
 import { hasStack } from './stack.js'
 
 let saveTimer = null
@@ -64,8 +64,24 @@ export function deliver(event) {
 
 // The page cannot reach GitHub, so it asks the agent to look for new commits, comments and a changed PR state.
 export function checkGitHub() {
-  if (document.visibilityState === 'visible') deliver({ type: 'check' }).catch(() => {})
+  sendCheck()
   if (polling) checkTimer = setTimeout(checkGitHub, CHECK_MS)
+}
+
+// The first check a page sends is the check on open: until the agent answers it, the page can show an old head commit.
+// A page opened in a background tab sends it as soon as it becomes visible.
+let openCheckSent = false
+function sendCheck() {
+  if (document.visibilityState !== 'visible') return
+  if (!openCheckSent) state.openCheckSince = new Date().toISOString()
+  openCheckSent = true
+  deliver({ type: 'check' }).catch(() => {})
+}
+let listensForVisible = false
+function sendOpenCheckWhenVisible() {
+  if (listensForVisible) return
+  listensForVisible = true
+  document.addEventListener('visibilitychange', () => { if (polling && !openCheckSent) sendCheck() })
 }
 
 export async function loadReviews() {
@@ -425,6 +441,7 @@ export async function poll() {
       applySummaryDraft()
       markCurrentSeen()
     }
+    loadNewCommitsOnOpen()
     // The overlay and the stack switch are optional: when a call fails, the page keeps what it had.
     await Promise.all([transport.loadAgent().then(setAgent, () => {}), loadStack()])
     if (state.offline) state.offline = false
@@ -433,6 +450,16 @@ export async function poll() {
     else if (!state.offline) state.offline = true
   }
   if (polling) pollTimer = setTimeout(poll, POLL_MS)
+}
+
+// When the agent answered the check the page sent as it opened, and GitHub has newer commits, load them at once.
+// Newer commits that a later check finds keep the banner, so hunks do not change while the reviewer reads them.
+function loadNewCommitsOnOpen() {
+  // An agent that still prepares the review skips checks: it reads the PR on GitHub itself.
+  if (state.agent?.preparing) state.openCheckSince = null
+  if (!state.openCheckSince || !(Date.parse(state.review.remote?.checkedAt) >= Date.parse(state.openCheckSince))) return
+  state.openCheckSince = null
+  if (newerOnGitHub() && refreshState()?.status !== 'loading') refresh()
 }
 
 // Stop loading review.json and asking the agent to check GitHub, for example when the page goes away.
@@ -490,6 +517,9 @@ export async function boot(parts = []) {
     if (!state.static) {
       polling = true
       pollTimer = setTimeout(poll, POLL_MS)
+      openCheckSent = false
+      state.openCheckSince = null
+      sendOpenCheckWhenVisible()
       checkGitHub()
     }
     openPath(parts)
