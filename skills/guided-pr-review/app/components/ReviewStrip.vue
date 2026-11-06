@@ -46,7 +46,7 @@ const groups = computed(sessionGroups)
 const switcherOpen = computed({ get: () => Boolean(state.ui.switcherOpen), set: toggleSwitcher })
 const draftCount = computed(() => localCount())
 const waitingCount = computed(() => waitingRequests().length)
-const AGENT_TEXT_COLORS: Record<string, string> = { working: 'text-muted', paused: 'text-warning', none: 'text-warning' }
+const AGENT_TEXT_COLORS: Record<string, string> = { working: 'text-muted', none: 'text-warning' }
 const draftLabel = computed(() => (draftCount.value ? `Post as draft. ${plural(draftCount.value, 'remark')} not on GitHub yet.` : 'Post as draft'))
 const theme = computed(() => state.reviewer.theme || 'system')
 
@@ -209,7 +209,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
           {{ waitingCount === 1 ? '1 request waits for the agent' : `${waitingCount} requests wait for the agent` }}
         </span>
         <UPopover v-if="reviewCount" v-model:open="switcherOpen" :content="{ align: 'end', sideOffset: 6 }">
-          <UButton color="neutral" variant="soft" class="font-bold" icon="i-lucide-monitor-dot" :label="plural(reviewCount, 'session')" :aria-label="`${plural(reviewCount, 'session')}: switch review or pause its agent`" trailing-icon="i-lucide-chevron-down" />
+          <UButton color="neutral" variant="soft" class="font-bold" icon="i-lucide-monitor-dot" :label="plural(reviewCount, 'session')" :aria-label="`${plural(reviewCount, 'session')}: switch to another review`" trailing-icon="i-lucide-chevron-down" />
           <template #content>
             <div class="max-h-(--reka-popover-content-available-height) w-[min(420px,calc(100vw-32px))] overflow-y-auto p-1.5">
               <section v-for="group in groups" :key="group.repo" class="not-first:mt-2">

@@ -332,20 +332,21 @@ const sessionOf = (review, number) => {
   fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify({ sessionId: 'def-456', cwd: '/work', worktree: null, watcherPid: process.pid }));
 };
 
-test('the Next button skips a PR that another session runs', async ({ page }) => {
+test('the Next button opens the PR above also when another session runs it', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  review.write(reviewOf16());
   sessionOf(review, 16);
   await postFinal(page, review);
-  await expect(page.getByRole('button', { name: 'Next in the stack: #17' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Next in the stack: #16' })).toHaveAttribute('href', /\/16$/);
 });
 
-test('the Next button is absent when the agent prepares the only PR left', async ({ page }) => {
+test('the Next button opens the PR above also while the agent prepares it', async ({ page }) => {
   const review = await openReview(page, { mutate: (data) => { onPage(data); data.stack = stackFixture([14, 15, 16], 15); }, others: [merged()] });
   const dir = path.join(path.dirname(review.dir), '16');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'preparing'), '');
   await postFinal(page, review);
-  await expect(page.getByText(/Next in the stack/)).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Next in the stack: #16' })).toHaveAttribute('href', /\/16$/);
 });
 
 // #15 has a posted final review, as the server reads it: a post result and the sent event with this head.
@@ -359,14 +360,14 @@ const postedReviewOf = (review, number) => {
   fs.writeFileSync(path.join(dir, 'reviewer.json'), JSON.stringify({ sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: data.pr.headSha }] }));
 };
 
-test('the Next button skips a PR whose final review is posted, and is absent when none is left', async ({ page }) => {
+test('on the top PR the Next button opens the PR below, also when its final review is posted', async ({ page }) => {
   const review = await openReview(page, { mutate: (data) => { onPage(data); data.pr.number = 16; data.pr.title = TITLES[16]; data.stack = stackFixture([14, 15, 16], 16); }, others: [merged()] });
   postedReviewOf(review, 15);
   await postFinal(page, review);
-  await expect(page.getByText(/Next in the stack/)).toHaveCount(0);
+  await expect(page.getByRole('link', { name: 'Next in the stack: #15' })).toHaveAttribute('href', /\/15$/);
 });
 
-test('with #17 posted the Next button targets the PR below', async ({ page }) => {
+test('with #17 posted the Next button still opens #17, the PR above', async ({ page }) => {
   const review = await openReview(page, { mutate: (data) => { onPage(data); data.pr.number = 16; data.pr.title = TITLES[16]; data.stack = stackFixture([14, 15, 16, 17], 16); }, others: [merged()] });
   postedReviewOf(review, 17);
   const other = merged();
@@ -375,7 +376,7 @@ test('with #17 posted the Next button targets the PR below', async ({ page }) =>
   other.stack = stackFixture([14, 15, 16, 17], 16);
   review.write(other);
   await postFinal(page, review);
-  await expect(page.getByRole('link', { name: 'Next in the stack: #15' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Next in the stack: #17' })).toHaveAttribute('href', /\/17$/);
 });
 
 test('after Start a review, the row shows Preparing and offers no second start on the page it came from', async ({ page }) => {
@@ -507,4 +508,17 @@ test('Home folds a deep stack around this PR and opens it in full', async ({ pag
   await expect(rows).toHaveCount(5);
   await rows.first().getByRole('button').click();
   await expect(rows).toHaveCount(15);
+});
+
+// Another review opens on its Home, never on the view the reviewer last had open there.
+test('the Next button and the stack switch open the other PR on its Home, not where you last were', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  const dir = review.write(reviewOf16());
+  fs.writeFileSync(path.join(dir, 'reviewer.json'), JSON.stringify({ position: { kind: 'terminus' } }));
+  await postFinal(page, review);
+  await page.getByRole('link', { name: 'Next in the stack: #16' }).click();
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(/\/example-org\/sample-widget\/16$/);
+  await button(page).click();
+  await expect(page.getByRole('dialog').getByRole('listitem').filter({ hasText: '#15' }).getByRole('link', { name: /#15/ })).toHaveAttribute('href', /\/15$/);
 });

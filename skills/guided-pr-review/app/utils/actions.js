@@ -1,10 +1,10 @@
 import { state, POLL_MS, CHECK_MS } from './state.js'
 import { reviewPath, transport } from './api.js'
 import { notify } from './notify.js'
-import { acceptedItems, agentPr, decisionOf, emptyReviewer, firstStationOf, hunkById, isCurrentReview, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
+import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
 import { answerFor, applySummaryDraft, buildPost, ghCommand, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
-import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, restorePosition } from './navigation.js'
+import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, openPath } from './navigation.js'
 import { composerKey } from './panels.js'
 import { hasStack } from './stack.js'
 
@@ -97,32 +97,10 @@ export async function startReview(number) {
   window.location.assign(page)
 }
 
-// Pause or play the agent of a review. Play sends one check, so the page catches up with GitHub.
-export async function setPaused(review, paused) {
-  try {
-    await transport.setPaused(review, paused)
-  } catch (error) {
-    notify(`The agent did not get this: ${error.message}`, true)
-    return
-  }
-  review.paused = paused
-  if (!paused && state.review && isCurrentReview(review)) deliver({ type: 'check' }).catch(() => {})
-}
-
 // Delete a review from the sessions list. An error stays with the caller, which shows it next to the review.
 export async function removeSession(review) {
   await transport.removeReview(review)
   state.reviews = state.reviews.filter((other) => other !== review)
-}
-
-// Resume the agent of the open review, or of the review the start came from while the agent prepares this one.
-// The page's own flag and the switch's entry for this review both follow once the server accepts it.
-export async function resumeAgent() {
-  const { owner, repo, number } = agentPr()
-  const entry = state.review && (state.reviews || []).find(isCurrentReview)
-  const review = entry || { owner, repo, number, paused: true }
-  await setPaused(review, false)
-  if (!review.paused && state.agent) state.agent.paused = false
 }
 
 // Open or close the list of open reviews.
@@ -488,7 +466,8 @@ async function waitForReview() {
 }
 
 // Load the review and the reviewer state, then start polling. Call setReviewPath first.
-export async function boot() {
+// `parts` are the parts of the address after the PR number; they name the view to open.
+export async function boot(parts = []) {
   stopPolling()
   try {
     const [review, reviewer, agent] = await Promise.all([transport.loadReview(), transport.loadReviewer(), transport.loadAgent().catch(() => null)])
@@ -506,17 +485,14 @@ export async function boot() {
     // Comments that were there when the review first opened are not new.
     state.reviewer.knownComments ??= (review.reviewComments || []).map((comment) => comment.id)
     saveReviewer()
-    const first = lines()[0]
-    const index = first.stops.findIndex((stop) => !isSeen(stop.hunkId))
-    state.view = { kind: 'station', line: first.id, index: index === -1 ? 0 : index }
+    state.view = { kind: 'home' }
     // A static page has no server to poll and no agent to check GitHub.
     if (!state.static) {
       polling = true
       pollTimer = setTimeout(poll, POLL_MS)
       checkGitHub()
     }
-    if (!restorePosition()) state.view = { kind: 'home' }
-    markCurrentSeen()
+    openPath(parts)
     // The switch is optional, so the page does not wait for the list.
     loadReviews()
     loadStack()
