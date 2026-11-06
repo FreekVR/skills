@@ -16,7 +16,7 @@ function onToggle(event: Event) {
     <AiTag label="AI context" />
     <p v-if="why" class="mt-1.5 mb-0 text-ui text-muted"><b class="font-semibold text-toned">Why here:</b> <MarkupText :text="why" /></p>
     <div class="mt-3.5 max-w-[70ch] text-body">
-      <p v-if="hunk.explanation" class="mt-0 mb-3"><MarkupText :text="hunk.explanation" /></p>
+      <p v-if="hunk.explanation" class="lead mt-0 mb-3"><MarkupText :text="hunk.explanation" /></p>
       <details v-if="hunk.explanationMore" class="explain-more group mt-1 rounded-lg bg-elevated text-body" :open="open" @toggle="onToggle">
         <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-label font-semibold text-default">
           <AiTag label="" />

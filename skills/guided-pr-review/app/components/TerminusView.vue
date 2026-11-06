@@ -42,15 +42,15 @@ async function showThem() {
           {{ ' ' }}<a :href="draft.url" target="_blank" rel="noopener" class="text-info underline underline-offset-3">View</a>
         </template></span>
       </p>
-      <p :class="LEDE">
+      <p class="lead mt-0 mb-4">
         {{ state.static ? 'Nothing reaches GitHub until you run the gh command of this page.' : 'Nothing reaches GitHub until you press a post button.' }}
       </p>
-      <p v-if="ownReview" :class="LEDE">
+      <p v-if="ownReview" class="lead mt-0 mb-4">
         GitHub shows this as a new review, after your earlier one.<template v-if="!state.static">
           It also resolves and unresolves the comments you chose and posts your replies.
         </template>
       </p>
-      <p v-if="state.review.pr.isOwnPr" :class="LEDE">
+      <p v-if="state.review.pr.isOwnPr" class="lead mt-0 mb-4">
         This is your own PR. GitHub does not accept approve or request changes from the author; use comment.
       </p>
 
