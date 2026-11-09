@@ -3,7 +3,8 @@ import path from 'node:path'
 
 // Ask the agent to prepare the review of another PR in this review's stack. The page of that PR can open at once:
 // its `preparing` file says that the agent prepares it, and `from` names this review, whose agent gets the event.
-// A PR that has a review, or one the agent already prepares, gets no second start: the reviewer only goes to its page.
+// A PR whose review has a running watch, or one the agent already prepares, gets no start: the reviewer only goes to its page.
+// A review whose watch no longer runs, from a session that ended, is taken over by the agent of this review.
 export default defineEventHandler(async (event) => {
   const dir = reviewDirOf(event)
   const owner = getRouterParam(event, 'owner')
@@ -16,9 +17,11 @@ export default defineEventHandler(async (event) => {
   }
   const page = `/${owner}/${repo}/${target}`
   const targetDir = reviewDir(`${owner}/${repo}`, target)
-  if (fs.existsSync(path.join(targetDir, 'review.json')) || fs.existsSync(path.join(targetDir, 'preparing'))) return { id: null, page }
+  const reviewed = fs.existsSync(path.join(targetDir, 'review.json'))
+  if (fs.existsSync(path.join(targetDir, 'preparing')) || (reviewed && agentStatus(targetDir).connected)) return { id: null, page }
   const { id } = appendEvent(dir, { type: 'start-review', number: target, review: `${owner}/${repo}#${number}` })
   fs.mkdirSync(targetDir, { recursive: true })
-  writeAtomic(path.join(targetDir, 'preparing'), JSON.stringify({ step: 'Waiting for the agent to start', since: new Date().toISOString(), from: number }) + '\n')
+  const step = reviewed ? 'Waiting for the agent to take over' : 'Waiting for the agent to start'
+  writeAtomic(path.join(targetDir, 'preparing'), JSON.stringify({ step, since: new Date().toISOString(), from: number }) + '\n')
   return { id, page }
 })

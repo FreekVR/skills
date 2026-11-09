@@ -31,13 +31,17 @@ A stack is a chain of PRs in one repository: each PR's base branch is the head b
 
 ## Step 2: events
 
-- The events of every review in this stack that this session started are this session's.
+- The events of every review in this stack that this session started or took over are this session's.
 - Every `check` and `refresh` also runs `node scripts/review-data.js stack` again and updates the `stack` field, so a PR that was added, merged or moved shows on the review page.
 - A `start-review` event asks for a review of PR `number`. The review page already created its review directory with a `preparing` file, and the reviewer now looks at that PR's page, which waits for `review.json`.
   1. Run `dir` for PR `number` and `node scripts/review-data.js preparing <review-dir> "Reading the PR"`, before you ask anything.
   2. Write `review.json` as soon as it has the PR and its hunks, and add flows and findings to it as you go: the page shows each part when it appears.
   3. Run Preflight items 7 to 9 and steps 1 to 9 for that PR, with a separate watch for it.
   4. Keep handling the events of the other reviews in between.
+- A `start-review` event for a PR whose review directory already holds `review.json` asks this session to take over that review: its session ended, and the reviewer now looks at its page. Its `preparing` file says "Waiting for the agent to take over".
+  1. Start a watch for that review directory with `--resume`, so this session takes it over. For a big PR, pass the `worktree` from its `session.json` as `--worktree`.
+  2. Run `node scripts/review-data.js prepared <review-dir>` at once: the review is complete, and the page then shows this session as its agent.
+  3. Follow `references/resume.md` from item 3 for that PR, and keep handling the events of the other reviews in between.
 - The angle and skill questions of a review that `start-review` started are the one exception to plain chat questions:
   1. Run `waiting` for every review directory this session handles.
   2. Ask the structured multiple-choice question. While it is open, the events of the other reviews wait; the review pages show the reviewer that you wait.

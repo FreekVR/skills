@@ -42,7 +42,9 @@ export function stackRows() {
     const asked = !status?.hasReview && state.reviewer.sent.some((sent) => sent.type === 'start-review' && sent.number === pr.number)
     const action = status?.hasReview ? 'open' : done ? 'github' : !status || status.preparing || status.agentConnected || asked ? 'none' : 'start'
     const page = status?.page || `/${state.review.pr.owner}/${state.review.pr.repo}/${pr.number}`
-    return { number: pr.number, title: pr.title, summary: pr.summary || '', url: pr.url, page, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action, asked }
+    // A review from a session that ended has no watch: going there asks this review's agent to take it over.
+    const takeOver = Boolean(status?.hasReview && !status.agentConnected && !status.preparing && !done && !state.static && pr.number !== state.review.pr.number)
+    return { number: pr.number, title: pr.title, summary: pr.summary || '', url: pr.url, page, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action, asked, takeOver }
   })
 }
 
