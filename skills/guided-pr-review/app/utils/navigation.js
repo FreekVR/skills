@@ -99,7 +99,20 @@ let correctingAddress = false
 function showInAddress() {
   if (state.static) return
   const path = viewPath()
-  if (window.location.pathname !== path) navigateTo(path, { replace: correctingAddress })
+  if (window.location.pathname === path) return
+  ownAddresses.add(path)
+  navigateTo(path, { replace: correctingAddress })
+}
+
+// The addresses the page asked the router for and that have not arrived yet. The router changes the address a moment
+// later, so after two quick moves the first address still arrives; it is the page's own, not a step back.
+const ownAddresses = new Set()
+
+// Whether an address change comes from the page itself. The browser's back and forward buttons give other addresses.
+// Once the address matches the view, an address that never arrived is no longer expected.
+export function isOwnAddress(path) {
+  if (path === viewPath()) ownAddresses.clear()
+  return ownAddresses.delete(path)
 }
 
 // Move one hunk forward or back in reading order. Past the last hunk comes Submit review.
