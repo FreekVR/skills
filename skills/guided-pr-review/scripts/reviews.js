@@ -21,12 +21,13 @@ function reviewDir(repository, number) {
 
 // A resume overwrites the file, so it always names the session that runs the review now.
 // watcherPid is the process that prints the review's events to the agent; while it runs, an agent is connected.
-function writeSession(dir, worktree = null, watcherPid = null, restart = false) {
+function writeSession(dir, worktree = null, watcherPid = null, restart = false, resume = false) {
   const session = { sessionId: process.env.CLAUDE_CODE_SESSION_ID || null, cwd: process.cwd(), worktree, watcherPid };
-  // Only a restart of a watch that ended keeps the time of the last event and the place in events.jsonl it read up to;
-  // a start or resume gets a fresh idle limit and reads from the end.
-  const previous = restart ? readJson(path.join(dir, 'session.json')) : null;
-  if (previous?.lastEventAt) session.lastEventAt = previous.lastEventAt;
+  // A restart of a watch that ended keeps the time of the last event and the place in events.jsonl it read up to.
+  // A resume keeps only the place, so it replays what the reviewer sent while no agent watched, with a fresh idle limit.
+  // A first start reads from the end.
+  const previous = restart || resume ? readJson(path.join(dir, 'session.json')) : null;
+  if (restart && previous?.lastEventAt) session.lastEventAt = previous.lastEventAt;
   if (Number.isInteger(previous?.eventsOffset)) session.eventsOffset = previous.eventsOffset;
   fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify(session) + '\n');
   return session;

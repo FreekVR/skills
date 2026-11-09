@@ -464,11 +464,29 @@ test('writeSession keeps lastEventAt and eventsOffset of the session it replaces
   fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify(kept));
   const restarted = writeSession(dir, null, 2, true);
   assert.deepStrictEqual([restarted.lastEventAt, restarted.eventsOffset], [kept.lastEventAt, kept.eventsOffset]);
+  fs.writeFileSync(path.join(dir, 'session.json'), JSON.stringify(kept));
+  const resumed = writeSession(dir, null, 2, false, true);
+  assert.deepStrictEqual([resumed.lastEventAt, resumed.eventsOffset], [undefined, kept.eventsOffset]);
+});
+
+test('watch --resume prints the events sent while no watch ran, and is not idle at once after a long pause', (t) => {
+  const dir = idleDir(t, { watcherPid: null, lastEventAt: new Date(Date.now() - 3 * 24 * 3600000).toISOString(), eventsOffset: 0 });
+  fs.writeFileSync(path.join(dir, 'events.jsonl'), '{"type":"ask","n":1}\n');
+  const child = spawn(process.execPath, [path.join(__dirname, '..', 'scripts', 'review-data.js'), 'watch', dir, '--resume'], { stdio: ['ignore', 'pipe', 'inherit'] });
+  t.after(() => child.kill());
+  let out = '';
+  child.stdout.on('data', (chunk) => { out += chunk; });
+  return new Promise((resolve) => setTimeout(resolve, 1500)).then(() => {
+    assert.match(out, /EVENT \{"type":"ask","n":1\}/);
+    assert.doesNotMatch(out, /IDLE/);
+  });
 });
 
 test('parseWatchArgs reads the worktree, idle-minutes and restart flags', () => {
-  assert.deepStrictEqual(parseWatchArgs(['d', '--idle-minutes', '2', '--restart', '--worktree', '/w']), { dir: 'd', worktree: '/w', idleMinutes: 2, restart: true });
-  assert.deepStrictEqual(parseWatchArgs(['d']), { dir: 'd', worktree: null, idleMinutes: undefined, restart: false });
+  assert.deepStrictEqual(parseWatchArgs(['d', '--idle-minutes', '2', '--restart', '--worktree', '/w']), { dir: 'd', worktree: '/w', idleMinutes: 2, restart: true, resume: false });
+  assert.deepStrictEqual(parseWatchArgs(['d']), { dir: 'd', worktree: null, idleMinutes: undefined, restart: false, resume: false });
+  assert.deepStrictEqual(parseWatchArgs(['d', '--resume']), { dir: 'd', worktree: null, idleMinutes: undefined, restart: false, resume: true });
+  assert.strictEqual(parseWatchArgs(['d', '--restart', '--resume']), null);
   assert.strictEqual(parseWatchArgs(['d', '--idle-minutes', 'x']), null);
   assert.strictEqual(parseWatchArgs(['d', '--other', '1']), null);
 });
