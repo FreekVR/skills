@@ -204,6 +204,7 @@ Then judge each finding of the checks yourself, except an `acceptance-criteria` 
 - When a finding asks for the opposite of a ticket decision, of an earlier request that the author followed or that a reply settled, or of one of the user's remarks, you MUST drop the finding.
 - When you think the earlier request or remark was wrong, keep the finding, and its `body` MUST name that comment or remark and say why the advice changes.
 - Apply the out-of-scope rule of step 5 to each finding you keep.
+- When two or more findings with the same `hunkId`, `line` and `side` make the same claim, merge them into one: keep the clearest `title` and `body`, the `rule` of the finding you take them from, the highest severity, and all their `sources`. In a stack, keep the `stack` verdict that names the most PRs you read.
 
 Always verify the existing review comments from step 3, whatever the user chose above:
 
