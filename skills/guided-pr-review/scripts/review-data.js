@@ -41,6 +41,9 @@
 //   node review-data.js static <review-dir> <out-file>   Write the review page with the review.json of <review-dir> as
 //                                                        one HTML file that opens without the review server. The page
 //                                                        has no agent: no questions, no longer explanations, no posts.
+//                                                        It needs only the committed assets/review-page.html.
+//   node review-data.js shell [<out-file>]               Write assets/review-page.html from the local build; the build
+//                                                        script runs it.
 'use strict';
 
 const fs = require('fs');
@@ -50,6 +53,7 @@ const os = require('os');
 const { execFileSync, spawn } = require('child_process');
 const { fromGitHubStack, fromBranches } = require('./stack.js');
 const { ownDiff } = require('./own-diff.js');
+const { sourceHash } = require('./build-stamp.js');
 
 const { stateRoot, reviewDir, writeSession, readJson, isRunning, watchReview, listReviews, setWaiting, setPreparing, writeAtomic } = require('./reviews.js');
 
@@ -328,7 +332,7 @@ async function readShell() {
       }
       await new Promise((resolve) => setTimeout(resolve, 150));
     }
-    throw new Error('the review server did not start; build the page first with npx nuxt build');
+    throw new Error('the review server did not start; build the page first with pnpm build');
   } finally {
     child.kill();
     process.off('SIGINT', stop);
@@ -336,9 +340,15 @@ async function readShell() {
   }
 }
 
+// The parts of the static page that differ per review; `shell` writes them as these markers, `static` fills them in.
+const DATA_MARK = '__GUIDED_REVIEW_DATA__';
+const PATH_MARK = '__GUIDED_REVIEW_PATH__';
+
+// Turn the page the review server serves into one HTML file with every script and style in it, and markers for the
+// review data, so a static page needs neither the server nor its packages.
 // A browser does not load a module script from a file:// page, so every built script goes into the page as a data: URL
 // in the import map, and the scripts import each other by those names. The CSS goes into one style element.
-function staticPage(shell, review) {
+function pageShell(shell) {
   const assets = path.join(OUTPUT, 'public', '_nuxt');
   const files = fs.readdirSync(assets);
   const scripts = new Set(files.filter((file) => file.endsWith('.js')));
@@ -357,10 +367,9 @@ function staticPage(shell, review) {
   const css = files.filter((file) => file.endsWith('.css') && !file.startsWith('error-')).sort((a, b) => Number(b.startsWith('entry.')) - Number(a.startsWith('entry.')))
     .map((file) => fs.readFileSync(path.join(assets, file), 'utf8')).join('\n');
   const favicon = `data:image/svg+xml;base64,${fs.readFileSync(path.join(OUTPUT, 'public', 'favicon.svg')).toString('base64')}`;
-  const { owner, repo, number } = review.pr;
   const head = [
     `<style>${css}</style>`,
-    `<script>window.__GUIDED_REVIEW_STATIC__=${JSON.stringify(review).replace(/</g, '\\u003c')}</script>`,
+    `<script>window.__GUIDED_REVIEW_STATIC__=${DATA_MARK}</script>`,
     `<script type="importmap">${JSON.stringify({ imports })}</script>`,
     '<script type="module">import "#entry"</script>',
   ].join('');
@@ -370,14 +379,33 @@ function staticPage(shell, review) {
     .replace(/<script type="module" src="[^"]*"[^>]*><\/script>/, '')
     .replace('href="/favicon.svg"', `href="${favicon}"`)
     // The router takes the route of the page from here, because the file:// address names no PR.
-    .replace('window.__NUXT__={};', () => `window.__NUXT__={path:${JSON.stringify(`/${owner}/${repo}/${number}`)}};`)
+    .replace('window.__NUXT__={};', () => `window.__NUXT__={path:${PATH_MARK}};`)
     // A function, so a "$" in the review is not read as a replacement pattern.
     .replace('</head>', () => `${head}</head>`);
 }
 
-async function writeStatic(dir, outFile) {
+// Fill in the review data of a shell from `pageShell`. Functions as replacements, so a "$" in the review stays as it is.
+function fillShell(template, review) {
+  const { owner, repo, number } = review.pr;
+  if (!template.includes(DATA_MARK) || !template.includes(PATH_MARK)) throw new Error(`${SHELL} is not a page shell; build the page again`);
+  // The path goes in first: the review data can hold the text of a marker, for example in the diff of this file.
+  return template
+    // The router takes the route of the page from here, because the file:// address names no PR.
+    .replace(PATH_MARK, () => JSON.stringify(`/${owner}/${repo}/${number}`))
+    .replace(DATA_MARK, () => JSON.stringify(review).replace(/</g, '\\u003c'));
+}
+
+const SHELL = path.join(__dirname, '..', 'assets', 'review-page.html');
+
+// Write the page shell from the local build. The build runs this; the shell is committed, so `static` works without it.
+async function writeShell(outFile = SHELL) {
+  fs.mkdirSync(path.dirname(outFile), { recursive: true });
+  fs.writeFileSync(outFile, `<!-- sources: ${sourceHash()} -->\n${pageShell(await readShell())}`);
+}
+
+function writeStatic(dir, outFile) {
   const review = JSON.parse(fs.readFileSync(path.join(dir, 'review.json'), 'utf8'));
-  fs.writeFileSync(outFile, staticPage(await readShell(), review));
+  fs.writeFileSync(outFile, fillShell(fs.readFileSync(SHELL, 'utf8'), review));
   console.log(outFile);
 }
 
@@ -469,8 +497,17 @@ function main([command, ...args]) {
     return 0;
   }
   if (command === 'static' && args.length === 2 && fs.existsSync(path.join(args[0], 'review.json'))) {
-    writeStatic(args[0], args[1]).catch((error) => {
+    try {
+      writeStatic(args[0], args[1]);
+      return 0;
+    } catch (error) {
       console.error(`The static page was not written: ${error.message}`);
+      return 1;
+    }
+  }
+  if (command === 'shell' && args.length <= 1) {
+    writeShell(args[0]).catch((error) => {
+      console.error(`The page shell was not written: ${error.message}`);
       process.exitCode = 1;
     });
     return undefined;
@@ -484,7 +521,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> [--diff <diff-file>] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart | --resume] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | checked <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | static <review-dir> <out-file> | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> [--diff <diff-file>] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart | --resume] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | checked <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | static <review-dir> <out-file> | shell [<out-file>] | list');
   return 2;
 }
 

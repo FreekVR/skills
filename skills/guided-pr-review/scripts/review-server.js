@@ -2,6 +2,7 @@
 // Usage: node review-server.js
 // Starts the review page server for all reviews, or finds the one that runs, and prints "READY <url>".
 // The server stops itself after some time with no connected agent.
+// Without a build that fits this version of the skill, it prints "BUILD missing" or "BUILD outdated" and exits 3.
 'use strict';
 
 const fs = require('fs');
@@ -9,6 +10,7 @@ const net = require('net');
 const path = require('path');
 const { spawn } = require('child_process');
 const { stateRoot, readJson, isRunning } = require('./reviews.js');
+const { buildState } = require('./build-stamp.js');
 
 const ENTRY = path.join(__dirname, '..', '.output', 'server', 'index.mjs');
 // A fixed port keeps the URL of a review the same between sessions.
@@ -53,6 +55,11 @@ function spawnServer(root, port) {
 }
 
 async function main() {
+  const build = buildState();
+  if (build !== 'ok') {
+    console.log(`BUILD ${build}: run pnpm install --frozen-lockfile and pnpm build in ${path.join(__dirname, '..')}`);
+    return 3;
+  }
   const root = stateRoot();
   const record = path.join(root, 'server.json');
   const running = readJson(record);

@@ -1,7 +1,7 @@
 ---
 name: guided-pr-review
 description: Use when a developer wants to review a GitHub pull request themselves with guidance, for example "guide me through PR 123", "walk me through this pull request", "help me review this PR step by step", "I need to review PR <url> but don't know this code", or "review the PR for ticket ABC-123 with me". Do not use when the user wants the agent to review a PR on its own and only report or post the result, to review local uncommitted changes, to answer review comments on their own PR, or for GitLab or Bitbucket.
-compatibility: Needs Node.js 22.22.3 or a newer 22, 24.15 or a newer 24, or 26 and up, git, read and write access to GitHub, and a browser on the same computer. Questions, longer explanations and posts from the review page also need a background process whose output the agent can watch; without one, the review page is a static file without them. The review page loads avatars from github.com; without internet it shows none.
+compatibility: Needs Node.js 22.22.3 or a newer 22, 24.15 or a newer 24, or 26 and up, with pnpm in any version, git, read and write access to GitHub, and a browser on the same computer. Questions, longer explanations and posts from the review page also need a background process whose output the agent can watch; without one, the review page is a static file without them. The review page loads avatars from github.com; without internet it shows none.
 ---
 
 # Guided PR review
@@ -25,6 +25,8 @@ You MUST complete these checks in order and mark each one done before you contin
 1. [ ] The user named a PR (URL, or number plus repository), a stack (number plus repository) or a ticket key from an issue tracker such as Jira. If not, ask. Do not guess a PR from the current branch.
 2. [ ] This session is not already running a guided review for another PR, except the reviews of one stack that this session started. If it is, stop and ask the user to start this review in a new session. One session MUST run only the reviews of one PR or one stack, and MUST NOT handle a review that another live session watches, because both would answer the same review page.
 3. [ ] `git` is available, and `node --version` matches `^22.22.3 || ^24.15.0 || >=26`. If not, stop and tell the user.
+   - `pnpm --version` works, in any version: pnpm switches to the version that this skill's `package.json` names. If it does not work, ask the user to install pnpm (https://pnpm.io/installation).
+   - Run `node scripts/build-stamp.js` in this skill's folder. It prints `ok`, or `missing` or `outdated` on first use and after an update of the skill. For `missing` or `outdated`, ask the user, then run `pnpm install --frozen-lockfile` and `pnpm build` in this skill's folder. When the user declines or the build fails, continue with `references/static-page.md`, which needs no build.
 4. [ ] You can read the PR and post reviews on GitHub, through the `gh` CLI or a GitHub tool. If not, stop and tell the user. Only GitHub is supported.
 5. [ ] The user has a browser on this computer. If not, stop and tell the user that this skill needs one. Then check that you can run a background process and act on each line it prints while the user works. If you cannot, continue with `references/static-page.md`.
 6. [ ] You know the one PR to review.
@@ -50,7 +52,7 @@ Do the steps in order. Step 2 starts when the watch starts in step 1 and keeps r
 Give the user the review page before you prepare the review, so they can follow it while you work.
 
 1. Run `node scripts/review-data.js preparing <review-dir> "Reading the PR"`. The review page then shows that the review is not complete yet, and shows each part of `review.json` when it appears.
-2. Run `node scripts/review-server.js`. It starts the review server, or finds the one that runs, and prints `READY <url>`. Give the user the URL of this PR's review page: `<url><owner>/<repo>/<pr-number>`.
+2. Run `node scripts/review-server.js`. It starts the review server, or finds the one that runs, and prints `READY <url>`. When it prints `BUILD missing` or `BUILD outdated`, do the build check of Preflight item 3. Give the user the URL of this PR's review page: `<url><owner>/<repo>/<pr-number>`.
    - One review server serves every review on this computer, and it stops itself 10 minutes after the last agent stopped watching. It keeps `server.json` (its URL and process ID) and `server.log` in the state directory; they stay until the user deletes that directory.
 3. From the directory this session runs in, run `node scripts/review-data.js watch <review-dir>` as a background process, with `--worktree <path>` for a big PR, and `--resume` when you resume the review, so it first prints the events that the review page sent while no agent watched.
    - Run it in a way that notifies you of each new line it prints, for example by monitoring the process output. A background command that reports only when it exits does not wake you for events, so the review page waits for an answer that never comes.

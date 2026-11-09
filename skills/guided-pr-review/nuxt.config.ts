@@ -2,7 +2,7 @@ export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxt/fonts', '@comark/nuxt', '@vueuse/nuxt', '@nuxt/eslint', '@nuxt/test-utils/module'],
   ssr: false,
   devtools: { enabled: false },
-  // The build is committed, so it carries no source maps.
+  // The build is for running the review page, not for debugging it, so it carries no source maps.
   sourcemap: { server: false, client: false },
   css: ['~/assets/css/main.css'],
   app: { head: { htmlAttrs: { lang: 'en' }, link: [{ rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }] } },

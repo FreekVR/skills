@@ -168,7 +168,7 @@ The review server records itself in `server.json` in the state directory itself,
 printf '%s\n' '<payload>' | gh api --method POST repos/{owner}/{repo}/pulls/{number}/reviews --input -
 ```
 
-`<payload>` is the JSON of `commit_id` (`pr.headSha`), `body`, `event` (the verdict) and `comments`, as for a final `post` (`references/posting.md`). Each `'` in it is written as `'\''`. The command does not post replies and does not resolve or unresolve threads. To build the page, the command starts the built review server for a moment on a free port and reads its page.
+`<payload>` is the JSON of `commit_id` (`pr.headSha`), `body`, `event` (the verdict) and `comments`, as for a final `post` (`references/posting.md`). Each `'` in it is written as `'\''`. The command does not post replies and does not resolve or unresolve threads. The command fills the review data into the committed `assets/review-page.html`, which the build writes; it needs no build and no packages.
 
 ## events.jsonl
 
