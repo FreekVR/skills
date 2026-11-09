@@ -75,7 +75,7 @@ test.describe('a finding', () => {
   });
 
   test('can be accepted', async ({ page }) => {
-    await page.getByRole('button', { name: 'Accept' }).click();
+    await page.getByRole('button', { name: 'Include in my review' }).click();
     await expectPoll(() => review.reviewer().decisions?.f1 === 'accepted');
   });
 
@@ -108,7 +108,7 @@ test.describe('a finding', () => {
   });
 
   test('shows its state as an icon whose label slides out on hover', async ({ page }) => {
-    await page.getByRole('button', { name: 'Accept' }).click();
+    await page.getByRole('button', { name: 'Include in my review' }).click();
     const icon = page.getByRole('img', { name: /^In your review, not posted/ });
     await expect(icon).toBeVisible();
     await icon.hover();

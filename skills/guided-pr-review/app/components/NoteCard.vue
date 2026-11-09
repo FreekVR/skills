@@ -108,7 +108,7 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
         <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" own />
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
           <template v-if="isFinding">
-            <UButton v-if="decision !== 'accepted'" color="success" variant="solid" class="font-bold" @click="decideFinding(item.id, 'accepted')">Accept</UButton>
+            <UButton v-if="decision !== 'accepted'" color="success" variant="solid" class="font-bold" @click="decideFinding(item.id, 'accepted')">Include in my review</UButton>
             <UButton v-if="decision !== 'dismissed'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'dismissed')">Dismiss</UButton>
             <UButton v-if="decision !== 'open'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'open')">Undo</UButton>
             <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit text</UButton>
