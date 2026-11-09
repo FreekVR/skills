@@ -1,6 +1,9 @@
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxt/fonts', '@comark/nuxt', '@vueuse/nuxt', '@nuxt/eslint', '@nuxt/test-utils/module'],
   ssr: false,
+  // A fixed build ID makes two builds of the same sources the same, so the committed assets/review-page.html only
+  // changes when a source does.
+  buildId: 'guided-pr-review',
   devtools: { enabled: false },
   // The build is for running the review page, not for debugging it, so it carries no source maps.
   sourcemap: { server: false, client: false },
