@@ -157,7 +157,8 @@ export function proposedVerdict() {
   const order = ['approved', 'comment', 'changes']
   const posted = standingOwnRemarks().map((own) => own.severity)
   const severities = [...acceptedItems().map((item) => item.severity), ...posted]
-  const levels = [verdictFromSeverities(severities), ...Object.values(state.reviewer.hunkVerdicts)]
+  // Only the hunks of this review count: a verdict on a hunk that new commits removed is kept, but no longer applies.
+  const levels = [verdictFromSeverities(severities), ...state.review.hunks.map((hunk) => verdictOf(hunk.id))]
   return REVIEW_EVENTS[order[Math.max(...levels.map((level) => order.indexOf(level)))]]
 }
 
