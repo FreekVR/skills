@@ -33,6 +33,7 @@ export function updates() {
     const { owner, repo, number } = state.review.pr
     banners.push({ kind: 'offline', key: 'offline', resume: resumeHelp(current || { owner, repo, number }) })
   }
+  if (state.otherTabs.size) banners.push({ kind: 'tabs', key: 'tabs' })
   if (state.agent?.preparing) banners.push({ kind: 'preparing', key: 'preparing', step: state.agent.preparing.step })
   else if (state.openCheckSince && !state.offline && !remote.error) banners.push({ kind: 'checking', key: 'checking' })
   if (remote.state === 'merged' || remote.state === 'closed') {

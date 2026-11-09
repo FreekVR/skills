@@ -5,7 +5,7 @@ const props = defineProps<{ composer: { hunkId: string, startLine: number, start
 const key = computed(() => composerKey(props.composer))
 const text = computed({
   get: () => state.ui.drafts[key.value] ?? props.composer.text ?? '',
-  set: (value: string) => { state.ui.drafts[key.value] = value },
+  set: (value: string) => setDraft(key.value, value),
 })
 const severity = computed({
   get: () => composerSeverity(props.composer),

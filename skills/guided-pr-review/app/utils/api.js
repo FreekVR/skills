@@ -44,8 +44,9 @@ export const transport = {
       throw new Error(error.statusMessage || `${error.statusCode}`)
     })
   },
-  async saveReviewer(reviewer) {
-    await $fetch(`${base}/reviewer`, { method: 'PUT', headers: GUARD, body: JSON.stringify(reviewer) }).catch((error) => {
+  // `keepalive` lets the save finish after the tab is gone.
+  async saveReviewer(reviewer, { keepalive = false } = {}) {
+    await $fetch(`${base}/reviewer`, { method: 'PUT', headers: GUARD, body: JSON.stringify(reviewer), keepalive }).catch((error) => {
       throw new Error(`Saving failed: ${error.statusCode} ${error.statusMessage}`)
     })
   },

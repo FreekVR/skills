@@ -22,6 +22,9 @@ const banners = computed(() => (state.static ? [] : updates()))
             <p class="m-0"><strong>This review is not running.</strong> The page cannot save your work or reach the agent.</p>
             <ResumeHelp :help="banner.resume" />
           </template>
+          <p v-else-if="banner.kind === 'tabs'" class="m-0">
+            <strong>This review is open in another tab.</strong> Changes in one tab overwrite the other; keep one tab open.
+          </p>
           <div v-else-if="banner.kind === 'preparing'">
             <p class="m-0">
               <strong>The agent is still preparing this review.</strong>

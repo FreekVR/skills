@@ -18,6 +18,8 @@ export const state = reactive({
   waiting: null,
   stackStatus: [],
   offline: false,
+  // The IDs of other tabs that have this review open; their saves overwrite each other.
+  otherTabs: new Set(),
   // When the page sent its first check. Until the agent answers it, the page can show an old head commit.
   openCheckSince: null,
   bootError: null,
@@ -61,6 +63,7 @@ export const SHORTCUTS = [
   { key: 'j', label: 'Next hunk', action: 'nextHunk' },
   { key: 'k', label: 'Previous hunk', action: 'previousHunk' },
   { key: 'n', label: 'Next unseen hunk', action: 'nextUnseen' },
+  { key: 'f', label: 'Next open finding', action: 'nextOpenFinding' },
   { key: 'a', label: 'Approve this hunk', action: 'approveHunk' },
   { key: 'r', label: 'Request changes on this hunk', action: 'requestChangesHunk' },
   { key: 'c', label: 'Comment on this hunk', action: 'commentHunk' },
