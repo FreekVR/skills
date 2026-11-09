@@ -62,7 +62,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   "notInAnyFlow": [],
   "findings": [
     { "id": "f1", "hunkId": "3f2a9c1d0b7e", "line": 1, "side": "RIGHT", "severity": "major",
-      "title": "<one line>", "body": "<the comment text as it will be posted>", "rule": "<which review rule found it; acceptance-criteria for an unmet criterion>",
+      "title": "<one line>", "body": "<the comment text as it will be posted>", "rule": "<which review rule found it; acceptance-criteria for an unmet criterion>", "sources": ["<review skill name, or check:<angle>>"],
       "stack": { "verdict": "fixed", "pr": 16, "prs": [14, 16], "note": "<one line: what the other PRs do with it, and the files read>" } }
   ],
   "viewer": { "login": "<login of the authenticated GitHub user>" },
@@ -116,6 +116,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - `refreshes` has one entry per `refresh` event, with its `eventId`. `status` is `done` or `error`; for `error`, `message` says what failed. `from` and `to` are the head commit before and after; they are the same when there were no new commits. Until the entry is there, the review page says that the agent is loading the new commits; after it, the page shows the result and how many hunks are new, changed or gone.
 - `changesSince` says what changed in the code since the user's last review, as a summary: at most 4 bullets, each one short line in plain words about what changed for the reviewer, for example "the four clients are regenerated from the live specs". Do not list the classes, files, options or commits that changed, and use no commit SHA or code name unless the reviewer needs it to find something; the changed hunks show the details. `from` is the commit of the user's newest submitted review (`commitId`), or the previous `pr.headSha` when the user has none; `to` is the current `pr.headSha`. The review page shows it on Home and with the result of a `refresh`, only while `to` is `pr.headSha`.
 - In a stack, every finding has `stack`: `verdict` is `fixed`, `worse`, `untouched` or `not-checked`; `fixed` and `worse` name the PR in `pr`. `check` reports a finding without it. The review page shows it under each finding as "In the stack: …", and "not checked against the other PRs" for a finding without it. The posted comment ends with that line for `fixed`, `worse` and `not-checked`.
+- `sources` lists what found a finding: the exact name of a review skill, or `check:<angle>` for a built-in check (`check:spec`, `check:code-standards`, `check:sources`, `check:tests`). It records which checks the reviewer accepts findings from, for a later choice of checks; the review page does not show it yet.
 - A finding with `hunkId: null` is about the whole PR, for example a missing acceptance criterion. It goes in the review body. Each `not-met` criterion has exactly one: `rule` `acceptance-criteria`, the criterion ID at the start of `title`. `check` reports a `not-met` criterion without it, and such a finding for a criterion that is not `not-met`.
 - `line` and `side` follow GitHub review comments: `side` is `RIGHT` for added and context lines, `LEFT` for removed lines. A finding or remark on several lines also has `startLine` and `startSide` for its first line; in a `post` event these become `start_line` and `start_side`.
 
