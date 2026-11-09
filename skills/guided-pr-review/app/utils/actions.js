@@ -240,7 +240,15 @@ export function setThreadCall(threadId, call) {
   const own = openOwnThreads().find((candidate) => candidate.threadId === threadId)
   const { [threadId]: _previous, ...others } = state.reviewer.threadCalls
   state.reviewer.threadCalls = call ? { ...others, [threadId]: call } : others
+  // Resolving a comment collapses it, also when the reviewer opened it by hand before.
+  if (call === 'resolve' && own) delete state.reviewer.collapsed?.[own.id]
   if (call === 'open' && state.reviewer.threadReplies[threadId] === undefined) state.reviewer.threadReplies[threadId] = own?.fix?.reply || ''
+  saveReviewer()
+}
+
+// Collapse or expand a comment, finding or remark; reviewer.json keeps the choice for the next session.
+export function setCollapsed(id, collapsed) {
+  state.reviewer.collapsed = { ...state.reviewer.collapsed, [id]: collapsed }
   saveReviewer()
 }
 

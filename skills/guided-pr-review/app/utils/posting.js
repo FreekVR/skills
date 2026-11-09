@@ -105,6 +105,20 @@ export function threadCall(own) {
   const call = state.reviewer.threadCalls?.[own.threadId]
   return (own.resolved ? ['unresolve', 'keep'] : ['resolve', 'open']).includes(call) ? call : undefined
 }
+// Get whether a comment starts collapsed: its author resolved it, or the reviewer chose to resolve it here.
+// A comment the AI calls not fixed, or is unsure about, stays open. A comment without an author is the reviewer's own.
+export function collapsedByDefault(comment) {
+  const author = comment.author || viewerLogin()
+  if (['not-fixed', 'unclear'].includes(comment.fix?.verdict)) return false
+  if (comment.resolved) return Boolean(author && comment.resolvedBy === author)
+  return Boolean(comment.threadId && threadCall(comment) === 'resolve')
+}
+
+// Get whether a comment, finding or remark is collapsed: the reviewer's own choice, else the default.
+export function isCollapsed(id, comment) {
+  return state.reviewer.collapsed?.[id] ?? (comment ? collapsedByDefault(comment) : false)
+}
+
 // The reviewer's comments that take a call: the open ones, and the resolved ones the AI doubts.
 export function threadsNeedingCall() { return [...openOwnThreads(), ...doubtfulResolvedThreads()] }
 export function threadsWithoutCall() { return threadsNeedingCall().filter((own) => !threadCall(own)) }

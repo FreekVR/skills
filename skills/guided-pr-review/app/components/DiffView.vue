@@ -78,7 +78,10 @@ useEventListener(document, 'pointerup', () => {
     </div>
 
     <p v-if="diff.empty" class="m-0 px-3 py-3.5 text-ui text-toned">{{ diff.empty }}</p>
-    <DiffNote v-for="note in diff.loose" :key="`${note.type}:${note.item.id}`" :note="note" />
+    <!-- The gap between the notes shows the colour behind them, so each note stands apart. -->
+    <div v-if="diff.loose.length" class="flex flex-col gap-1.5 bg-muted">
+      <DiffNote v-for="note in diff.loose" :key="`${note.type}:${note.item.id}`" :note="note" />
+    </div>
 
     <div v-if="!diff.empty" class="station-diff overflow-x-auto [container-type:inline-size]" tabindex="0" role="region" :aria-label="`Diff of ${hunk.file}`">
       <table class="w-full border-collapse font-mono text-label leading-[1.7] tabular-nums">
@@ -156,4 +159,6 @@ useEventListener(document, 'pointerup', () => {
 .station-diff tr:hover .add-line, .station-diff .add-line:focus-visible { opacity: 1; transform: none; }
 .station-diff tr.note td { padding: 0; white-space: normal; background: var(--ui-bg); font-family: var(--font-sans); }
 .station-diff tr.note + tr:not(.note) td, .station-diff tr:has(+ tr.note) td { padding-top: 0; }
+/* Notes on the same line stand apart: a band in the page colour lies between them. */
+.station-diff tr.note + tr.note td { border-top: 6px solid var(--ui-bg-muted); }
 </style>
