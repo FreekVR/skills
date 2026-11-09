@@ -1,5 +1,5 @@
 import { state, VERDICTS, REVIEW_EVENTS } from './state.js'
-import { acceptedItems, hunkById, openReviewComments, plural, severities, severityRank, verdictOf, viewerLogin } from './review.js'
+import { acceptedItems, hunkById, plural, severities, severityRank, verdictOf, viewerLogin } from './review.js'
 import { refreshState } from './panels.js'
 import { saveReviewer } from './actions.js'
 import { stackLine } from './stack.js'
@@ -147,6 +147,13 @@ export function proposedVerdict() {
   return REVIEW_EVENTS[order[Math.max(...levels.map((level) => order.indexOf(level)))]]
 }
 
+// Get the IDs of comments the page showed before that are no longer in review.json. The agent keeps every comment, so
+// a missing one was deleted on GitHub or dropped by mistake; the page says so instead of hiding it in silence.
+export function missingComments() {
+  const current = new Set((state.review.reviewComments || []).map((comment) => comment.id))
+  return (state.reviewer.knownComments || []).filter((id) => !current.has(id))
+}
+
 export function newComments() {
   const known = state.reviewer.knownComments || []
   return (state.review.reviewComments || []).filter((comment) => !known.includes(comment.id))
@@ -226,11 +233,11 @@ export function startRoundOnNewCommits() {
 
 export function hasOwnReview() { return (state.review.reviews || []).some((review) => review.author === viewerLogin()) }
 
-// The replies with text in any open thread, the reviewer's own and those of others, and in threads the review unresolves.
-// A reply that is still the AI's draft gets the disclosure.
+// The replies with text in any thread, the reviewer's own and those of others; GitHub takes a reply in a resolved
+// thread too. A reply that is still the AI's draft gets the disclosure.
 export function pendingReplies() {
   const disclosure = state.review.conventions.disclosure || {}
-  return [...openOwnThreads(), ...openReviewComments(), ...threadsToUnresolve()].filter((thread) => thread.threadId)
+  return [...postedOwnRemarks(), ...(state.review.reviewComments || [])].filter((thread) => thread.threadId)
     .map((thread) => ({ thread, body: (state.reviewer.threadReplies[thread.threadId] || '').trim() })).filter(({ body }) => body)
     .map(({ thread, body }) => ({ threadId: thread.threadId, body: withDisclosure(body, body === thread.fix?.reply?.trim() && disclosure.comment) }))
 }

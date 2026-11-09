@@ -210,6 +210,7 @@ Then judge each finding of the checks yourself, except an `acceptance-criteria` 
 
 Always verify the existing review comments from step 3, whatever the user chose above:
 
+- [ ] Keep every review comment on GitHub, by the user and by others, in `review.json`: resolved and outdated ones too, and ones you think are fixed or no longer apply. You MUST NOT remove or leave out a comment, also not on a later `check` or `refresh`, and MUST keep its `id`; your view goes in `fix` and `opinion`, which the review page shows with it.
 - [ ] Reviews: add every submitted review, by the user and by others, to `reviews`, with its body verbatim and its `commit_id` as `commitId`. You MUST leave out a `COMMENTED` review that has no body and no comments of its own.
 - [ ] Comments by others: add each one to `reviewComments` with its body and replies exactly as their authors wrote them. You MUST NOT restate, shorten or correct them.
   - For an open one, add an `opinion`: whether the comment is right (agree, disagree or not sure), and why, in one line. The opinion does not say whether the author fixed it.

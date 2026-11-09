@@ -1,8 +1,8 @@
 // The data parts of the old page's render functions. The view draws them; icon names here are names, not icons:
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
-import { acceptedItems, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, openReviewComments, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { agentState, answerFor, buildPost, isFinishing, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
+import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // A merged or closed PR whose review was quiet this many days folds away in the sessions list.
@@ -47,6 +47,8 @@ export function updates() {
   if (shown && !loading && (load.status === 'error' || !newer)) banners.push({ kind: 'refreshed', key: `refreshed-${load.eventId}`, ...load })
   else if (newer) banners.push({ kind: 'head', key: 'head', updating: loading, canStartRound: Boolean(postedReview()) })
   if (remote.error) banners.push({ kind: 'remote-error', key: `remote-error-${remote.error}`, message: remote.error })
+  const missing = missingComments()
+  if (missing.length) banners.push({ kind: 'missing-comments', key: `missing-comments-${missing.length}`, count: missing.length })
   const fresh = newComments()
   if (fresh.length) {
     banners.push({ kind: 'comments', key: `comments-${fresh.length}`, count: fresh.length, authors: [...new Set(fresh.map((comment) => comment.author))] })
@@ -116,7 +118,7 @@ export function threadActions(own) {
   if (own.resolved) {
     const doubtful = doubtfulResolved(own)
     const calls = [...(own.canUnresolve !== false ? ['unresolve'] : []), ...(doubtful ? ['keep'] : [])]
-    return { resolved: true, threadId: own.threadId, call, calls, suggested: doubtful && own.fix.verdict === 'not-fixed' ? 'unresolve' : null, canReply: call === 'unresolve' }
+    return { resolved: true, threadId: own.threadId, call, calls, suggested: doubtful && own.fix.verdict === 'not-fixed' ? 'unresolve' : null, canReply: true }
   }
   return {
     resolved: false,
@@ -197,7 +199,8 @@ export function home() {
   const total = review.hunks.length
   const seen = total - unseenHunks().length
   const items = acceptedItems()
-  const general = openReviewComments().filter((comment) => !comment.hunkId || !hunkById(comment.hunkId))
+  // Every comment outside the diff shows on Home, resolved ones too; only open ones need attention.
+  const general = commentsOutsideDiff()
   const skipped = context.skipped || []
   return { total, seen, items, general, skipped }
 }
@@ -234,8 +237,13 @@ export function homeChecks() {
     attention.push({ id: 'own', level: severityLevel(worstOwn), severity: worstOwn, icon: 'comment', title: `${plural(own.length, 'earlier comment')} of yours to decide`, line: `${first.path}${first.line ? ` line ${first.line}` : ''}${take ? `: AI says ${take.label}` : ''}` })
   }
 
-  const general = openReviewComments().filter((comment) => !comment.hunkId || !hunkById(comment.hunkId))
+  const general = commentsOutsideDiff().filter((comment) => !comment.resolved)
   if (general.length) attention.push({ id: 'comments', level: null, severity: null, icon: 'comment', title: `${plural(general.length, 'open comment')} by others outside the diff`, line: `@${general[0].author}${general[0].path ? ` on ${general[0].path}` : ''}: ${general[0].body.split('\n')[0]}` })
+  // Resolved ones need no action, but stay in view: every comment on GitHub shows on the page.
+  else {
+    const resolved = commentsOutsideDiff().filter((comment) => comment.resolved)
+    if (resolved.length) quiet.push({ id: 'comments', tone: 'quiet', title: `${plural(resolved.length, 'resolved comment')} by others outside the diff` })
+  }
 
   const context = state.review.context
   if (context.coverage) quiet.push({ id: 'coverage', tone: 'quiet', title: `Coverage: ${context.coverage.summary}` })
