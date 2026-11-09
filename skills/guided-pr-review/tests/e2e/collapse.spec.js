@@ -49,6 +49,15 @@ test('choosing Resolve on your comment collapses it at once', async ({ page }) =
   await expect(fold(note)).toHaveAttribute('aria-expanded', 'false');
 });
 
+test('dismissing a finding collapses it at once', async ({ page }) => {
+  const review = await openReview(page);
+  await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
+  await page.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(page.getByText('Dismissed · not in your review')).toBeVisible();
+  await expect(page.getByText('The TTL is 60 seconds, not one hour.')).toBeHidden();
+  await expectPoll(() => review.reviewer().collapsed?.f1 === true);
+});
+
 test('a collapsed dismissed finding says it is not in your review', async ({ page }) => {
   await openReview(page, { reviewer: { decisions: { f1: 'dismissed' }, collapsed: { f1: true } } });
   await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);

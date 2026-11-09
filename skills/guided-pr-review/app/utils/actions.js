@@ -256,6 +256,8 @@ export function setCollapsed(id, collapsed) {
 export function decideFinding(id, decision) {
   if (decision === 'open') delete state.reviewer.decisions[id]
   else state.reviewer.decisions[id] = decision
+  // A dismissed finding collapses at once, as a comment does when the reviewer resolves it.
+  if (decision === 'dismissed') setCollapsed(id, true)
   saveReviewer()
 }
 

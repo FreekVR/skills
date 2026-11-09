@@ -42,6 +42,8 @@ function save() {
 }
 
 const struck = computed(() => decision.value === 'dismissed' && 'text-muted line-through decoration-1')
+// A dismissed finding that GitHub already has stays on GitHub, so the folded note shows its GitHub state instead.
+const dismissedLocally = computed(() => decision.value === 'dismissed' && statusBadge(props.item.id, text.value).status === 'local')
 
 // The edge of the note carries its severity; a dismissed finding loses it.
 const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented' : SEVERITY_EDGES[severityLevel(select.value?.current ?? props.item.severity)]))
@@ -80,9 +82,10 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
         </div>
       </template>
       <template #folded>
-        <p v-if="decision === 'dismissed'" class="m-0 inline-flex items-center gap-1.5 text-meta text-muted">
+        <p v-if="dismissedLocally" class="m-0 inline-flex items-center gap-1.5 text-meta text-muted">
           <UIcon name="i-lucide-circle-slash" class="size-3.5" aria-hidden="true" />Dismissed · not in your review
         </p>
+        <NoteState v-else-if="decision === 'dismissed'" :id="item.id" :body="text" :decision="decision" />
       </template>
       <div v-if="editing">
         <UTextarea v-model="draft" :aria-label="isFinding ? 'Edit the finding text' : 'Edit your remark'" :rows="3" autoresize autofocus class="mt-2 w-full" />
