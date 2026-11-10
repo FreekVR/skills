@@ -17,6 +17,9 @@ const ownReview = computed(() => hasOwnReview())
 const draftCount = computed(() => localCount())
 const draftLabel = computed(() => (draftCount.value ? `Post as draft. ${plural(draftCount.value, 'remark')} not on GitHub yet.` : 'Post as draft'))
 const summary = computed(() => state.reviewer.summary.trim())
+const wholeRemarks = computed(() => wholePrRemarks())
+// The items under Your review count on after the list of whole-PR remarks, when it shows.
+const shift = computed(() => (wholeRemarks.value.length ? 1 : 0))
 const reducedMotion = usePreferredReducedMotion()
 
 const coverageCounts = computed(() => {
@@ -159,7 +162,13 @@ async function showThem() {
             />
             <TerminusSummaryTools />
           </TerminusCheckItem>
-          <TerminusCheckItem :number="2" :done="verdicts.done" section="hunk-verdicts" title="Your verdicts per hunk">
+          <TerminusCheckItem v-if="wholeRemarks.length" :number="2" section="whole-remarks" :open="true" title="Your remarks on the whole PR" :counts="plural(wholeRemarks.length, 'remark')">
+            <p :class="LEDE">
+              These go in the review body. A comment of yours that matches no code in the diff lands here too.
+            </p>
+            <NoteCard v-for="remark in wholeRemarks" :key="remark.id" type="remark" :item="remark" />
+          </TerminusCheckItem>
+          <TerminusCheckItem :number="2 + shift" :done="verdicts.done" section="hunk-verdicts" title="Your verdicts per hunk">
             <template #counts>
               <span class="font-semibold whitespace-nowrap text-success">{{ verdicts.approved }} approved</span> · <span class="font-semibold whitespace-nowrap text-error">{{ verdicts.changes.length }} changes requested</span> · <span class="whitespace-nowrap">{{ verdicts.comments }} commented</span> · <span class="whitespace-nowrap">{{ verdicts.without.length }} without</span>
             </template>
@@ -189,10 +198,10 @@ async function showThem() {
               </ul>
             </template>
           </TerminusCheckItem>
-          <TerminusCheckItem :number="3" section="preview" title="What will be posted" :counts="view.posts">
+          <TerminusCheckItem :number="3 + shift" section="preview" title="What will be posted" :counts="view.posts">
             <TerminusPreview :post="view.post" />
           </TerminusCheckItem>
-          <TerminusCheckItem :number="4" title="Verdict and post">
+          <TerminusCheckItem :number="4 + shift" title="Verdict and post">
             <div class="grid grid-cols-3 gap-2.5 max-md:grid-cols-1" role="group" aria-label="Verdict">
               <button
                 v-for="option in VERDICTS"

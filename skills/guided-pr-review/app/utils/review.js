@@ -135,6 +135,11 @@ export function outdatedRemarks() {
   return state.reviewer.remarks.filter((remark) => remark.hunkId !== null && !hunkById(remark.hunkId))
 }
 
+// Get the reviewer's remarks on the whole PR, such as a pending comment from GitHub whose code is gone. They go in the review body.
+export function wholePrRemarks() {
+  return state.reviewer.remarks.filter((remark) => remark.hunkId === null)
+}
+
 // Get the AI findings the reviewer included whose hunk new commits changed. They are not posted.
 export function outdatedFindings() {
   return state.review.findings.filter((finding) => finding.hunkId !== null && !hunkById(finding.hunkId) && decisionOf(finding) === 'accepted' && !postedInEarlierRound(finding.id))
