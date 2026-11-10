@@ -1,7 +1,7 @@
 import { state, POLL_MS, CHECK_MS } from './state.js'
 import { reviewPath, transport } from './api.js'
 import { notify } from './notify.js'
-import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isSeen, lineById, lines, noteFreshHunks, setReview, severities } from './review.js'
+import { acceptedItems, emptyReviewer, firstStationOf, hunkById, isSeen, lineById, lines, noteFreshHunks, setReview, severities } from './review.js'
 import { answerFor, applySummaryDraft, buildPost, ghCommand, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, openPath } from './navigation.js'
@@ -329,7 +329,6 @@ export function addRemark(text, severity) {
   delete state.ui.drafts[composerKey(composer)]
   state.ui.composer = null
   saveReviewer()
-  if (composer.thenNext) return nextAfterVerdict()
 }
 
 // A press on a line number starts a selection. With shift, it extends the open remark form from its first line.
@@ -395,18 +394,11 @@ export function explainMore(hunkId) {
   return sendEvent({ type: 'explain', hunkId })
 }
 
-// Give a hunk the reviewer's verdict and go to the next hunk. A verdict other than approve needs a remark first.
+// Give a hunk the reviewer's verdict and go to the next hunk.
 export function setHunkVerdict(hunkId, verdict) {
   state.reviewer.hunkVerdicts[hunkId] = verdict
   state.ui.stamp = hunkId
   saveReviewer()
-  const hasRemark = state.reviewer.remarks.some((remark) => remark.hunkId === hunkId) || state.review.findings.some((finding) => finding.hunkId === hunkId && decisionOf(finding) === 'accepted')
-  if (verdict !== 'approved' && !hasRemark) {
-    const composer = wholeHunkComposer(hunkById(hunkId))
-    if (!composer) return nextAfterVerdict()
-    openComposer({ ...composer, thenNext: true })
-    return notify(verdict === 'changes' ? 'Say what should change in a remark. Adding it takes you to the next hunk.' : 'Write your comment. Adding it takes you to the next hunk.')
-  }
   return nextAfterVerdict()
 }
 

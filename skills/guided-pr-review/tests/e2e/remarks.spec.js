@@ -77,3 +77,13 @@ for (const [key, verdict] of [['a', 'approved'], ['r', 'changes'], ['c', 'commen
     await expectPoll(() => review.reviewer().hunkVerdicts?.[H.client] === verdict);
   });
 }
+
+for (const name of ['Request changes', 'Comment']) {
+  test(`${name} on a hunk without a remark goes to the next hunk without a remark form`, async ({ page }) => {
+    await openReview(page);
+    await openClientHunk(page);
+    await page.getByRole('group', { name: /Your verdict on this hunk/ }).getByRole('button', { name }).click();
+    await expect(page.getByRole('navigation', { name: /^Hunks in/ }).getByRole('button', { name: /^A2 / })).toHaveAttribute('aria-current', 'step');
+    await expect(page.getByLabel('Remark text')).toHaveCount(0);
+  });
+}
