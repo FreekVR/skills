@@ -274,6 +274,34 @@ test('a file that is not deleted shows its lines without a button', async ({ pag
   await expect(page.getByRole('button', { name: 'Show the deleted lines' })).toHaveCount(0);
 });
 
+for (const [name, at, mutate, label] of [
+  ['modified', 'B1', undefined, 'Modified file'],
+  ['added', 'A3', undefined, 'New file'],
+  ['renamed', 'C1', undefined, 'Renamed from src/old/legacy.ts'],
+  ['deleted', 'X1', deleteFormat, 'Deleted file'],
+]) {
+  test(`the diff head of a ${name} file has its status icon with a tooltip, in line with the file name`, async ({ page }) => {
+    const review = await openReview(page, { mutate });
+    await page.goto(`${review.url}/${at}`);
+    const icon = page.getByRole('main').getByRole('img', { name: label });
+    await expect(icon).toBeVisible();
+    // The band settles its layout after the page opens, so a first hover can miss; move away and hover again.
+    await expect(async () => {
+      await page.mouse.move(0, 0);
+      await icon.hover();
+      await expect(page.getByRole('tooltip')).toHaveText(label, { timeout: 1500 });
+    }).toPass();
+    const iconBox = await icon.locator('.iconify').boundingBox();
+    const name = await icon.locator('xpath=following-sibling::span[1]').evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      const first = range.getClientRects()[0];
+      return { y: first.y, height: first.height };
+    });
+    expect(Math.abs((iconBox.y + iconBox.height / 2) - (name.y + name.height / 2))).toBeLessThanOrEqual(1);
+  });
+}
+
 test('a comment link into a deleted file shows its lines', async ({ page }) => {
   await openReview(page, {
     mutate: (data) => {
