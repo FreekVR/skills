@@ -248,3 +248,42 @@ test('shows the whole file', async ({ page }) => {
   await expect(dialog.getByRole('heading', { name: 'src/cache.ts' })).toBeVisible();
   await expect(dialog.getByText('const LAST = "end of file";')).toBeVisible();
 });
+
+// A deleted file: the format hunk, with every line removed.
+const deleteFormat = (data) => {
+  Object.assign(data.hunks.find((hunk) => hunk.id === H.format), { status: 'removed', oldStart: 1, oldLines: 2, newStart: 0, newLines: 0, lines: ['-export const unit = "C";', '-export const round = Math.round;'] });
+};
+
+test('a deleted file shows only its diff head until you show its lines', async ({ page }) => {
+  const review = await openReview(page, { mutate: deleteFormat });
+  await page.goto(`${review.url}/X1`);
+  const lines = page.getByRole('region', { name: 'Diff of src/utils/format.ts' });
+  await expect(page.getByText('src/utils/format.ts', { exact: true }).last()).toBeVisible();
+  await expect(lines).toHaveCount(0);
+  await page.getByRole('button', { name: 'Show the deleted lines' }).click();
+  await expect(lines).toBeVisible();
+  await expect(lines.getByText('export const round = Math.round;')).toBeVisible();
+  await page.getByRole('button', { name: 'Hide the deleted lines' }).click();
+  await expect(lines).toHaveCount(0);
+});
+
+test('a file that is not deleted shows its lines without a button', async ({ page }) => {
+  const review = await openReview(page);
+  await page.goto(`${review.url}/X1`);
+  await expect(page.getByRole('region', { name: 'Diff of src/utils/format.ts' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Show the deleted lines' })).toHaveCount(0);
+});
+
+test('a comment link into a deleted file shows its lines', async ({ page }) => {
+  await openReview(page, {
+    mutate: (data) => {
+      deleteFormat(data);
+      Object.assign(data.reviewComments.find((comment) => comment.id === 'c1'), { hunkId: H.format, path: 'src/utils/format.ts', line: 2, side: 'LEFT' });
+    },
+  });
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  await page.getByRole('button', { name: 'Show this comment in the flow Not in a flow' }).click();
+  await expect(page.getByRole('region', { name: 'Diff of src/utils/format.ts' })).toBeVisible();
+  await expect(page.getByRole('main').getByText('Should days come from the settings?')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Hide the deleted lines' })).toBeVisible();
+});

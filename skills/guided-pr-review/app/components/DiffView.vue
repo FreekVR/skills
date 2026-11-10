@@ -4,7 +4,7 @@ import type { CodeToken } from './DiffCode.vue'
 
 // The diff of one hunk: its head with the file tools, the notes without a line, and the rows with their notes.
 // A press on a line number starts a selection of lines; with shift it extends the open remark form.
-const props = defineProps<{ hunk: { id: string, file: string, lines: string[] } }>()
+const props = defineProps<{ hunk: { id: string, file: string, status?: string, lines: string[] } }>()
 
 interface Row { kind: string, text: string, oldNo?: number, newNo?: number, gap?: boolean }
 const diff = computed(() => hunkDiff(props.hunk))
@@ -17,6 +17,18 @@ watch(() => `${props.hunk.file}\n${props.hunk.lines.join('\n')}`, async (key) =>
   const result = await highlightRows(rows.value, props.hunk.file)
   if (key === `${props.hunk.file}\n${props.hunk.lines.join('\n')}`) tokens.value = result
 }, { immediate: true })
+
+// A deleted file shows only its head until the reviewer opens its lines. A comment link into those lines, or a remark
+// form on them, opens them as well, and they stay open.
+const deleted = computed(() => props.hunk.status === 'removed' && !diff.value.empty)
+const deletedOpen = ref(false)
+watch(() => props.hunk.id, () => {
+  deletedOpen.value = diff.value.rowNotes.flat().some((note: { item: { id: string } }) => state.ui.focusTarget === `note-${note.item.id}`)
+}, { immediate: true })
+watch(() => diff.value.composer, (composer) => {
+  if (composer) deletedOpen.value = true
+}, { immediate: true })
+const showRows = computed(() => !deleted.value || deletedOpen.value)
 
 const SIGNS: Record<string, string> = { add: '+', del: '−', ctx: ' ' }
 
@@ -69,6 +81,18 @@ useEventListener(document, 'pointerup', () => {
   <section class="mt-7 overflow-hidden rounded-card bg-muted" aria-label="Diff">
     <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 bg-elevated px-4 py-2.5 font-mono text-label text-toned">
       <span class="min-w-0 flex-auto wrap-anywhere">{{ hunk.file }}</span>
+      <UButton
+        v-if="deleted"
+        color="neutral"
+        variant="outline"
+        size="xs"
+        :icon="deletedOpen ? 'i-lucide-chevron-up' : 'i-lucide-chevron-down'"
+        class="font-sans text-meta font-normal text-toned hover:text-default"
+        :aria-expanded="deletedOpen"
+        @click="deletedOpen = !deletedOpen"
+      >
+        {{ deletedOpen ? 'Hide the deleted lines' : 'Show the deleted lines' }}
+      </UButton>
       <StationFileTools :hunk="hunk" whole />
       <span v-if="rows.length" class="whitespace-nowrap" :title="diff.ranges">
         <span class="font-semibold text-success" aria-hidden="true">+{{ diff.added }}</span>
@@ -83,7 +107,7 @@ useEventListener(document, 'pointerup', () => {
       <DiffNote v-for="note in diff.loose" :key="`${note.type}:${note.item.id}`" :note="note" />
     </div>
 
-    <div v-if="!diff.empty" class="station-diff overflow-x-auto [container-type:inline-size]" tabindex="0" role="region" :aria-label="`Diff of ${hunk.file}`">
+    <div v-if="!diff.empty && showRows" class="station-diff overflow-x-auto [container-type:inline-size]" tabindex="0" role="region" :aria-label="`Diff of ${hunk.file}`">
       <table class="w-full border-collapse font-mono text-label leading-[1.7] tabular-nums">
         <tbody>
           <template v-for="(row, index) in rows" :key="index">
