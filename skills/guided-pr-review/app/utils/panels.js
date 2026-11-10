@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedInEarlierRound, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // A merged or closed PR whose review was quiet this many days folds away in the sessions list.
@@ -344,7 +344,8 @@ export function terminus() {
   const proposal = proposedVerdict()
   const verdict = state.reviewer.verdict || proposal
   const post = buildPost('final').event
-  const general = review.findings.filter((finding) => finding.hunkId === null)
+  // Only what this review can include: a finding an earlier final review posted is on GitHub, in that review's body.
+  const general = review.findings.filter((finding) => finding.hunkId === null && !postedInEarlierRound(finding.id))
   const flows = state.lines.filter((line) => !line.id.startsWith('__'))
   return {
     posted: postedReview(),
@@ -360,7 +361,7 @@ export function terminus() {
     posts: [post.body ? 'the review body' : '', plural(post.comments.length, 'comment'), post.replies.length ? plural(post.replies.length, 'reply', 'replies') : '', post.resolve.length ? `${plural(post.resolve.length, 'thread')} to resolve` : ''].filter(Boolean).join(', '),
     general,
     openGeneral: general.filter((finding) => decisionOf(finding) === 'open').length,
-    openFindings: review.findings.filter((finding) => decisionOf(finding) === 'open'),
+    openFindings: review.findings.filter((finding) => decisionOf(finding) === 'open' && !postedInEarlierRound(finding.id)),
     outdated: outdatedRemarks(),
     flows,
     flowsDone: flows.filter((line) => line.stops.every((stop) => isSeen(stop.hunkId))).length,

@@ -254,3 +254,19 @@ test('your earlier comments include one someone else resolved that the AI doubts
   await openSubmit(page, { mutate: (data) => { Object.assign(data.ownRemarks[0], { resolved: true, resolvedBy: 'sample-author', fix: { verdict: 'unclear', note: 'Unclear.' } }); } });
   await expect(page.getByText('0 to resolve · 0 left open · 1 without a decision')).toBeVisible();
 });
+
+test('the list of whole-PR findings leaves out the ones an earlier review posted', async ({ page }) => {
+  await openSubmit(page, {
+    mutate: (data) => {
+      data.findings.push({ id: 'f4', hunkId: null, severity: 'minor', title: 'No changelog entry', body: 'The PR adds no changelog entry.', rule: 'docs' });
+      data.posts = [{ eventId: 'e1', kind: 'final', status: 'posted', message: 'ok', url: 'https://github.com/example-org/sample-widget/pull/17#pullrequestreview-10', reviewId: 10 }];
+    },
+    reviewer: { sent: [{ id: 'e1', type: 'post', kind: 'final', contents: [{ id: 'f3', body: 'The new card has no test.' }] }], reopenedAfter: 'e1' },
+  });
+  const list = page.locator('#term-findings');
+  await expect(list.getByText('No changelog entry').first()).toBeVisible();
+  await expect(list.getByText('No test for the card')).toHaveCount(0);
+  await expect(list).toContainText('1 · 1 open');
+  // f1, f2 and f4 are open; f3 is on GitHub already.
+  await expect(page.getByText('3 AI findings are still open and not posted.')).toBeVisible();
+});
