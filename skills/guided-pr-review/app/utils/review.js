@@ -99,7 +99,7 @@ export function severitySelect(finding) {
 // Get the findings and remarks the next post sends.
 export function acceptedItems() {
   const findings = state.review.findings
-    .filter((finding) => decisionOf(finding) === 'accepted' && !postedInEarlierRound(finding.id))
+    .filter((finding) => decisionOf(finding) === 'accepted' && !postedInEarlierRound(finding.id) && (finding.hunkId === null || hunkById(finding.hunkId)))
     .map((finding) => ({ id: finding.id, hunkId: finding.hunkId, startLine: finding.startLine, startSide: finding.startSide, line: finding.line, side: finding.side, severity: findingSeverity(finding), title: finding.title, rule: finding.rule, stack: finding.stack, body: findingText(finding), source: 'ai' }))
   const remarks = state.reviewer.remarks
     .filter((remark) => remark.hunkId === null || hunkById(remark.hunkId))
@@ -133,6 +133,11 @@ export function ownRemark(id) { return (state.review.ownRemarks || []).find((own
 
 export function outdatedRemarks() {
   return state.reviewer.remarks.filter((remark) => remark.hunkId !== null && !hunkById(remark.hunkId))
+}
+
+// Get the AI findings the reviewer included whose hunk new commits changed. They are not posted.
+export function outdatedFindings() {
+  return state.review.findings.filter((finding) => finding.hunkId !== null && !hunkById(finding.hunkId) && decisionOf(finding) === 'accepted' && !postedInEarlierRound(finding.id))
 }
 
 // Get the GitHub status of a remark with its label and hint.

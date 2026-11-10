@@ -1,7 +1,7 @@
 // The data parts of the old page's render functions. The view draws them; icon names here are names, not icons:
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
-import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
+import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
 import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedInEarlierRound, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
@@ -361,8 +361,9 @@ export function terminus() {
     posts: [post.body ? 'the review body' : '', plural(post.comments.length, 'comment'), post.replies.length ? plural(post.replies.length, 'reply', 'replies') : '', post.resolve.length ? `${plural(post.resolve.length, 'thread')} to resolve` : ''].filter(Boolean).join(', '),
     general,
     openGeneral: general.filter((finding) => decisionOf(finding) === 'open').length,
-    openFindings: review.findings.filter((finding) => decisionOf(finding) === 'open' && !postedInEarlierRound(finding.id)),
+    openFindings: liveFindings().filter((finding) => decisionOf(finding) === 'open' && !postedInEarlierRound(finding.id)),
     outdated: outdatedRemarks(),
+    outdatedFindings: outdatedFindings(),
     flows,
     flowsDone: flows.filter((line) => line.stops.every((stop) => isSeen(stop.hunkId))).length,
     unseenByFlow: state.lines

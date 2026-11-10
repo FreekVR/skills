@@ -270,3 +270,24 @@ test('the list of whole-PR findings leaves out the ones an earlier review posted
   // f1, f2 and f4 are open; f3 is on GitHub already.
   await expect(page.getByText('3 AI findings are still open and not posted.')).toBeVisible();
 });
+
+// f1 is on the cache hunk; new commits change that hunk, so it gets a new ID and f1's hunk is gone.
+const cacheHunkGone = (data) => { data.hunks.find((hunk) => hunk.id === H.cache).id = 'new-cache-hunk'; data.flows.forEach((flow) => flow.steps.forEach((step) => { if (step.hunkId === H.cache) step.hunkId = 'new-cache-hunk'; })); };
+
+test('an included finding whose hunk is gone is not posted, and Submit review lists it as not posted', async ({ page }) => {
+  const review = await openSubmit(page, { mutate: cacheHunkGone, reviewer: { decisions: { f1: 'accepted' } } });
+  await expect(page.locator('#term-coverage')).toContainText('TTL is in milliseconds');
+  await expect(page.locator('#term-coverage')).toContainText('They are not posted.');
+  await verdictButton(page, /^Comment/).click();
+  await page.getByLabel('Review summary').fill('A summary.');
+  await page.getByRole('main').getByRole('button', { name: 'Post new review: comment' }).click();
+  const event = await eventOf(review, 'post');
+  expect(event.body).not.toContain('TTL is in milliseconds');
+  expect(event.comments.map((comment) => comment.body).join('\n')).not.toContain('TTL is in milliseconds');
+});
+
+test('the count of open findings under the post buttons leaves out a finding whose hunk is gone', async ({ page }) => {
+  await openSubmit(page, { mutate: cacheHunkGone });
+  // f1's hunk is gone; f2 and f3 are open.
+  await expect(page.getByText('2 AI findings are still open and not posted.')).toBeVisible();
+});

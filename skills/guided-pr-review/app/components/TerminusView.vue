@@ -20,9 +20,10 @@ const summary = computed(() => state.reviewer.summary.trim())
 const reducedMotion = usePreferredReducedMotion()
 
 const coverageCounts = computed(() => {
-  const { unseen, flows, flowsDone, outdated } = view.value
+  const { unseen, flows, flowsDone, outdated, outdatedFindings } = view.value
   const total = state.review.hunks.length
-  return `${total - unseen.length} of ${plural(total, 'hunk')} · ${flows.length ? `${flowsDone} of ${plural(flows.length, 'flow')} complete` : 'no flows'}${outdated.length ? ` · ${outdated.length} remarks on changed hunks` : ''}`
+  const changed = outdated.length + outdatedFindings.length
+  return `${total - unseen.length} of ${plural(total, 'hunk')} · ${flows.length ? `${flowsDone} of ${plural(flows.length, 'flow')} complete` : 'no flows'}${changed ? ` · ${changed} not posted: their hunks changed` : ''}`
 })
 
 async function showThem() {
@@ -85,7 +86,7 @@ async function showThem() {
               <NoteCard v-for="finding in view.general" :key="finding.id" type="finding" :item="finding" />
             </template>
           </TerminusCheckItem>
-          <TerminusCheckItem :number="3" :done="view.unseen.length === 0" section="coverage" title="Hunks and flows you have seen" :counts="coverageCounts" :open="view.outdated.length > 0">
+          <TerminusCheckItem :number="3" :done="view.unseen.length === 0" section="coverage" title="Hunks and flows you have seen" :counts="coverageCounts" :open="view.outdated.length + view.outdatedFindings.length > 0">
             <template v-if="view.unseen.length">
               <div v-for="{ line, open } in view.unseenByFlow" :key="line.id" class="mt-4.5 first:mt-0">
                 <p class="m-0 mb-1.5 flex flex-wrap items-center gap-2">
@@ -106,11 +107,12 @@ async function showThem() {
             <p v-else :class="LEDE">
               You have seen every hunk.
             </p>
-            <template v-if="view.outdated.length">
+            <template v-if="view.outdated.length + view.outdatedFindings.length">
               <p :class="LEDE">
-                Remarks on hunks that changed since you wrote them. They are not posted.
+                Remarks and included AI findings on hunks that changed since. They are not posted.
               </p>
               <NoteCard v-for="remark in view.outdated" :key="remark.id" type="remark" :item="remark" />
+              <NoteCard v-for="finding in view.outdatedFindings" :key="finding.id" type="finding" :item="finding" />
             </template>
           </TerminusCheckItem>
           <TerminusCheckItem v-if="notPosted" :number="4" section="not-posted" title="AI findings on hunks you are not posting" :counts="notPosted.counts">
