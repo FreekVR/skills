@@ -84,7 +84,9 @@ Every skill MUST work in any harness that supports `SKILL.md`, such as Claude Co
 - A skill MUST name the end goal and the exact shape of the result first: format, location and what makes it done. The route to it comes second.
 - You SHOULD name existing concepts where they apply (for example "conventional commits", "RFC 2119", "Given/When/Then") instead of explaining them. The model already knows them.
 - You MUST NOT invent new concepts or terms. Use the ones the model and the user already know, and use one term per concept throughout the skill.
-- Rules MUST use RFC 2119 keywords. You SHOULD NOT explain why a rule exists. Add the reason only when the model repeatedly gets the rule wrong or ignores it.
+- A rule MUST use an RFC 2119 keyword. A rule is a constraint that holds across steps, such as "You MUST NOT push without the user's confirmation". A step in a numbered procedure is an instruction: write it in the imperative, without a keyword. When breaking the step loses data or writes to an external system, use MUST or MUST NOT.
+- You SHOULD NOT explain why a rule exists. You MAY add a short reason when the model repeatedly gets the rule wrong or ignores it, or when the rule guards against data loss or a write to an external system.
+- You SHOULD NOT rewrite existing text only to make it match the rules in this section when it already reads clearly.
 - You SHOULD give one good example instead of prose. Add a wrong/right pair only for a mistake the model keeps making.
 - You SHOULD NOT prescribe specific commands or API calls. Do so only when it is critical that the step is always done that way, or when the model got it wrong without the exact instruction.
 - A step whose result has to be the same every time MUST have a fixed form: a script, a reference, an inline code block, a command or an API call.
