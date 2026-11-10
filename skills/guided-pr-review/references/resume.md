@@ -14,9 +14,14 @@ Read this when the review directory already holds `review.json`: the reviewer st
 6. If it changed:
    1. Write `changesSince` (see `references/review-data.md`).
    2. Run steps 3 and 4 again. Hunk IDs depend on the hunk content, so unchanged hunks keep their ID, explanation and "seen" state, and changed hunks get a new ID and show as not reviewed.
-   3. Run steps 5 to 8 for the new hunks only, and keep the findings of unchanged hunks with their IDs.
-   4. Run `check <review-dir>/review.json --diff <diff-file>` again, with the new diff file.
-   5. Do step 9.
+   3. Run steps 5 to 8 for the new hunks only.
+   4. Check the other AI findings against the new code: each finding on an unchanged hunk or on the whole PR that the reviewer did not dismiss (`decisions` in `reviewer.json`) and that no final review posted yet.
+      - Still holds: keep it with its ID.
+      - Holds in another form: rewrite its `title` and `body`, with the same ID.
+      - Fixed by the new commits: remove it when it is open. You MUST NOT remove a finding the reviewer included: start its `body` with a line that says the new commits fixed it, so the reviewer can dismiss it.
+      - On a hunk that is gone: leave it as it is. The review page does not post it.
+   5. Run `check <review-dir>/review.json --diff <diff-file>` again, with the new diff file.
+   6. Do step 9.
 7. In a stack, follow the Resume section of `references/stack.md` as well.
 
 ## Old hunk IDs
