@@ -1,5 +1,5 @@
 import { state, SHORTCUTS } from './state.js'
-import { decisionOf, hunkById, isSeen, lineById, lines, liveFindings, stationCode, verdictOf } from './review.js'
+import { decisionOf, hunkById, isSeen, lineById, lines, liveFindings, stationCode } from './review.js'
 import { postedReview } from './posting.js'
 import { markSeen, saveReviewer, setHunkVerdict } from './actions.js'
 import { notify } from './notify.js'
@@ -137,14 +137,18 @@ export function step(delta) {
   if (lineIndex > 0) return go(all[lineIndex - 1].id, all[lineIndex - 1].stops.length - 1)
 }
 
-// After a verdict: the next hunk in the flow. At the end of the flow, the first hunk in it without a verdict;
-// only when every hunk of the flow has one, the next flow or Submit review.
+// After a verdict: the next unseen hunk in reading order after the hunk in view, else the first unseen hunk from the top.
+// When the reviewer saw every hunk, Submit review.
 export function nextAfterVerdict() {
-  if (state.view.kind !== 'station') return step(1)
-  const line = lineById(state.view.line)
-  if (state.view.index + 1 < line.stops.length) return step(1)
-  const open = line.stops.findIndex((stop) => !verdictOf(stop.hunkId))
-  return open === -1 ? step(1) : go(line.id, open)
+  const next = nextStopWhere((hunkId) => !isSeen(hunkId))
+  return next ? go(next.line, next.index) : goTerminus()
+}
+
+// The first hunk in reading order after the hunk in view whose ID passes the check; after the last one, start at the top.
+function nextStopWhere(check) {
+  const stops = lines().flatMap((line) => line.stops.map((stop, index) => ({ line: line.id, index, hunkId: stop.hunkId })))
+  const at = state.view.kind === 'station' ? stops.findIndex((stop) => stop.line === state.view.line && stop.index === state.view.index) : -1
+  return [...stops.slice(at + 1), ...stops.slice(0, at + 1)].find((stop) => check(stop.hunkId))
 }
 
 export function nextUnseen() {
@@ -172,9 +176,7 @@ export function showUnseen() { state.ui.terminusOpen = { ...state.ui.terminusOpe
 // Go to the next hunk with an open finding, in reading order after the hunk in view; after the last one, start at the top.
 export function nextOpenFinding() {
   const open = new Set(liveFindings().filter((finding) => finding.hunkId && decisionOf(finding) === 'open').map((finding) => finding.hunkId))
-  const stops = lines().flatMap((line) => line.stops.map((stop, index) => ({ line: line.id, index, hunkId: stop.hunkId })))
-  const at = state.view.kind === 'station' ? stops.findIndex((stop) => stop.line === state.view.line && stop.index === state.view.index) : -1
-  const next = [...stops.slice(at + 1), ...stops.slice(0, at + 1)].find((stop) => open.has(stop.hunkId))
+  const next = nextStopWhere((hunkId) => open.has(hunkId))
   if (next) go(next.line, next.index)
   else notify('No open findings left.')
 }
