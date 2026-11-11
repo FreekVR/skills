@@ -39,6 +39,13 @@ test('proposes approve when no remark is accepted', async ({ page }) => {
   await expect(verdictButton(page, /^Approve/)).toContainText('proposed');
 });
 
+// After new commits, a hunk with your "changes" verdict can be gone from the review: it no longer counts.
+test('proposes approve when only a hunk that is gone has a changes verdict', async ({ page }) => {
+  await openSubmit(page, { mutate: noOwnReview, reviewer: { seen: ALL, hunkVerdicts: { ...approvedAll, 'an-older-hunk': 'changes' } } });
+  await expect(verdictButton(page, /^Approve/)).toContainText('proposed');
+  await expect(verdictButton(page, /^Request changes/)).not.toContainText('proposed');
+});
+
 test('presses each of the three verdict buttons', async ({ page }) => {
   const review = await openSubmit(page, { mutate: noOwnReview, reviewer: { seen: ALL, hunkVerdicts: approvedAll } });
   for (const [name, verdict] of [[/^Request changes/, 'REQUEST_CHANGES'], [/^Comment/, 'COMMENT'], [/^Approve/, 'APPROVE']]) {
