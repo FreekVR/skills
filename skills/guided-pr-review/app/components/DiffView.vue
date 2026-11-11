@@ -4,7 +4,19 @@ import type { CodeToken } from './DiffCode.vue'
 
 // The diff of one hunk: its head with the file tools, the notes without a line, and the rows with their notes.
 // A press on a line number starts a selection of lines; with shift it extends the open remark form.
-const props = defineProps<{ hunk: { id: string, file: string, status?: string, lines: string[] } }>()
+const props = defineProps<{ hunk: { id: string, file: string, status?: string, oldFile?: string, lines: string[] } }>()
+
+// The status of the file in the head, as an icon with a tooltip.
+const STATUSES: Record<string, { icon: string, label: string }> = {
+  added: { icon: 'i-lucide-file-plus', label: 'New file' },
+  modified: { icon: 'i-lucide-file-pen', label: 'Modified file' },
+  removed: { icon: 'i-lucide-file-minus', label: 'Deleted file' },
+  renamed: { icon: 'i-lucide-file-symlink', label: 'Renamed file' },
+}
+const fileStatus = computed(() => {
+  const status = STATUSES[props.hunk.status!]!
+  return props.hunk.status === 'renamed' && props.hunk.oldFile ? { ...status, label: `Renamed from ${props.hunk.oldFile}` } : status
+})
 
 interface Row { kind: string, text: string, oldNo?: number, newNo?: number, gap?: boolean }
 const diff = computed(() => hunkDiff(props.hunk))
@@ -80,7 +92,15 @@ useEventListener(document, 'pointerup', () => {
 <template>
   <section class="mt-7 overflow-hidden rounded-card bg-muted" aria-label="Diff">
     <div class="flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5 bg-elevated px-4 py-2.5 font-mono text-label text-toned">
-      <span class="min-w-0 flex-auto wrap-anywhere">{{ hunk.file }}</span>
+      <!-- The icon box is one line high, so the icon stays on the first line of a long path. -->
+      <span class="flex min-w-0 flex-auto items-start gap-2">
+        <UTooltip :text="fileStatus.label">
+          <span class="flex h-[1.5em] shrink-0 items-center rounded-sm" tabindex="0" role="img" :aria-label="fileStatus.label" data-file-status>
+            <UIcon :name="fileStatus.icon" class="size-4" aria-hidden="true" />
+          </span>
+        </UTooltip>
+        <span class="min-w-0 wrap-anywhere">{{ hunk.file }}</span>
+      </span>
       <UButton
         v-if="deleted"
         color="neutral"
