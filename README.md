@@ -55,6 +55,8 @@ npx skills add FreekVR/skills -g
 
 Keep them current with `npx skills check` and `npx skills update`.
 
+Some skills build a web page on your computer the first time you use them and after each update, with pnpm. Any pnpm works: it switches to the version the skill names. The agent asks before it installs or builds.
+
 ### Manually
 
 Copy or symlink a folder from `skills/` into your harness's skills directory, for example `.agents/skills/`, `.claude/skills/` or `.vibe/skills/`.

@@ -132,11 +132,11 @@ When the task is done and the user corrected you, or this skill gave wrong or in
 ### Scripts
 
 - Scripts MUST use POSIX shell, `python3` or `node`, with the standard library only.
-- Scripts MUST NOT access the network or install packages.
+- Scripts MUST NOT access the network or install packages, except the build step that the web app exception below allows.
 - Scripts MUST NOT write outside the working directory, and MUST NOT change git state unless the skill exists to do that.
 - Exception: a script MAY write state that must outlive a session to a per-user data directory: `$XDG_STATE_HOME/<skill-name>/`, or `~/.local/state/<skill-name>/` when `XDG_STATE_HOME` is not set. `SKILL.md` MUST name what is stored there and when it is deleted.
 - `SKILL.md` MUST say how to run each script.
-- Exception: a skill MAY ship a web app as source plus a committed build that runs with `node` only, for example a Nuxt `.output`. The build MAY contain third-party code. Its build tools MUST be development dependencies of the skill, and the agent MUST NOT build or install anything when the skill runs.
+- Exception: a skill MAY ship a web app as source that the agent builds on the user's computer, with the package manager that the skill's `package.json` names in `packageManager` and `devEngines`. The agent MUST ask the user before it installs or builds, and builds only when the build is missing or does not fit the skill's sources, for example on first use and after an update. The built files MUST NOT be committed. A page that the skill also offers without the agent, such as a static page, MUST work without that build; a committed single file for that page is allowed.
 
 ### Trigger tests
 

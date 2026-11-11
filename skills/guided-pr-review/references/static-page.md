@@ -1,6 +1,6 @@
 # Static review page
 
-Read this when you cannot run a background process and act on each line it prints (Preflight item 5). The review page is then one HTML file, without the agent.
+Read this when you cannot run a background process and act on each line it prints (Preflight item 5), or when the review page is not built (Preflight item 3). The review page is then one HTML file, without the agent, made from the committed `assets/review-page.html`; it needs no build.
 
 - Skip steps 1 and 2: do not run the review server or the watch.
 - Do steps 3 to 8 as usual. In step 9, instead of the review server:

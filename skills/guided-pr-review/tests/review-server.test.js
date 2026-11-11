@@ -1,6 +1,6 @@
 'use strict';
 // Run with: node --test skills/guided-pr-review/tests/*.test.js
-// Needs the built server in .output (npm run build).
+// Needs the built server in .output (pnpm build).
 
 const test = require('node:test');
 const assert = require('node:assert');
@@ -52,6 +52,23 @@ test('starts one server for all reviews, reuses it, and starts a new one after i
   await until(async () => !(await fetch(`${url}api/server`).catch(() => null)));
   launch(home);
   assert.notStrictEqual(JSON.parse(fs.readFileSync(path.join(home, 'guided-pr-review', 'server.json'), 'utf8')).pid, pid);
+});
+
+test('restarts a running server that runs another build, so the page never comes from removed script files', async (t) => {
+  const { home } = stateHome();
+  launch(home);
+  t.after(() => {
+    try { stopServer(home); } catch { /* already stopped */ }
+    fs.rmSync(home, { recursive: true, force: true });
+  });
+  const file = path.join(home, 'guided-pr-review', 'server.json');
+  const old = JSON.parse(fs.readFileSync(file, 'utf8'));
+  fs.writeFileSync(file, JSON.stringify({ ...old, build: 'an older build' }));
+  launch(home);
+  const now = JSON.parse(fs.readFileSync(file, 'utf8'));
+  assert.notStrictEqual(now.pid, old.pid);
+  assert.notStrictEqual(now.build, 'an older build');
+  assert.throws(() => process.kill(old.pid, 0));
 });
 
 test('the watch prints each event the page sends, and the review shows an agent while it runs', async (t) => {
