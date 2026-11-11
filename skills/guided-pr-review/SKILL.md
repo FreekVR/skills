@@ -81,12 +81,13 @@ Each event from the review page is one request. The watch prints it as an `EVENT
   - In a stack, also follow "Step 2" in `references/stack.md`.
 - `refresh`: follow `references/resume.md` for a changed head commit. After it loaded a new head commit, also write a new `fix` for each open posted comment, the user's and others', and for each of the user's comments that someone else resolved, as in step 8. Report the result in `refreshes` and `changesSince`, not in the chat. In a stack, also follow "Step 2" in `references/stack.md`.
 - `post`: post the payload exactly as it is: no extra text, no changed words, no other comments. Read `references/posting.md` for the GitHub requests. The button press is the reviewer's approval. You MUST NOT post at any other moment, and you MUST NOT ask for a second approval in the chat.
-- `start-review`: see "Step 2" in `references/stack.md`.
+- `start-review`: see "Step 2" in `references/stack.md`. The reviewer's click is the request to start, so start at once: you MUST NOT ask for an OK to start in the chat. The questions of the review steps stay, such as the worktree question of Preflight item 8 and the angle and skill questions.
 
 Rules while the review page is open:
 
 - Handle every event in silence: the review page shows the result, so you MUST NOT write anything in the chat for it, not even a short confirmation. The exceptions are the final `post` and `finish`: after those, do step 10. When the user asks you something in the chat instead, answer there too.
 - You MUST write the result of each event to `review.json` before you write anything in the chat.
+- Before you end a turn, handle every event that waits in the watch output, also one that came in while you handled another. A `start-review` right after a final `post` comes before the closing message of step 10. You MUST NOT end a turn with an event left for later, except for a question to the user, asked as the next rules say.
 - Until `finish`, you MUST NOT use a tool that waits for the user's answer, such as a question with choices: ask in plain chat text, so you keep handling events. The only exception is in `references/stack.md`.
 - Before every question you ask the user in the chat, run `node scripts/review-data.js waiting "<question>" <review-dir>...` with the review directory of every review this session handles, so each of those review pages shows that you wait. After the answer, run `node scripts/review-data.js answered <review-dir>...` with the same directories.
 - When the user says that the review page waits for an answer, read the watch output: an event you were not woken for may be there.
