@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // A colleague's open comment that is not on a hunk of the diff. It is not the reviewer's remark and is not posted again.
 type Reply = { author: string, body: string, at?: string }
-type Comment = { id: string, author: string, body: string, url?: string, line?: number, replies?: Reply[], fix?: { verdict: string, note?: string }, resolved?: boolean, resolvedBy?: string, opinion?: { stance: string, text: string } }
+type Comment = { id: string, author: string, body: string, at?: string, url?: string, line?: number, replies?: Reply[], fix?: { verdict: string, note?: string }, resolved?: boolean, resolvedBy?: string, opinion?: { stance: string, text: string } }
 defineProps<{ comment: Comment }>()
 </script>
 
@@ -14,7 +14,7 @@ defineProps<{ comment: Comment }>()
         <template #head>
           <span class="block text-label leading-6 text-muted">
             <b class="text-default"><a v-if="comment.url" :href="comment.url" target="_blank" rel="noopener">@{{ comment.author }}</a><template v-else>@{{ comment.author }}</template></b>
-            commented<template v-if="comment.line"> on {{ lineLabel(comment) }}</template> · not your remark, not posted again<template v-if="comment.resolved"> · <ResolvedLabel :comment="comment" /></template>
+            commented<template v-if="comment.line"> on {{ lineLabel(comment) }}</template><template v-if="comment.at && !comment.replies?.length"> · {{ timeLabel(comment.at) }}</template> · not your remark, not posted again<template v-if="comment.resolved"> · <ResolvedLabel :comment="comment" /></template>
           </span>
         </template>
         <CommentConversation v-if="comment.replies?.length" :comment="comment" />
@@ -28,6 +28,7 @@ defineProps<{ comment: Comment }>()
           <UButton v-else color="neutral" variant="ghost" @click="copyComment(comment)">
             Copy to my review
           </UButton>
+          <NoteState :id="comment.id" :body="comment.body" github="posted" />
         </div>
       </NoteFold>
     </div>

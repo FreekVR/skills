@@ -325,7 +325,7 @@ export function addRemark(text, severity) {
   const composer = state.ui.composer
   const body = text.trim()
   if (!body) return notify('Write the remark first.', true)
-  state.reviewer.remarks.push({ id: crypto.randomUUID(), hunkId: composer.hunkId, startLine: composer.startLine, startSide: composer.startSide, line: composer.line, side: composer.side, severity, body, ...(composer.aiSuggested && { aiSuggested: true }), ...(composer.copiedFrom && { copiedFrom: composer.copiedFrom }) })
+  state.reviewer.remarks.push({ id: crypto.randomUUID(), hunkId: composer.hunkId, startLine: composer.startLine, startSide: composer.startSide, line: composer.line, side: composer.side, severity, body, at: new Date().toISOString(), ...(composer.aiSuggested && { aiSuggested: true }), ...(composer.copiedFrom && { copiedFrom: composer.copiedFrom }) })
   delete state.ui.drafts[composerKey(composer)]
   state.ui.composer = null
   saveReviewer()

@@ -131,11 +131,13 @@ const postedF1 = {
 test('a posted finding shows that it is on GitHub, also after you dismiss it', async ({ page }) => {
   await openReview(page, { ...postedF1, reviewer: { ...postedF1.reviewer, decisions: { f1: 'accepted' } } });
   await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
-  await expect(page.getByRole('img', { name: 'On GitHub' })).toBeVisible();
-  await page.getByRole('button', { name: 'Dismiss' }).click();
+  // The hunk also holds your posted comment gh-1, with an icon of its own: look at the finding's card only.
+  const finding = page.getByRole('main').getByText('TTL is in milliseconds').first().locator('xpath=ancestor::div[.//*[@data-note-state]][1]');
+  await expect(finding.getByRole('img', { name: 'On GitHub' })).toBeVisible();
+  await finding.getByRole('button', { name: 'Dismiss' }).click();
   // The finding folds away, and the folded note keeps the GitHub state in view.
-  await expect(page.getByRole('img', { name: 'On GitHub' })).toHaveCount(1);
-  await expect(page.getByRole('img', { name: 'On GitHub' })).toBeVisible();
+  await expect(finding.getByRole('img', { name: 'On GitHub' })).toHaveCount(1);
+  await expect(finding.getByRole('img', { name: 'On GitHub' })).toBeVisible();
 });
 
 test('a remark shows its GitHub state as an icon', async ({ page }) => {

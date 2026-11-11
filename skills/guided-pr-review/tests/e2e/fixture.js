@@ -71,7 +71,7 @@ function review() {
     ],
     notInAnyFlow: [H.format],
     findings: [
-      { id: 'f1', hunkId: H.cache, line: 2, side: 'RIGHT', severity: 'major', title: 'TTL is in milliseconds', body: 'The TTL is 60 seconds, not one hour.', rule: 'correctness' },
+      { id: 'f1', hunkId: H.cache, line: 2, side: 'RIGHT', severity: 'major', at: '2026-10-21T08:15:00Z', title: 'TTL is in milliseconds', body: 'The TTL is 60 seconds, not one hour.', rule: 'correctness' },
       { id: 'f2', hunkId: H.card, line: 2, side: 'RIGHT', severity: 'nit', title: 'Name the map callback', body: 'Use a named function for readability.', rule: 'style' },
       { id: 'f3', hunkId: null, severity: 'medium', title: 'No test for the card', body: 'The new card has no test.', rule: 'tests' },
     ],
@@ -81,7 +81,7 @@ function review() {
     ],
     reviewComments: [
       { id: 'c1', reviewId: 501, threadId: 'T-c1', author: 'other-reviewer', url: 'https://github.com/example-org/sample-widget/pull/17#discussion_r1', hunkId: H.client, path: 'src/api/weatherClient.ts', line: 11, side: 'RIGHT',
-        body: 'Should days come from the settings?', diffHunk: '@@ -10,2 +10,3 @@\n const url = base + "/forecast";\n+const days = 3;', resolved: false,
+        body: 'Should days come from the settings?', at: '2026-10-19T09:30:00Z', diffHunk: '@@ -10,2 +10,3 @@\n const url = base + "/forecast";\n+const days = 3;', resolved: false,
         replies: [{ author: 'sample-author', body: 'Good idea, later.', at: '2026-10-20T10:00:00Z' }],
         opinion: { stance: 'agree', text: 'A setting avoids a deploy for a change.' },
         fix: { verdict: 'not-fixed', note: 'Line 11 still has the constant.' } },

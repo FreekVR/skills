@@ -62,7 +62,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   "notInAnyFlow": [],
   "findings": [
     { "id": "f1", "hunkId": "3f2a9c1d0b7e", "line": 1, "side": "RIGHT", "severity": "major",
-      "title": "<one line>", "body": "<the comment text as it will be posted>", "rule": "<which review rule found it; acceptance-criteria for an unmet criterion>", "sources": ["<review skill name, or check:<angle>>"],
+      "title": "<one line>", "body": "<the comment text as it will be posted>", "at": "<ISO time you wrote it>", "rule": "<which review rule found it; acceptance-criteria for an unmet criterion>", "sources": ["<review skill name, or check:<angle>>"],
       "stack": { "verdict": "fixed", "pr": 16, "prs": [14, 16], "note": "<one line: what the other PRs do with it, and the files read>" } }
   ],
   "viewer": { "login": "<login of the authenticated GitHub user>" },
@@ -71,14 +71,14 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   ],
   "reviewComments": [
     { "id": "c1", "reviewId": 5653742310, "threadId": "<GraphQL ID of the thread>", "author": "other-reviewer", "url": "<link to the comment>", "hunkId": "3f2a9c1d0b7e", "path": "src/cache.ts", "line": 2, "side": "RIGHT",
-      "body": "<the comment exactly as its author wrote it>", "diffHunk": "<the comment's diff_hunk from GitHub>", "resolved": false, "canUnresolve": true,
+      "body": "<the comment exactly as its author wrote it>", "at": "<ISO time GitHub created it>", "diffHunk": "<the comment's diff_hunk from GitHub>", "resolved": false, "canUnresolve": true,
       "replies": [ { "author": "sample-author", "body": "<text>", "at": "<ISO time>" } ],
       "opinion": { "stance": "agree", "text": "<one line: why the comment is right or wrong>" },
       "fix": { "verdict": "fixed", "note": "<one line: what changed, with the commit or line>" } }
   ],
   "ownRemarks": [
     { "id": "gh-123456", "state": "posted", "reviewId": 5653742311, "threadId": "<GraphQL ID of the thread>", "hunkId": "3f2a9c1d0b7e", "path": "src/cache.ts", "line": 1, "side": "RIGHT",
-      "body": "<the user's comment, without severity label>", "severity": "minor", "severitySource": "ai", "url": "<link, posted only>",
+      "body": "<the user's comment, without severity label>", "at": "<ISO time GitHub created it>", "severity": "minor", "severitySource": "ai", "url": "<link, posted only>",
       "diffHunk": "<the comment's diff_hunk from GitHub>", "resolved": false, "resolvedBy": null, "outdated": false, "canResolve": true, "canUnresolve": true,
       "replies": [ { "author": "sample-author", "body": "<text>", "at": "<ISO time>" } ],
       "opinion": { "stance": "agree", "text": "<one line: why the comment is right or wrong>" },
@@ -108,6 +108,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
 - `viewer.login` is the authenticated GitHub user; the review page shows that account's avatar on the user's own remarks, and none when `viewer` is missing.
 - `pr.body` is the PR description, verbatim; the home page shows it as a collapsible block.
 - `pr.localPath` is set for a big PR only. The review server then serves whole files from the worktree, and the review page links each file to VS Code and to its folder, and a PHP file also to PhpStorm. Without it, the server serves whole files from `files/` in the review directory. The server serves only files that a hunk changes.
+- Every comment, reply and finding has `at`, the time it was made: GitHub's `createdAt` for comments and replies, the time you wrote it for a finding. A rewritten finding keeps its `at`. The review page shows it next to the author, and gives the reviewer's own remarks an `at` in `reviewer.json`.
 - A comment's `hunkId` and `line` point at the current diff, for `reviewComments` and `ownRemarks` alike. For an outdated comment, GitHub's line is in an older commit: find the commented line from the last line of `diffHunk` in the current hunks of `path`, and write that hunk and its line. When that code is no longer in the diff, set `hunkId` to null. The review page puts a pending own comment with `hunkId` null in the reviewer's remarks on the whole PR, where they can delete it.
 - `ownRemarks` are the user's own review comments. The review page loads the `pending` ones and the `ownPendingReview` body into the reviewer's remarks and summary once, so they are posted again with the review. `posted` ones are not posted again. `severity` is the label the comment starts with. When it has none, the agent sets the severity it would give the comment as a finding, in the same pass that writes `opinion`, and `severitySource` is `ai`; the review page shows that mark and the reviewer can change it. A comment without `severity` gets the lowest one.
 - `opinion` on a comment says whether the comment is right, not whether it is fixed. Comments by others and the user's own comments both get one. The review page shows the opinion right under the comment, and `fix` below it. On a pending remark that the reviewer edited, the review page hides the opinion.
@@ -130,7 +131,7 @@ Only the writer in the table MAY write a file. The review page reloads `review.j
   "decisions": { "f1": "accepted" },
   "edits": { "f1": "<reviewer's edited text of the finding>" },
   "severities": { "f1": "nit" },
-  "remarks": [ { "id": "r1", "hunkId": "3f2a9c1d0b7e", "startLine": 1, "startSide": "RIGHT", "line": 3, "side": "RIGHT", "severity": "minor", "body": "<text>", "copiedFrom": "c1" } ],
+  "remarks": [ { "id": "r1", "at": "<ISO time>", "hunkId": "3f2a9c1d0b7e", "startLine": 1, "startSide": "RIGHT", "line": 3, "side": "RIGHT", "severity": "minor", "body": "<text>", "copiedFrom": "c1" } ],
   "summary": "<review body written by the reviewer>",
   "verdict": "REQUEST_CHANGES",
   "hunkVerdicts": { "3f2a9c1d0b7e": "approved" },
