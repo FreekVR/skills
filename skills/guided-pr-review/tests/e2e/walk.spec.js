@@ -69,20 +69,28 @@ test('a flow that changed since you left it opens at its first unseen hunk', asy
   await expect(stop(page, 'A3')).toHaveAttribute('aria-current', 'step');
 });
 
-test('a verdict on the last hunk of a flow goes back to the first hunk without a verdict', async ({ page }) => {
-  await openReview(page, { reviewer: { hunkVerdicts: { [H.cache]: 'approved' } } });
+test('a verdict goes to the next hunk you have not seen, past the ones you saw', async ({ page }) => {
+  await openReview(page, { reviewer: { seen: [H.cache, H.card] } });
   await openFlow(page, 'Show the forecast');
-  await stop(page, 'A3').click();
+  await expect(stop(page, 'A1')).toHaveAttribute('aria-current', 'step');
+  await page.keyboard.press('a');
+  await expect(stop(page, 'B2')).toHaveAttribute('aria-current', 'step');
+});
+
+test('after the last unseen hunk in reading order, a verdict goes to the first unseen hunk from the top', async ({ page }) => {
+  await openReview(page, { reviewer: { seen: Object.values(H).filter((id) => id !== H.client) } });
+  await openFlow(page, 'Moved and added files');
+  await stop(page, 'C2').click();
   await page.keyboard.press('a');
   await expect(stop(page, 'A1')).toHaveAttribute('aria-current', 'step');
 });
 
-test('a verdict on the last hunk goes to the next flow once every hunk of the flow has one', async ({ page }) => {
-  await openReview(page, { reviewer: { hunkVerdicts: { [H.client]: 'approved', [H.cache]: 'approved' } } });
+test('a verdict on the last unseen hunk opens Submit review', async ({ page }) => {
+  await openReview(page, { reviewer: { seen: Object.values(H).filter((id) => id !== H.client) } });
   await openFlow(page, 'Show the forecast');
-  await stop(page, 'A3').click();
+  await expect(stop(page, 'A1')).toHaveAttribute('aria-current', 'step');
   await page.keyboard.press('a');
-  await expect(stop(page, 'B1')).toHaveAttribute('aria-current', 'step');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Post a new review');
 });
 
 test('keyboard: j, k and n move between hunks', async ({ page }) => {
