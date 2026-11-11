@@ -315,3 +315,9 @@ test('a comment link into a deleted file shows its lines', async ({ page }) => {
   await expect(page.getByRole('main').getByText('Should days come from the settings?')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Hide the deleted lines' })).toBeVisible();
 });
+
+test('an outdated comment says that its code changed since', async ({ page }) => {
+  const review = await openReview(page, { mutate: (data) => { data.reviewComments.find((comment) => comment.id === 'c1').outdated = true; } });
+  await page.goto(`${review.url}/A1`);
+  await expect(page.getByRole('main').getByText('outdated: the code changed since')).toBeVisible();
+});

@@ -55,5 +55,5 @@ A stack is a chain of PRs in one repository: each PR's base branch is the head b
 
 - A rebase of a lower PR gives every PR above it a new head commit. Update the reviews of this session from the bottom up.
   1. Get the old hunk IDs as "Old hunk IDs" in `references/resume.md` says, so you compare with what the reviewer saw.
-  2. Run steps 4 to 8 as for a changed head commit: a finding whose hunk ID comes back in the new hunks stays as it is. A finding whose hunk is gone is dropped, or written again for the new hunk when the problem is still there. A posted comment gets a new `fix`, as in step 8.
+  2. Run steps 4 to 8 as for a changed head commit: a finding whose hunk ID comes back in the new hunks stays as it is. A finding whose hunk is gone is dropped, or written again for the new hunk when the problem is still there. A posted comment gets a new `fix`, as in step 8. Match every comment to the new hunks, as `references/review-data.md` says for `hunkId` and `line`.
 - A `start-review` event that the review page sent after `finish`, while no agent watched, still waits: handle it as Step 2 above says.

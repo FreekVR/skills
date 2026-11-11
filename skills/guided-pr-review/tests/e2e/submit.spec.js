@@ -303,3 +303,21 @@ test('an included finding whose hunk is gone offers only Dismiss, which takes it
   await card.getByRole('button', { name: 'Dismiss' }).click();
   await expect(page.locator('#term-coverage')).not.toContainText('TTL is in milliseconds');
 });
+
+// A pending comment of yours on GitHub whose code is gone: the agent gave it no hunk.
+const pendingWithoutHunk = (data) => {
+  data.ownRemarks.push({ id: 'gh-9', state: 'pending', hunkId: null, path: 'docker-compose.yml', line: 96, side: 'RIGHT', body: 'Why two jane commands?', severity: 'minor' });
+};
+
+test('a pending comment without a hunk shows in your remarks on the whole PR, where you can delete it', async ({ page }) => {
+  const review = await openSubmit(page, { mutate: pendingWithoutHunk });
+  const list = page.locator('#term-whole-remarks');
+  await expect(list.getByText('Why two jane commands?')).toBeVisible();
+  await list.getByRole('button', { name: 'Delete' }).click();
+  await expect(page.locator('#term-whole-remarks')).toHaveCount(0);
+  await verdictButton(page, /^Comment/).click();
+  await page.getByLabel('Review summary').fill('A summary.');
+  await page.getByRole('main').getByRole('button', { name: 'Post new review: comment' }).click();
+  const event = await eventOf(review, 'post');
+  expect(event.body).not.toContain('Why two jane commands?');
+});

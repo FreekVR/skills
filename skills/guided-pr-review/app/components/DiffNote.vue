@@ -42,7 +42,7 @@ const folded = computed(() => isCollapsed(item.value.id, item.value))
           <UAvatar :src="avatar(item.author)" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
           <span class="text-meta text-muted">
             <b><a v-if="item.url" :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">@{{ item.author }}</a><template v-else>@{{ item.author }}</template></b>
-            commented{{ item.line ? ` on ${lineLabel(item)}` : '' }} · not your remark, not posted again<template v-if="item.resolved"> · <ResolvedLabel :comment="item" /></template>
+            commented{{ item.line ? ` on ${lineLabel(item)}` : '' }}<template v-if="item.outdated"> · outdated: the code changed since</template> · not your remark, not posted again<template v-if="item.resolved"> · <ResolvedLabel :comment="item" /></template>
           </span>
         </div>
       </template>
@@ -74,7 +74,7 @@ const folded = computed(() => isCollapsed(item.value.id, item.value))
           <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
           <DiffSeverity :severity="item.severity" />
           <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
-          <span class="text-meta text-muted">You posted this earlier<template v-if="item.url"> · <a :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">open on GitHub</a></template>. It is not posted again.<template v-if="item.resolved"> <ResolvedLabel :comment="item" /></template></span>
+          <span class="text-meta text-muted">You posted this earlier<template v-if="item.outdated">, on code that changed since</template><template v-if="item.url"> · <a :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">open on GitHub</a></template>. It is not posted again.<template v-if="item.resolved"> <ResolvedLabel :comment="item" /></template></span>
         </div>
       </template>
       <CommentConversation v-if="item.replies?.length" :comment="item">

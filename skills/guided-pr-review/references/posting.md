@@ -5,7 +5,7 @@ Read this when the review page sends a `post` event. Use the GitHub REST API for
 A GitHub user has at most one pending (draft) review per PR. Each `post` event holds all remarks so far, so it replaces the pending review instead of adding to it.
 
 1. Find your pending review: `GET /repos/{owner}/{repo}/pulls/{number}/reviews`, the entry with `state` `PENDING` from the authenticated user.
-2. If there is one and its ID is the `reviewId` of an earlier draft in `posts` or the `id` of `ownPendingReview`, delete it; its remarks are already in the review page, so the new review keeps them: `DELETE /repos/{owner}/{repo}/pulls/{number}/reviews/{review_id}`. If there is one that this review did not create, the user started it on GitHub: do not delete it. Add an entry to `posts` with `status: error` that says so, and tell the user in the chat.
+2. If there is one and its ID is the `reviewId` of an earlier draft in `posts` or the `id` of `ownPendingReview`, delete it; its remarks are already in the review page, so the new review keeps them: `DELETE /repos/{owner}/{repo}/pulls/{number}/reviews/{review_id}`. If there is one that this review does not know, you MUST NOT delete it and MUST NOT post: its comments are not on the review page. Read it into `review.json` as step 8 of `SKILL.md` says, and add an entry to `posts` with `status: error` and the message "Your draft on GitHub had <n> comments that were not on this page yet. They are in your review now. Check them, then post again." The next `post` then replaces it.
 3. Create the review: `POST /repos/{owner}/{repo}/pulls/{number}/reviews` with:
    - `commit_id`: `pr.headSha`.
    - `body`: the event's `body`.
