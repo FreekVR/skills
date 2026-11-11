@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
-import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedInEarlierRound, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
+import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
 // A merged or closed PR whose review was quiet this many days folds away in the sessions list.
@@ -80,7 +80,7 @@ export function changesSince() {
 
 // The advice follows from the findings and the repo's own severity cutoff, so it never contradicts them.
 export function advice(hunk) {
-  const findings = state.review.findings.filter((finding) => finding.hunkId === hunk.id)
+  const findings = liveFindings().filter((finding) => finding.hunkId === hunk.id)
   const cutoff = state.review.conventions.requestChangesFrom || 'minor'
   const threshold = severityRank(cutoff)
   const open = findings.filter((finding) => decisionOf(finding) !== 'dismissed')
@@ -160,7 +160,7 @@ export function askQuestions(hunk) {
 
 export function flowFindingsPill(line) {
   const hunks = new Set(line.stops.map((stop) => stop.hunkId))
-  const open = state.review.findings.filter((finding) => hunks.has(finding.hunkId) && decisionOf(finding) === 'open')
+  const open = liveFindings().filter((finding) => hunks.has(finding.hunkId) && decisionOf(finding) === 'open')
   return open.length ? { tone: severityTone(worstOf(open).severity), text: plural(open.length, 'finding') } : null
 }
 
@@ -316,7 +316,7 @@ export function criteriaCheck() {
 
 // The findings on hunks that the reviewer left open. They are not posted, and leaving them open is a valid call.
 export function notPostedFindings() {
-  const open = state.review.findings.filter((finding) => finding.hunkId !== null && decisionOf(finding) === 'open')
+  const open = liveFindings().filter((finding) => finding.hunkId !== null && decisionOf(finding) === 'open')
   if (!open.length) return null
   const counts = [...severities()].reverse()
     .map((severity) => ({ severity, count: open.filter((finding) => findingSeverity(finding) === severity).length }))
@@ -345,7 +345,7 @@ export function terminus() {
   const verdict = state.reviewer.verdict || proposal
   const post = buildPost('final').event
   // Only what this review can include: a finding an earlier final review posted is on GitHub, in that review's body.
-  const general = review.findings.filter((finding) => finding.hunkId === null && !postedInEarlierRound(finding.id))
+  const general = liveFindings().filter((finding) => finding.hunkId === null)
   const flows = state.lines.filter((line) => !line.id.startsWith('__'))
   return {
     posted: postedReview(),
@@ -361,7 +361,7 @@ export function terminus() {
     posts: [post.body ? 'the review body' : '', plural(post.comments.length, 'comment'), post.replies.length ? plural(post.replies.length, 'reply', 'replies') : '', post.resolve.length ? `${plural(post.resolve.length, 'thread')} to resolve` : ''].filter(Boolean).join(', '),
     general,
     openGeneral: general.filter((finding) => decisionOf(finding) === 'open').length,
-    openFindings: liveFindings().filter((finding) => decisionOf(finding) === 'open' && !postedInEarlierRound(finding.id)),
+    openFindings: liveFindings().filter((finding) => decisionOf(finding) === 'open'),
     outdated: outdatedRemarks(),
     outdatedFindings: outdatedFindings(),
     flows,
