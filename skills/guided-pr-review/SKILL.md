@@ -194,6 +194,7 @@ When the subagents have answered, or when you run the checks yourself, write the
 Write each finding:
 
 - Attach it to the hunk and line it is about, or set `hunkId` to null for a finding about the whole PR.
+- Set `sources` to what found it: the exact name of the review skill, or `check:<angle>` for a built-in check, for example `check:spec`. The angles are `spec`, `code-standards`, `sources` and `tests`.
 - When an open ticket in `context.relatedTickets` already covers it, name that ticket's key in the finding.
 - Write `body` as the comment text that would be posted, without the title, the severity label and the disclosure; the review page posts the finding as a header line `**severity(rule): title**`, then the body, then the disclosure.
 - Write `body` in GitHub markdown: short paragraphs, a list for separate points, code in backticks, and a `suggestion` block for a concrete fix. In the JSON, write each line break as `\n`.
