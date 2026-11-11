@@ -126,6 +126,7 @@ Read the target repository's contribution guide and agent instruction files, if 
   - `minor`: the code works, but breaks a convention or leaves a gap that is quick to close in this PR.
   - `nit`: wording, naming or style.
   - Out of scope: a problem outside what the tickets ask for, such as an edge case that a ticket marked as a quick fix or a limited change does not cover, MUST get the lowest label. Its body MUST name the open ticket in `context.relatedTickets` that covers it, or else propose a follow-up ticket, not a change in this PR. What the conventions and the tickets with their comments say about the scope decides what is out of scope.
+- No "while you are here" findings: a change to code that the PR does not need to touch, such as a cleanup, a rename or a refactor next to the changed lines, MUST NOT become a finding, whatever its severity. This holds for every angle and every review skill; drop such a finding from a skill's answer.
 
 ### 6. Start the AI reviews
 
