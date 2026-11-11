@@ -309,12 +309,28 @@ test('when the agent stops before it writes the review, the page says so and sti
   expect(await page.evaluate(() => window.sameDocument)).toBe(true);
 });
 
-test('after the final post the page offers the next PR in the stack, linking to its review when it has one', async ({ page }) => {
+// The review of #16 comes from a session that ended: no watch runs for it.
+const takenOver = async (page, review) => {
+  expect(await eventOf(review, 'start-review')).toMatchObject({ type: 'start-review', number: 16, review: 'example-org/sample-widget#15' });
+  await expect(page).toHaveURL(/\/example-org\/sample-widget\/16$/);
+  const preparing = JSON.parse(fs.readFileSync(path.join(path.dirname(review.dir), '16', 'preparing'), 'utf8'));
+  expect([preparing.step, preparing.from]).toEqual(['Waiting for the agent to take over', 15]);
+};
+
+test('after the final post the Next button asks this agent to take over the review of a PR whose session ended', async ({ page }) => {
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
   review.write(reviewOf16());
   await postFinal(page, review);
-  const next = page.getByRole('link', { name: 'Next in the stack: #16' });
-  await expect(next).toHaveAttribute('href', /\/example-org\/sample-widget\/16$/);
+  await page.getByRole('button', { name: 'Next in the stack: #16' }).click();
+  await takenOver(page, review);
+});
+
+test('the stack switch asks this agent to take over the review of a PR whose session ended', async ({ page }) => {
+  const review = await openReview(page, { mutate: onPage, others: [merged()] });
+  review.write(reviewOf16());
+  await button(page).click();
+  await row(page, 16).getByRole('link', { name: `#16 ${TITLES[16]}` }).click();
+  await takenOver(page, review);
 });
 
 test('after the final post the Next button starts the review of a PR without one and opens its page', async ({ page }) => {
@@ -363,6 +379,7 @@ const postedReviewOf = (review, number) => {
 test('on the top PR the Next button opens the PR below, also when its final review is posted', async ({ page }) => {
   const review = await openReview(page, { mutate: (data) => { onPage(data); data.pr.number = 16; data.pr.title = TITLES[16]; data.stack = stackFixture([14, 15, 16], 16); }, others: [merged()] });
   postedReviewOf(review, 15);
+  sessionOf(review, 15);
   await postFinal(page, review);
   await expect(page.getByRole('link', { name: 'Next in the stack: #15' })).toHaveAttribute('href', /\/15$/);
 });
@@ -375,6 +392,7 @@ test('with #17 posted the Next button still opens #17, the PR above', async ({ p
   other.pr.title = TITLES[15];
   other.stack = stackFixture([14, 15, 16, 17], 16);
   review.write(other);
+  sessionOf(review, 17);
   await postFinal(page, review);
   await expect(page.getByRole('link', { name: 'Next in the stack: #17' })).toHaveAttribute('href', /\/17$/);
 });
@@ -515,6 +533,7 @@ test('the Next button and the stack switch open the other PR on its Home, not wh
   const review = await openReview(page, { mutate: onPage, others: [merged()] });
   const dir = review.write(reviewOf16());
   fs.writeFileSync(path.join(dir, 'reviewer.json'), JSON.stringify({ position: { kind: 'terminus' } }));
+  sessionOf(review, 16);
   await postFinal(page, review);
   await page.getByRole('link', { name: 'Next in the stack: #16' }).click();
   await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();

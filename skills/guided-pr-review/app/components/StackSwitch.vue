@@ -7,6 +7,14 @@ const label = computed(() => `${position.value.index} of ${position.value.size}`
 function linkOf(row: { current: boolean, action: string }) {
   return !row.current && (row.action === 'open' || row.action === 'github') ? stackLink(row) : null
 }
+
+// A review without a running watch opens through the agent of this review, which takes it over.
+// A click with a modifier key opens the link in a new tab as usual, without a take-over.
+function goTo(row: { number: number, takeOver: boolean }, event: MouseEvent) {
+  if (!row.takeOver || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  startReview(row.number)
+}
 </script>
 
 <template>
@@ -40,6 +48,7 @@ function linkOf(row: { current: boolean, action: string }) {
                   :is="linkOf(row) ? 'a' : 'span'"
                   v-bind="linkOf(row)"
                   :class="linkOf(row) ? 'text-default no-underline hover:underline hover:underline-offset-3' : row.current && 'font-semibold'"
+                  @click="goTo(row, $event)"
                 ><span class="text-info">#{{ row.number }}</span> {{ row.title }}</component>
                 <span v-if="row.current" class="rounded-sm bg-(--ui-text) px-1.5 text-tag font-semibold text-inverted">this page</span>
                 <span v-if="row.state === 'merged'" class="rounded-sm bg-accented px-1.5 text-tag font-semibold text-default">merged</span>

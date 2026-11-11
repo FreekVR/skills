@@ -133,10 +133,10 @@ test('start-review asks the agent for another PR of the stack and lets its page 
   assert.strictEqual((await fetch(`${base}/23/agent`)).status, 404);
 });
 
-test('start-review starts nothing for a PR that has a review or that the agent already prepares, and still gives its page', async () => {
+test('start-review starts nothing for a PR whose review has a running watch or that the agent already prepares, and still gives its page', async () => {
   const dir = review('24', { number: 24 });
   fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { number: 24 }, hunks, stack: { prs: [{ number: 24 }, { number: 25 }, { number: 26 }] } }));
-  review('25', { number: 25 });
+  fs.writeFileSync(path.join(review('25', { number: 25 }), 'session.json'), JSON.stringify({ watcherPid: process.pid, sessionId: 'other-session' }));
   const preparing = path.join(home, 'guided-pr-review', 'acme', 'shop', '26', 'preparing');
   fs.mkdirSync(path.dirname(preparing), { recursive: true });
   fs.writeFileSync(preparing, JSON.stringify({ step: 'reading the PR', since: '2026-11-04T10:00:00Z' }));
@@ -146,6 +146,28 @@ test('start-review starts nothing for a PR that has a review or that the agent a
   assert.ok(!fs.existsSync(path.join(dir, 'events.jsonl')));
   assert.ok(!fs.existsSync(path.join(home, 'guided-pr-review', 'acme', 'shop', '25', 'preparing')));
   assert.deepStrictEqual(JSON.parse(fs.readFileSync(preparing, 'utf8')), { step: 'reading the PR', since: '2026-11-04T10:00:00Z' });
+});
+
+// The next PR was reviewed in a session that no longer runs: the agent of this review takes it over.
+test('start-review asks the agent to take over a review whose watch no longer runs', async () => {
+  const dir = review('30', { number: 30 });
+  fs.writeFileSync(path.join(dir, 'review.json'), JSON.stringify({ pr: { number: 30 }, hunks, stack: { prs: [{ number: 30 }, { number: 31 }, { number: 32 }] } }));
+  const stopped = review('31', { number: 31 });
+  fs.writeFileSync(path.join(stopped, 'session.json'), JSON.stringify({ watcherPid: 2 ** 22 + 7, sessionId: 'old-session' }));
+  // PR 32 has a review but no session.json at all.
+  review('32', { number: 32 });
+  for (const number of [31, 32]) {
+    const { id, page } = await (await send(`${base}/30/start-review`, 'POST', JSON.stringify({ number }))).json();
+    assert.ok(id);
+    assert.strictEqual(page, `/acme/shop/${number}`);
+    const preparing = JSON.parse(fs.readFileSync(path.join(home, 'guided-pr-review', 'acme', 'shop', String(number), 'preparing'), 'utf8'));
+    assert.deepStrictEqual([preparing.step, preparing.from], ['Waiting for the agent to take over', 30]);
+  }
+  const events = fs.readFileSync(path.join(dir, 'events.jsonl'), 'utf8').trim().split('\n').map(JSON.parse);
+  assert.deepStrictEqual(events.map((event) => event.number), [31, 32]);
+  // The review keeps what it has; its page shows the agent of PR 30 until the take-over is done.
+  assert.strictEqual((await fetch(`${base}/31/review`)).status, 200);
+  assert.strictEqual((await (await fetch(`${base}/31/agent`)).json()).preparing.from, 30);
 });
 
 test('start-review refuses a PR that is not in the stack, and a request from another page', async () => {

@@ -38,7 +38,7 @@ const next = computed(() => (hasStack() ? nextInStack() : null))
         </UButton>
       </template>
       <template v-if="next">
-        <UButton v-if="next.action === 'start'" color="primary" class="font-semibold" @click="startReview(next.number)">
+        <UButton v-if="next.action === 'start' || next.takeOver" color="primary" class="font-semibold" @click="startReview(next.number)">
           Next in the stack: #{{ next.number }}
         </UButton>
         <UButton v-else as="a" v-bind="stackLink(next)" color="primary" class="font-semibold">
