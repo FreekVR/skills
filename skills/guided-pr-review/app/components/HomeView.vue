@@ -196,6 +196,16 @@ const QUIET_ICONS: Record<string, { icon: string, color: string }> = { ok: { ico
           <p v-if="since.findings.length" class="m-0 text-label text-toned">
             {{ plural(since.findings.length, 'open finding') }} on changed code
           </p>
+          <div v-if="since.check" class="mt-2.5">
+            <AgentPending v-if="since.check === 'running'" text="The agent is checking the code of this commit…" />
+            <template v-else>
+              <p class="m-0 text-label text-warning">The agent has not checked the code of this commit yet.</p>
+              <AgentPending v-if="agentState() === 'none'" text="" no-agent-text="No agent runs this review. Resume it to check this commit." class="mt-1" />
+              <UButton v-else color="primary" class="mt-1.5 font-semibold" @click="refresh()">
+                Ask the agent to check it
+              </UButton>
+            </template>
+          </div>
           <!-- What changed is the first thing to read after new commits, so it starts open; the reviewer can fold it away. -->
           <UButton v-if="since.fresh.length" color="neutral" variant="link" class="mt-1 min-h-6 p-0 text-label text-info" @click="showFirstChangedHunk()">
             Show the first changed hunk

@@ -30,6 +30,10 @@ const banners = computed(() => (state.static ? [] : updates()))
             </p>
             <AgentPending text="Preparing…" no-agent-text="No agent runs this review, so the preparation has stopped." class="mt-1" />
           </div>
+          <div v-else-if="banner.kind === 'checking'">
+            <p class="m-0"><strong>Checking GitHub for new commits.</strong> New commits load as soon as the agent finds them.</p>
+            <AgentPending text="Waiting for the agent…" no-agent-text="No agent runs this review, so the page may show an old commit." class="mt-1" />
+          </div>
           <p v-else-if="banner.kind === 'state'" class="m-0">
             <strong>This PR is {{ banner.state }}.</strong> {{ banner.finishing ? 'The agent asks in the chat whether to delete the review data.' : 'A review has little effect now.' }}
           </p>
