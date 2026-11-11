@@ -270,7 +270,6 @@ test('unresolves a resolved thread, shows the choice in place of the button, and
   const review = await openReview(page, { mutate: resolvedReadme });
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   const thread = threadOf(page, 'The README does not mention the card.');
-  await thread.locator('summary').click();
   await thread.getByRole('button', { name: 'Unresolve', exact: true }).click();
   await expect(thread.getByRole('status').filter({ hasText: 'You unresolve this comment.' })).toBeVisible();
   await expect(thread.getByText('Resolved · you unresolve it')).toBeVisible();
@@ -284,7 +283,6 @@ test('offers no Unresolve when GitHub does not allow it', async ({ page }) => {
   await openReview(page, { mutate: (data) => { resolvedReadme(data); data.reviewComments[1].canUnresolve = false; } });
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   const thread = threadOf(page, 'The README does not mention the card.');
-  await thread.locator('summary').click();
   await expect(thread.getByRole('button', { name: 'Unresolve', exact: true })).toBeHidden();
 });
 
@@ -292,7 +290,6 @@ test('sends the threads to unresolve and their replies with the next review', as
   const review = await openReview(page, { mutate: resolvedReadme, reviewer: { threadCalls: { 'T-gh1': 'resolve', 'T-c2': 'unresolve' } } });
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   const thread = threadOf(page, 'The README does not mention the card.');
-  await thread.locator('summary').click();
   await thread.getByRole('button', { name: 'Reply', exact: true }).click();
   await thread.getByRole('textbox', { name: 'Reply in this thread' }).fill('The card needs a line after all.');
   await review.saved((state) => state.threadReplies?.['T-c2'] === 'The card needs a line after all.');
@@ -309,7 +306,6 @@ test('ignores a choice to resolve once GitHub shows the thread resolved, and off
   await openReview(page, { mutate: (data) => { data.ownRemarks[0].resolved = true; }, reviewer: { threadCalls: { 'T-gh1': 'resolve' } } });
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   const thread = threadOf(page, 'Is MAX still right?');
-  await thread.locator('summary').click();
   await expect(thread.getByText('You resolve this comment.')).toBeHidden();
   await expect(thread.getByRole('button', { name: 'Unresolve', exact: true })).toBeVisible();
 });
@@ -350,13 +346,12 @@ test('suggests Unresolve when the AI thinks a comment someone else resolved is n
   await review.saved((state) => state.threadCalls?.['T-gh1'] === 'unresolve');
 });
 
-test('leaves a comment folded when someone else resolved it and the AI says it is fixed', async ({ page }) => {
+test('shows a comment someone else resolved open, without a decision, when the AI says it is fixed', async ({ page }) => {
   await openReview(page, { mutate: resolvedByAuthor('fixed') });
   await page.getByRole('button', { name: /Existing reviews/ }).click();
   const thread = threadOf(page, 'Is MAX still right?');
   await expect(thread).not.toHaveAttribute('data-needs-decision', '');
   await expect(thread.getByText('Resolved by @sample-author')).toBeVisible();
-  await thread.locator('summary').click();
   await expect(thread.getByText('Line 3 still has MAX 10.')).toBeVisible();
 });
 

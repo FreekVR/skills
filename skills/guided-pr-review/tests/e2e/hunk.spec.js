@@ -114,7 +114,7 @@ test.describe('a finding', () => {
     await icon.hover();
     await expect(icon.getByText('In your review, not posted')).toBeVisible();
     await page.getByRole('button', { name: 'Dismiss' }).click();
-    await expect(page.getByRole('img', { name: 'Not in your review' })).toBeVisible();
+    await expect(page.getByText('Dismissed · not in your review')).toBeVisible();
   });
 
   test('can be dismissed', async ({ page }) => {
@@ -133,6 +133,8 @@ test('a posted finding shows that it is on GitHub, also after you dismiss it', a
   await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
   await expect(page.getByRole('img', { name: 'On GitHub' })).toBeVisible();
   await page.getByRole('button', { name: 'Dismiss' }).click();
+  // The finding folds away, and the folded note keeps the GitHub state in view.
+  await expect(page.getByRole('img', { name: 'On GitHub' })).toHaveCount(1);
   await expect(page.getByRole('img', { name: 'On GitHub' })).toBeVisible();
 });
 

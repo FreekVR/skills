@@ -16,6 +16,7 @@ interface NoteItem {
   side?: string
   startSide?: string
   resolved?: boolean
+  resolvedBy?: string
   threadId?: string
   replies?: { author: string, body: string, at?: string }[]
   opinion?: { stance?: string, text?: string }
@@ -29,58 +30,67 @@ const BLOCK = NOTE_BLOCK
 const edge = computed(() => (props.note.type === 'posted' ? SEVERITY_EDGES[severityLevel(props.note.item.severity)] : 'border-r-accented'))
 // A comment opened from the Existing reviews tab gets the focus, and the outline shows which one it is.
 const TARGET = 'scroll-mt-24 outline-none focus:outline-2 focus:-outline-offset-2 focus:outline-info'
+const folded = computed(() => isCollapsed(item.value.id, item.value))
 </script>
 
 <template>
   <!-- Comment by someone else -->
   <div v-if="note.type === 'comment'" :id="`note-${item.id}`" tabindex="-1" :class="[BLOCK, TARGET, edge]">
-    <div class="flex flex-wrap items-baseline gap-2.5">
-      <UAvatar :src="avatar(item.author)" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
-      <span class="text-meta text-muted">
-        <b><a v-if="item.url" :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">@{{ item.author }}</a><template v-else>@{{ item.author }}</template></b>
-        commented{{ item.line ? ` on ${lineLabel(item)}` : '' }} · not your remark, not posted again<template v-if="item.resolved"> · <ResolvedLabel :comment="item" /></template>
-      </span>
-    </div>
-    <CommentConversation v-if="item.replies?.length" :comment="item">
-      <template #first>
+    <NoteFold :id="item.id" :folded="folded">
+      <template #head>
+        <div class="flex flex-wrap items-baseline gap-2.5">
+          <UAvatar :src="avatar(item.author)" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
+          <span class="text-meta text-muted">
+            <b><a v-if="item.url" :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">@{{ item.author }}</a><template v-else>@{{ item.author }}</template></b>
+            commented{{ item.line ? ` on ${lineLabel(item)}` : '' }} · not your remark, not posted again<template v-if="item.resolved"> · <ResolvedLabel :comment="item" /></template>
+          </span>
+        </div>
+      </template>
+      <CommentConversation v-if="item.replies?.length" :comment="item">
+        <template #first>
+          <OpinionLine :opinion="item.opinion" />
+        </template>
+      </CommentConversation>
+      <template v-else>
+        <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+          <SafeMarkdown :value="item.body" />
+        </div>
         <OpinionLine :opinion="item.opinion" />
       </template>
-    </CommentConversation>
-    <template v-else>
-      <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0">
-        <SafeMarkdown :value="item.body" />
+      <FixLine :item="item" />
+      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+        <span v-if="isCopied(item)" class="text-meta text-muted">Copied to your review</span>
+        <UButton v-else color="neutral" variant="ghost" size="sm" class="text-toned" @click="copyComment(item)">Copy to my review</UButton>
+        <ThreadReply v-if="item.threadId" :thread-id="item.threadId" />
       </div>
-      <OpinionLine :opinion="item.opinion" />
-    </template>
-    <FixLine :item="item" />
-    <div class="mt-2 flex flex-wrap items-center gap-1.5">
-      <span v-if="isCopied(item)" class="text-meta text-muted">Copied to your review</span>
-      <UButton v-else color="neutral" variant="ghost" size="sm" class="text-toned" @click="copyComment(item)">Copy to my review</UButton>
-      <ThreadReply v-if="item.threadId" :thread-id="item.threadId" />
-    </div>
+    </NoteFold>
   </div>
 
   <!-- A remark the reviewer posted in an earlier round -->
   <div v-else-if="note.type === 'posted'" :id="`note-${item.id}`" tabindex="-1" :class="[BLOCK, TARGET, edge]">
-    <div class="flex flex-wrap items-baseline gap-2.5">
-      <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
-      <DiffSeverity :severity="item.severity" />
-      <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
-      <span class="text-meta text-muted">You posted this earlier<template v-if="item.url"> · <a :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">open on GitHub</a></template>. It is not posted again.</span>
-    </div>
-    <CommentConversation v-if="item.replies?.length" :comment="item">
-      <template #first>
+    <NoteFold :id="item.id" :folded="folded">
+      <template #head>
+        <div class="flex flex-wrap items-baseline gap-2.5">
+          <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
+          <DiffSeverity :severity="item.severity" />
+          <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
+          <span class="text-meta text-muted">You posted this earlier<template v-if="item.url"> · <a :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">open on GitHub</a></template>. It is not posted again.<template v-if="item.resolved"> <ResolvedLabel :comment="item" /></template></span>
+        </div>
+      </template>
+      <CommentConversation v-if="item.replies?.length" :comment="item">
+        <template #first>
+          <OpinionLine v-if="!item.resolved" :opinion="item.opinion" own />
+        </template>
+      </CommentConversation>
+      <template v-else>
+        <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0">
+          <SafeMarkdown :value="item.body" />
+        </div>
         <OpinionLine v-if="!item.resolved" :opinion="item.opinion" own />
       </template>
-    </CommentConversation>
-    <template v-else>
-      <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0">
-        <SafeMarkdown :value="item.body" />
-      </div>
-      <OpinionLine v-if="!item.resolved" :opinion="item.opinion" own />
-    </template>
-    <FixLine :item="item" />
-    <ThreadActions :own="item" />
+      <FixLine :item="item" />
+      <ThreadActions :own="item" />
+    </NoteFold>
   </div>
 
   <!-- An AI finding or a remark of the reviewer -->

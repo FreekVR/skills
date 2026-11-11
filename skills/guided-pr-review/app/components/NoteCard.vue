@@ -26,6 +26,7 @@ const selectClasses = computed(() => (select.value ? SEVERITY_CLASSES[severityLe
 const chevronColor = computed(() => selectClasses.value.split(' ').filter((name) => name.startsWith('text-')))
 const own = computed(() => (isFinding.value ? null : ownRemark(props.item.id)))
 const editing = computed(() => state.ui.editing === props.item.id)
+const folded = computed(() => !editing.value && isCollapsed(props.item.id))
 
 // The edit form keeps its text in state.ui.drafts, so a redraw does not lose it.
 const draft = computed({
@@ -41,6 +42,8 @@ function save() {
 }
 
 const struck = computed(() => decision.value === 'dismissed' && 'text-muted line-through decoration-1')
+// A dismissed finding that GitHub already has stays on GitHub, so the folded note shows its GitHub state instead.
+const dismissedLocally = computed(() => decision.value === 'dismissed' && statusBadge(props.item.id, text.value).status === 'local')
 
 // The edge of the note carries its severity; a dismissed finding loses it.
 const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented' : SEVERITY_EDGES[severityLevel(select.value?.current ?? props.item.severity)]))
@@ -48,65 +51,75 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
 
 <template>
   <div :class="[NOTE_BLOCK, edge]">
-    <div class="flex flex-wrap items-center gap-2.5">
-      <template v-if="select">
-        <AiTag label="AI finding" />
-        <span class="font-display text-lead" :class="struck"><MarkupText :text="item.title" /></span>
-        <span class="relative inline-flex items-center">
-          <select
-            :value="select.current"
-            class="cursor-pointer appearance-none rounded border py-1 pr-4.5 pl-1.5 font-mono text-meta leading-none font-bold lowercase hover:opacity-85"
-            :class="selectClasses"
-            :aria-label="select.title"
-            :title="select.title"
-            @change="setFindingSeverity(item.id, ($event.target as HTMLSelectElement).value)"
-          >
-            <option v-for="option in severities()" :key="option" :value="option">{{ option }}</option>
-          </select>
-          <UIcon name="i-lucide-chevron-down" class="pointer-events-none absolute right-1 size-3" :class="chevronColor" aria-hidden="true" />
-        </span>
-        <span v-if="select.changed" class="text-meta text-muted">AI said {{ select.suggested }}</span>
-        <span v-if="item.rule" class="text-meta whitespace-nowrap text-muted">{{ item.rule }}</span>
+    <NoteFold :id="item.id" :folded="folded">
+      <template #head>
+        <div class="flex flex-wrap items-center gap-2.5">
+          <template v-if="select">
+            <AiTag label="AI finding" />
+            <span class="font-display text-lead" :class="struck"><MarkupText :text="item.title" /></span>
+            <span class="relative inline-flex items-center">
+              <select
+                :value="select.current"
+                class="cursor-pointer appearance-none rounded border py-1 pr-4.5 pl-1.5 font-mono text-meta leading-none font-bold lowercase hover:opacity-85"
+                :class="selectClasses"
+                :aria-label="select.title"
+                :title="select.title"
+                @change="setFindingSeverity(item.id, ($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="option in severities()" :key="option" :value="option">{{ option }}</option>
+              </select>
+              <UIcon name="i-lucide-chevron-down" class="pointer-events-none absolute right-1 size-3" :class="chevronColor" aria-hidden="true" />
+            </span>
+            <span v-if="select.changed" class="text-meta text-muted">AI said {{ select.suggested }}</span>
+            <span v-if="item.rule" class="text-meta whitespace-nowrap text-muted">{{ item.rule }}</span>
+          </template>
+          <template v-else>
+            <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
+            <DiffSeverity :severity="item.severity" />
+            <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
+            <span class="text-meta text-muted">{{ own ? 'Your pending remark from GitHub' : 'Your remark' }}{{ item.line ? ` · ${lineLabel(item)}` : '' }}</span>
+          </template>
+        </div>
       </template>
+      <template #folded>
+        <p v-if="dismissedLocally" class="m-0 inline-flex items-center gap-1.5 text-meta text-muted">
+          <UIcon name="i-lucide-circle-slash" class="size-3.5" aria-hidden="true" />Dismissed · not in your review
+        </p>
+        <NoteState v-else-if="decision === 'dismissed'" :id="item.id" :body="text" :decision="decision" />
+      </template>
+      <div v-if="editing">
+        <UTextarea v-model="draft" :aria-label="isFinding ? 'Edit the finding text' : 'Edit your remark'" :rows="3" autoresize autofocus class="mt-2 w-full" />
+        <div class="mt-2 flex flex-wrap items-center gap-2">
+          <label v-if="!isFinding" class="text-ui text-toned">Severity
+            <select v-model="editSeverity" class="ml-1 rounded-md border border-accented bg-default px-2 py-1 text-ui text-default">
+              <option v-for="option in severities()" :key="option" :value="option">{{ option }}</option>
+            </select>
+          </label>
+          <UButton color="neutral" class="bg-(--ui-text) text-(--ui-bg) hover:bg-(--ui-text-toned)" @click="save()">{{ isFinding ? 'Save text' : 'Save remark' }}</UButton>
+          <UButton color="neutral" variant="ghost" class="text-toned" @click="cancelEdit(item.id)">Cancel</UButton>
+        </div>
+      </div>
       <template v-else>
-        <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
-        <DiffSeverity :severity="item.severity" />
-        <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
-        <span class="text-meta text-muted">{{ own ? 'Your pending remark from GitHub' : 'Your remark' }}{{ item.line ? ` · ${lineLabel(item)}` : '' }}</span>
+        <!-- Remarks and findings are posted as markdown, and a remark can quote a comment from GitHub. -->
+        <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0" :class="struck">
+          <SafeMarkdown :value="text" />
+        </div>
+        <StackLine v-if="isFinding" :finding="item" />
+        <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" own />
+        <div class="mt-2 flex flex-wrap items-center gap-1.5">
+          <template v-if="isFinding">
+            <UButton v-if="decision !== 'accepted'" color="success" variant="solid" class="font-bold" @click="decideFinding(item.id, 'accepted')">Accept</UButton>
+            <UButton v-if="decision !== 'dismissed'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'dismissed')">Dismiss</UButton>
+            <UButton v-if="decision !== 'open'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'open')">Undo</UButton>
+            <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit text</UButton>
+          </template>
+          <template v-else>
+            <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit</UButton>
+            <UButton color="error" variant="ghost" @click="deleteRemark(item.id)">Delete</UButton>
+          </template>
+          <NoteState :id="item.id" :body="text" :decision="decision" />
+        </div>
       </template>
-    </div>
-    <div v-if="editing">
-      <UTextarea v-model="draft" :aria-label="isFinding ? 'Edit the finding text' : 'Edit your remark'" :rows="3" autoresize autofocus class="mt-2 w-full" />
-      <div class="mt-2 flex flex-wrap items-center gap-2">
-        <label v-if="!isFinding" class="text-ui text-toned">Severity
-          <select v-model="editSeverity" class="ml-1 rounded-md border border-accented bg-default px-2 py-1 text-ui text-default">
-            <option v-for="option in severities()" :key="option" :value="option">{{ option }}</option>
-          </select>
-        </label>
-        <UButton color="neutral" class="bg-(--ui-text) text-(--ui-bg) hover:bg-(--ui-text-toned)" @click="save()">{{ isFinding ? 'Save text' : 'Save remark' }}</UButton>
-        <UButton color="neutral" variant="ghost" class="text-toned" @click="cancelEdit(item.id)">Cancel</UButton>
-      </div>
-    </div>
-    <template v-else>
-      <!-- Remarks and findings are posted as markdown, and a remark can quote a comment from GitHub. -->
-      <div class="mt-2 max-w-[72ch] text-ui [&>:first-child]:mt-0 [&>:last-child]:mb-0" :class="struck">
-        <SafeMarkdown :value="text" />
-      </div>
-      <StackLine v-if="isFinding" :finding="item" />
-      <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" own />
-      <div class="mt-2 flex flex-wrap items-center gap-1.5">
-        <template v-if="isFinding">
-          <UButton v-if="decision !== 'accepted'" color="success" variant="solid" class="font-bold" @click="decideFinding(item.id, 'accepted')">Accept</UButton>
-          <UButton v-if="decision !== 'dismissed'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'dismissed')">Dismiss</UButton>
-          <UButton v-if="decision !== 'open'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'open')">Undo</UButton>
-          <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit text</UButton>
-        </template>
-        <template v-else>
-          <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit</UButton>
-          <UButton color="error" variant="ghost" @click="deleteRemark(item.id)">Delete</UButton>
-        </template>
-        <NoteState :id="item.id" :body="text" :decision="decision" />
-      </div>
-    </template>
+    </NoteFold>
   </div>
 </template>
