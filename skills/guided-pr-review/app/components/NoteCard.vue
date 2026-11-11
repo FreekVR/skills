@@ -10,6 +10,7 @@ interface NoteItem {
   severitySource?: string
   stack?: { verdict: string, pr?: number, prs?: number[], note?: string }
   rule?: string
+  hunkId?: string | null
   line?: number
   startLine?: number
   side?: string
@@ -40,6 +41,9 @@ function save() {
   if (isFinding.value) saveEdit(props.item.id, draft.value)
   else saveRemark(props.item.id, draft.value, editSeverity.value)
 }
+
+// A finding whose hunk new commits changed can no longer be posted: Dismiss is the only decision left.
+const gone = computed(() => isFinding.value && Boolean(props.item.hunkId) && !hunkById(props.item.hunkId!))
 
 const struck = computed(() => decision.value === 'dismissed' && 'text-muted line-through decoration-1')
 // A dismissed finding that GitHub already has stays on GitHub, so the folded note shows its GitHub state instead.
@@ -108,16 +112,16 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
         <OpinionLine v-if="own?.body === item.body" :opinion="own.opinion" own />
         <div class="mt-2 flex flex-wrap items-center gap-1.5">
           <template v-if="isFinding">
-            <UButton v-if="decision !== 'accepted'" color="success" variant="solid" class="font-bold" @click="decideFinding(item.id, 'accepted')">Include in my review</UButton>
+            <UButton v-if="decision !== 'accepted' && !gone" color="success" variant="solid" class="font-bold" @click="decideFinding(item.id, 'accepted')">Include in my review</UButton>
             <UButton v-if="decision !== 'dismissed'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'dismissed')">Dismiss</UButton>
-            <UButton v-if="decision !== 'open'" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'open')">Undo</UButton>
-            <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit text</UButton>
+            <UButton v-if="decision !== 'open' && !gone" color="neutral" variant="ghost" class="text-toned" @click="decideFinding(item.id, 'open')">Undo</UButton>
+            <UButton v-if="!gone" color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit text</UButton>
           </template>
           <template v-else>
             <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit</UButton>
             <UButton color="error" variant="ghost" @click="deleteRemark(item.id)">Delete</UButton>
           </template>
-          <NoteState :id="item.id" :body="text" :decision="decision" />
+          <NoteState v-if="!gone" :id="item.id" :body="text" :decision="decision" />
         </div>
       </template>
     </NoteFold>

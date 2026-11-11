@@ -291,3 +291,15 @@ test('the count of open findings under the post buttons leaves out a finding who
   // f1's hunk is gone; f2 and f3 are open.
   await expect(page.getByText('2 AI findings are still open and not posted.')).toBeVisible();
 });
+
+test('an included finding whose hunk is gone offers only Dismiss, which takes it off the list', async ({ page }) => {
+  await openSubmit(page, { mutate: cacheHunkGone, reviewer: { decisions: { f1: 'accepted' } } });
+  // The finding is the only note in this section.
+  const card = page.locator('#term-coverage');
+  await expect(card.getByRole('button', { name: 'Dismiss' })).toBeVisible();
+  await expect(card.getByRole('button', { name: 'Undo' })).toHaveCount(0);
+  await expect(card.getByRole('button', { name: 'Edit text' })).toHaveCount(0);
+  await expect(card.getByRole('img', { name: /In your review/ })).toHaveCount(0);
+  await card.getByRole('button', { name: 'Dismiss' }).click();
+  await expect(page.locator('#term-coverage')).not.toContainText('TTL is in milliseconds');
+});
