@@ -164,7 +164,10 @@ The checks:
 - [ ] Verify that the PR names breaking changes if it introduces them.
 - [ ] Verify that the code does not invent new concepts. A new concept must be explained and justified.
 - [ ] Verify that the PR does not hardcode what a dependency already owns. List every map, limit, list of allowed values and business rule that the PR hardcodes. For each one, check whether an API specification, a library the project depends on, or, when the repository's docs name one, a reference implementation already provides it or handles it differently.
-- [ ] Verify every factual claim in new or changed comments, docblocks and documentation against the source it names.
+- [ ] Verify every factual claim in new or changed comments, docblocks and documentation:
+  - A factual claim says what something is or does: a value, a limit, a version, what a function or an API does, or why the code does something.
+  - Check only that the claim is correct: against the source it names, else against the code or the dependency it describes.
+  - You MUST NOT report a claim for what it leaves out. A comment does not have to cover every case, branch or edge case of the code; the reader only needs what it says to be true.
 - [ ] Verify that every new term and abbreviation is defined where it first appears, and is the word that the platform, the libraries it uses or the API use for that thing.
 
 ### 7. Find the flows
