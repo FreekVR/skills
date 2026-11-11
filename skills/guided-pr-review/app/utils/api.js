@@ -27,7 +27,7 @@ export const transport = {
   loadReviewer() {
     return $fetch(`${base}/reviewer`)
   },
-  // Whether an agent watches the review, whether it is paused, and the question it waits on.
+  // Whether an agent watches the review, and the question it waits on.
   loadAgent() {
     return $fetch(`${base}/agent`)
   },
@@ -37,12 +37,6 @@ export const transport = {
   },
   loadReviews() {
     return $fetch('/api/reviews')
-  },
-  // Any review in the switch can be paused, so this call names its review.
-  setPaused({ owner, repo, number }, paused) {
-    return $fetch(`/api/reviews/${owner}/${repo}/${number}/paused`, { method: 'POST', headers: GUARD, body: { paused } }).catch((error) => {
-      throw new Error(`${error.statusCode} ${error.statusMessage}`)
-    })
   },
   // Delete another review and its worktree; the error says why the server kept it.
   removeReview({ owner, repo, number }) {
@@ -95,7 +89,6 @@ if (STATIC_REVIEW) {
     loadAgent: async () => null,
     loadStack: async () => [],
     loadReviews: async () => [],
-    setPaused: noAgent,
     removeReview: noAgent,
     startReview: noAgent,
     sendEvent: noAgent,

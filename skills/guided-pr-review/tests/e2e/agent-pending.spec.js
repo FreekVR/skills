@@ -24,18 +24,6 @@ test('a request shows that it waits while a live agent runs the review', async (
   await askQuestion(page, review);
   await expect(panel(page).getByText('Waiting for the agent…')).toBeVisible();
   await expect(panel(page).getByText('No agent runs this review')).toBeHidden();
-  await expect(panel(page).getByText('The agent is paused')).toBeHidden();
-});
-
-test('a request says that the agent is paused and the Resume button resumes it', async ({ page }) => {
-  const review = await openReview(page);
-  live(review);
-  fs.writeFileSync(path.join(review.dir, 'paused'), '');
-  await askQuestion(page, review);
-  await expect(panel(page).getByText('The agent is paused. It answers when you resume it.')).toBeVisible();
-  await panel(page).getByRole('button', { name: 'Resume' }).click();
-  await expect.poll(() => fs.existsSync(path.join(review.dir, 'paused'))).toBe(false);
-  await expect(panel(page).getByText('Waiting for the agent…')).toBeVisible();
 });
 
 test('a request says that no agent runs the review and shows how to resume it', async ({ page }) => {
@@ -54,15 +42,4 @@ test('an answer removes the indicator', async ({ page }) => {
   review.update((data) => { data.answers.push({ eventId: asked.id, hunkId: H.client, question: 'Why three days?', answer: 'The ticket asks for three days.' }); });
   await expect(panel(page).getByText('The ticket asks for three days.')).toBeVisible();
   await expect(panel(page).getByText('No agent runs this review')).toBeHidden();
-});
-
-test('the paused banner goes away when Resume in the waiting indicator resumes the agent', async ({ page }) => {
-  const review = await openReview(page);
-  live(review);
-  fs.writeFileSync(path.join(review.dir, 'paused'), '');
-  await askQuestion(page, review);
-  await expect(page.getByText('Agent paused.')).toBeVisible();
-  await panel(page).getByRole('button', { name: 'Resume' }).click();
-  await expect(page.getByText('Agent paused.')).toBeHidden();
-  await expect(panel(page).getByText('Waiting for the agent…')).toBeVisible();
 });

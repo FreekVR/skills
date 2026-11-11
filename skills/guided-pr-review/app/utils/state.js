@@ -77,8 +77,6 @@ export const STATUS_LABELS = { local: 'Local only', draft: 'In GitHub draft', po
 
 export const REVIEW_EVENTS = { approved: 'APPROVE', comment: 'COMMENT', changes: 'REQUEST_CHANGES' }
 
-export const PAGE_VIEWS = ['home', 'reviews', 'terminus']
-
 export const FLOW_VERDICT_LABELS = { approved: 'All hunks approved', changes: 'Changes requested', comment: 'Reviewed with comments' }
 // The fill of the verdict disc of a flow, in the rail and on Home.
 export const FLOW_VERDICT_COLORS = { approved: 'bg-success', changes: 'bg-error', comment: 'bg-(--ui-text-toned)' }

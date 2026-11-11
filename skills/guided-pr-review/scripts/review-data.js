@@ -26,10 +26,8 @@
 //                                                        Record this session in session.json, then print each new
 //                                                        event in events.jsonl as an "EVENT <json>" line until stopped.
 //                                                        Exit 4 when another running process watches this review.
-//                                                        While the review is paused, it prints only "PAUSED" when the
-//                                                        pause starts and "RESUMED" when it ends.
 //                                                        When no event other than "check" came for <n> minutes
-//                                                        (default 30), also while paused, it prints "IDLE" and exits 0.
+//                                                        (default 30), it prints "IDLE" and exits 0.
 //                                                        With --restart, which an agent uses only to restart a watch
 //                                                        that ended, it also prints the events written while no
 //                                                        watch ran, keeps the time of the last such event and prints
@@ -423,7 +421,7 @@ function main([command, ...args]) {
       return 4;
     }
     writeSession(dir, worktree, process.pid, restart);
-    watchReview(dir, (line) => console.log(`EVENT ${line}`), (paused) => console.log(paused ? 'PAUSED' : 'RESUMED'), 300, {
+    watchReview(dir, (line) => console.log(`EVENT ${line}`), 300, {
       idleMinutes,
       restart,
       onIdle: () => {

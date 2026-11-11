@@ -160,3 +160,34 @@ test('verdict stops and their legend entries are white discs with a coloured ico
   await page.getByText('Legend').click();
   for (const entry of await page.locator('[data-legend-verdict]').all()) expect((await colours(entry)).disc).toBe('rgb(255, 255, 255)');
 });
+
+// Each view has its own address: Home is the PR's address, a hunk its station code, and the pages their name.
+test('each view has its own address, and the back button returns to the view before', async ({ page }) => {
+  const review = await openReview(page);
+  const base = new URL(review.url).pathname;
+  await expect(page).toHaveURL(new RegExp(`${base}$`));
+  await openFlow(page, 'Show the forecast');
+  await expect(page).toHaveURL(new RegExp(`${base}/A1$`));
+  await stop(page, 'A2').click();
+  await expect(page).toHaveURL(new RegExp(`${base}/A2$`));
+  await page.keyboard.press('s');
+  await expect(page).toHaveURL(new RegExp(`${base}/submit$`));
+  await page.goBack();
+  await expect(stop(page, 'A2')).toHaveAttribute('aria-current', 'step');
+  await page.getByRole('button', { name: /Existing reviews/ }).click();
+  await expect(page).toHaveURL(new RegExp(`${base}/reviews$`));
+});
+
+test('an address opens the view it names, and one the review does not have opens Home', async ({ page }) => {
+  const review = await openReview(page);
+  await page.goto(`${review.url}/B1`);
+  await expect(stop(page, 'B1')).toHaveAttribute('aria-current', 'step');
+  await page.reload();
+  await expect(stop(page, 'B1')).toHaveAttribute('aria-current', 'step');
+  await page.goto(`${review.url}/Z9`);
+  await expect(page.getByRole('heading', { name: 'Home', exact: true })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`${new URL(review.url).pathname}$`));
+  // Home replaced the unknown address, so the back button skips it.
+  await page.goBack();
+  await expect(stop(page, 'B1')).toHaveAttribute('aria-current', 'step');
+});

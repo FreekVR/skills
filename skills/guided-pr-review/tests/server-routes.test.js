@@ -93,15 +93,6 @@ test('accepts a change only from the review page, on a local host name, and not 
   assert.strictEqual(fs.existsSync(path.join(small, 'events.jsonl')) ? fs.readFileSync(path.join(small, 'events.jsonl'), 'utf8') : '', before);
 });
 
-test('pauses and plays the agent of a review with a paused file', async () => {
-  const paused = path.join(small, 'paused');
-  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: true }))).status, 200);
-  assert.ok(fs.existsSync(paused));
-  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: false }))).status, 200);
-  assert.ok(!fs.existsSync(paused));
-  assert.strictEqual((await send(`${base}/7/paused`, 'POST', JSON.stringify({ paused: 'yes' }))).status, 400);
-});
-
 test('stack lists the review state of each PR in the stack, or nothing without a stack', async () => {
   assert.deepStrictEqual(await (await fetch(`${base}/7/stack`)).json(), []);
   const dir = review('9', { number: 9 });
@@ -110,14 +101,13 @@ test('stack lists the review state of each PR in the stack, or nothing without a
   assert.deepStrictEqual(status.map((entry) => [entry.number, entry.page]), [[7, '/acme/shop/7'], [8, '/acme/shop/8']]);
 });
 
-test('agent gives the connection, the pause and the open question of the agent', async (t) => {
-  t.after(() => { for (const file of ['waiting', 'session.json', 'paused']) fs.rmSync(path.join(small, file), { force: true }) });
-  assert.deepStrictEqual(await (await fetch(`${base}/7/agent`)).json(), { session: null, connected: false, paused: false, waiting: null, preparing: null });
+test('agent gives the connection and the open question of the agent', async (t) => {
+  t.after(() => { for (const file of ['waiting', 'session.json']) fs.rmSync(path.join(small, file), { force: true }) });
+  assert.deepStrictEqual(await (await fetch(`${base}/7/agent`)).json(), { session: null, connected: false, waiting: null, preparing: null });
   fs.writeFileSync(path.join(small, 'waiting'), JSON.stringify({ question: 'Which angles?', since: '2026-01-01T00:00:00.000Z' }));
   fs.writeFileSync(path.join(small, 'session.json'), JSON.stringify({ sessionId: 'sample-session', cwd: '/sample/dir', watcherPid: process.pid }));
-  fs.writeFileSync(path.join(small, 'paused'), '');
   const status = await (await fetch(`${base}/7/agent`)).json();
-  assert.deepStrictEqual([status.connected, status.paused, status.waiting.question], [true, true, 'Which angles?']);
+  assert.deepStrictEqual([status.connected, status.waiting.question], [true, 'Which angles?']);
   assert.deepStrictEqual(status.session, { sessionId: 'sample-session', cwd: '/sample/dir' });
 });
 

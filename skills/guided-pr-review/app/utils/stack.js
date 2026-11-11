@@ -60,14 +60,17 @@ export function stackRowLabel(row) {
   return 'Not reviewed'
 }
 
-// Get the PR to review after this one: the first PR above it, else the first below it, that the reviewer can act on.
-// A PR is skipped when it is merged or closed, its final review is posted, or its action is none (unknown, preparing, another session).
-// A PR this page asked the agent to prepare is not skipped: the button opens its page instead of a second start.
+// Get the link to a PR of the stack: a merged or closed PR without a review opens on GitHub, any other its Home.
+export function stackLink(row) {
+  return row.action === 'github' ? { href: row.url, target: '_blank', rel: 'noopener' } : { href: row.page }
+}
+
+// Get the PR after this one in the stack: the PR directly above it, or on the top PR the one directly below, whatever
+// its state, so the reviewer can always walk the stack.
 export function nextInStack() {
   const rows = stackRows()
   const at = rows.findIndex((row) => row.current)
-  const open = (row) => (row.action === 'open' || row.action === 'start' || row.asked) && row.state === 'open' && !row.status?.posted
-  return [...rows.slice(at + 1), ...rows.slice(0, at).reverse()].find(open) || null
+  return rows[at + 1] || rows[at - 1] || null
 }
 
 // Get, for each acceptance criterion of this PR's tickets, the PRs of the stack that meet it.
