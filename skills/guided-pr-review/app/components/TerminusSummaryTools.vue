@@ -22,7 +22,7 @@ const tools = computed(() => summaryTools())
       <UButton v-else color="neutral" variant="ghost" icon="i-lucide-sparkles" class="-ml-2.5 text-toned" :disabled="!tools.count" @click="summarize()">
         {{ state.reviewer.summary.trim() ? 'Write a new summary from your remarks' : 'Write a summary from your remarks' }}
       </UButton>
-      <span class="text-label text-dimmed">{{ tools.count ? `Uses the ${plural(tools.count, 'remark')} that will be posted.` : 'Accept a finding or write a remark first.' }}</span>
+      <span class="text-label text-dimmed">{{ tools.count ? `Uses the ${plural(tools.count, 'remark')} that will be posted.` : 'Include a finding in your review or write a remark first.' }}</span>
     </div>
   </div>
 </template>

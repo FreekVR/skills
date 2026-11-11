@@ -118,7 +118,7 @@ async function showThem() {
               <AiTag label="AI findings" />
             </template>
             <p :class="LEDE">
-              You did not accept these, so they are not in the review. Accept one here to post it.
+              You did not include these in your review, so they are not posted. Include one here to post it.
             </p>
             <div v-for="hunk in notPosted.hunks" :key="hunk.id" class="mt-3.5 first-of-type:mt-0">
               <p class="m-0 mb-1.5">

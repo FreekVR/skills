@@ -108,7 +108,7 @@ test('keeps a written summary when you turn the answer down', async ({ page }) =
 test('does not offer to summarize without remarks', async ({ page }) => {
   await openSubmit(page, { mutate: noOwnReview });
   await expect(page.getByRole('button', { name: 'Write a summary from your remarks' })).toBeDisabled();
-  await expect(page.getByText('Accept a finding or write a remark first.')).toBeVisible();
+  await expect(page.getByText('Include a finding in your review or write a remark first.')).toBeVisible();
 });
 
 test('loads the pending review body into the summary', async ({ page }) => {

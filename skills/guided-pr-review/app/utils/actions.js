@@ -196,7 +196,7 @@ export function showNewComments() {
 
 // The reason the page cannot post this yet, shown to the reviewer, or null.
 function postProblem(kind, event, contents) {
-  if (kind === 'draft' && contents.length === 0) return 'There is nothing to put in a draft yet. Accept a finding, write a remark or a summary first.'
+  if (kind === 'draft' && contents.length === 0) return 'There is nothing to put in a draft yet. Include a finding in your review, write a remark or a summary first.'
   if (kind === 'final' && event.verdict !== 'APPROVE' && !event.body) return 'Write a summary first. GitHub needs a review body for request changes and comment.'
   return null
 }
@@ -252,7 +252,7 @@ export function setCollapsed(id, collapsed) {
   saveReviewer()
 }
 
-// Accept, dismiss or reopen ('open') an AI finding.
+// Include an AI finding in the review ('accepted'), dismiss it or reopen it ('open').
 export function decideFinding(id, decision) {
   if (decision === 'open') delete state.reviewer.decisions[id]
   else state.reviewer.decisions[id] = decision
