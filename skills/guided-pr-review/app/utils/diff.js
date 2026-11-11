@@ -1,5 +1,5 @@
 import { state, LANGUAGE_BY_EXTENSION, PHPSTORM_EXTENSIONS } from './state.js'
-import { hunkById, reviewCommentsOn } from './review.js'
+import { hunkById, liveFindings, reviewCommentsOn } from './review.js'
 
 // Get the rows of a hunk with their old and new line numbers.
 export function diffRows(hunk) {
@@ -72,7 +72,7 @@ export function rowMatches(row, item) {
 // Get the diff of one hunk: its rows, the notes on each row, the notes without a row, the rows the notes mark and the
 // rows the composer selects. A note is { type: 'comment' | 'finding' | 'remark' | 'posted', item }.
 export function hunkDiff(hunk) {
-  const findings = state.review.findings.filter((finding) => finding.hunkId === hunk.id)
+  const findings = liveFindings().filter((finding) => finding.hunkId === hunk.id)
   const remarks = state.reviewer.remarks.filter((remark) => remark.hunkId === hunk.id)
   // Like GitHub: the count of added and removed lines, with the line ranges in the tooltip.
   const rows = hunk.lines.length ? diffRows(hunk) : []

@@ -181,7 +181,7 @@ export function resumeHelp(review) {
 export function standingSeverities(hunkId) {
   const on = (item) => hunkId === undefined || item.hunkId === hunkId
   return [
-    ...state.review.findings.filter((finding) => on(finding) && decisionOf(finding) !== 'dismissed').map(findingSeverity),
+    ...liveFindings().filter((finding) => on(finding) && decisionOf(finding) !== 'dismissed').map(findingSeverity),
     ...state.reviewer.remarks.filter(on).map((remark) => remark.severity),
     ...standingOwnRemarks().filter(on).map((own) => own.severity),
   ]
@@ -236,8 +236,9 @@ export function ticketCriteria() { return (state.review.context.tickets || []).f
 
 export function criteriaHaveVerdicts(line) { return line.acceptanceCriteria.some((id) => criterionById(id)?.verdict) }
 
-// Findings on hunks that are no longer in the PR do not count.
-export function liveFindings() { return state.review.findings.filter((finding) => finding.hunkId === null || hunkById(finding.hunkId)) }
+// Get the AI findings that still stand: on a hunk of this review or on the whole PR, and not posted by an earlier final review.
+// A posted finding is the reviewer's own comment on GitHub now; that comment shows and counts in its place.
+export function liveFindings() { return state.review.findings.filter((finding) => (finding.hunkId === null || hunkById(finding.hunkId)) && !postedInEarlierRound(finding.id)) }
 
 export function worstOf(findings) { return findings.reduce((worst, finding) => (severityRank(finding.severity) > severityRank(worst.severity) ? finding : worst)) }
 
