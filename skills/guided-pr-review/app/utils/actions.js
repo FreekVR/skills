@@ -178,6 +178,13 @@ export function toggleSwitcher(open) {
   if (open) loadReviews()
 }
 
+// Stop warning about comments that are gone from review.json.
+export function forgetMissingComments() {
+  const current = new Set((state.review.reviewComments || []).map((comment) => comment.id))
+  state.reviewer.knownComments = (state.reviewer.knownComments || []).filter((id) => current.has(id))
+  saveReviewer()
+}
+
 // Mark the new comments as known and open the first one.
 export function showNewComments() {
   const first = newComments()[0]

@@ -174,6 +174,9 @@ const QUIET_ICONS: Record<string, { icon: string, color: string }> = { ok: { ico
                   <MarkupText :text="text" />
                 </li>
               </ul>
+              <template v-else-if="item.id === 'comments'">
+                <HomeComment v-for="comment in data.general" :key="comment.id" :comment="comment" />
+              </template>
               <p v-else-if="item.id === 'findings'" class="m-0 text-ui text-toned">
                 You accepted or dismissed every AI finding: {{ findings.whole.length }} on the whole PR · {{ findings.onHunks }} in the flows.
               </p>

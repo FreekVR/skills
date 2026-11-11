@@ -122,8 +122,12 @@ export function opinionLine(opinion) {
   return { kind, label: OPINIONS[kind].label, text: opinion.text }
 }
 
+// Get the comments of others outside the diff: on no hunk, or on a hunk this PR no longer has. They show on Home.
+export function commentsOutsideDiff() { return (state.review.reviewComments || []).filter((comment) => !comment.hunkId || !hunkById(comment.hunkId)) }
+
 export function openReviewComments() { return (state.review.reviewComments || []).filter((comment) => !comment.resolved) }
-export function reviewCommentsOn(hunkId) { return openReviewComments().filter((comment) => comment.hunkId === hunkId) }
+// Every comment on GitHub shows on its hunk, resolved ones too; a label says that they are resolved.
+export function reviewCommentsOn(hunkId) { return (state.review.reviewComments || []).filter((comment) => comment.hunkId === hunkId) }
 
 export function ownRemark(id) { return (state.review.ownRemarks || []).find((own) => own.id === id) }
 

@@ -38,7 +38,7 @@ const TARGET = 'scroll-mt-24 outline-none focus:outline-2 focus:-outline-offset-
       <UAvatar :src="avatar(item.author)" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
       <span class="text-meta text-muted">
         <b><a v-if="item.url" :href="item.url" target="_blank" rel="noopener" class="text-info underline-offset-3">@{{ item.author }}</a><template v-else>@{{ item.author }}</template></b>
-        commented{{ item.line ? ` on ${lineLabel(item)}` : '' }} · not your remark, not posted again
+        commented{{ item.line ? ` on ${lineLabel(item)}` : '' }} · not your remark, not posted again<template v-if="item.resolved"> · <ResolvedLabel :comment="item" /></template>
       </span>
     </div>
     <CommentConversation v-if="item.replies?.length" :comment="item">

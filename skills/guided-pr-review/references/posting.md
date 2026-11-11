@@ -21,7 +21,7 @@ gh api --method POST repos/{owner}/{repo}/pulls/{number}/reviews --input payload
 For `kind: final`, answer the threads first, then create the review:
 
 1. Unresolve each thread in the event's `unresolve`, with the GraphQL mutation `unresolveReviewThread` (`threadId`), so the replies go to open threads.
-2. Post each of the event's `replies` in its thread, with the GraphQL mutation `addPullRequestReviewThreadReply` (`pullRequestReviewThreadId`, `body`). A reply can be in a thread of someone else.
+2. Post each of the event's `replies` in its thread, with the GraphQL mutation `addPullRequestReviewThreadReply` (`pullRequestReviewThreadId`, `body`). A reply can be in a thread of someone else, and in a resolved thread.
 3. Resolve each thread in the event's `resolve`, with the GraphQL mutation `resolveReviewThread` (`threadId`). Use `gh api graphql`; the REST API cannot resolve threads.
 4. Create the review as in step 3 above.
 5. Read the reviews and threads again, as for a `check` event, so the Existing reviews tab shows the new state.

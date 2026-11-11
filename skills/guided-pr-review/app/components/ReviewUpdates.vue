@@ -64,6 +64,9 @@ const banners = computed(() => (state.static ? [] : updates()))
           <p v-else-if="banner.kind === 'remote-error'" class="m-0">
             <strong>The agent could not reach GitHub: {{ banner.message }}</strong> The page shows the last state it read.
           </p>
+          <p v-else-if="banner.kind === 'missing-comments'" class="m-0">
+            <strong>{{ banner.count === 1 ? '1 comment' : `${banner.count} comments` }} from GitHub no longer {{ banner.count === 1 ? 'shows' : 'show' }} here.</strong> When it was not deleted on GitHub, ask the agent to read the comments again.
+          </p>
           <p v-else-if="banner.kind === 'comments'" class="m-0">
             <strong>{{ plural(banner.count, 'new comment') }}</strong> by {{ banner.authors.map((author: string) => `@${author}`).join(', ') }}.
           </p>
@@ -81,6 +84,7 @@ const banners = computed(() => (state.static ? [] : updates()))
             <UButton color="neutral" variant="ghost" @click="closeRefreshResult(banner.eventId)">Close</UButton>
           </template>
           <UButton v-if="banner.kind === 'comments'" color="neutral" variant="soft" @click="showNewComments()">Show</UButton>
+          <UButton v-if="banner.kind === 'missing-comments'" color="neutral" variant="ghost" @click="forgetMissingComments()">Close</UButton>
         </template>
       </UAlert>
     </TransitionGroup>
