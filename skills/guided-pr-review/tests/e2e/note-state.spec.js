@@ -54,3 +54,26 @@ test('a comment outside the diff on Home shows an On GitHub icon', async ({ page
   const card = page.getByRole('main').getByText('The README does not mention the card.').locator('xpath=ancestor::div[contains(@class, "py-4")][1]');
   await expect(card.getByRole('img', { name: 'On GitHub' })).toHaveCount(1);
 });
+
+// f2 is open on A3; an edit of its text is the reviewer's own words, which are not posted until they include it.
+test('an open AI finding you edited says so, and that your edit is not in your review', async ({ page }) => {
+  const review = await openReview(page, { reviewer: { edits: { f2: 'Use a named function. I would add a test too.' } } });
+  await page.goto(`${review.url}/A3`);
+  // The card holds a state icon before and after Include, so it anchors on that.
+  const card = page.getByRole('main').getByText('Name the map callback').first().locator('xpath=ancestor::div[.//*[@data-note-state]][1]');
+  await expect(card.getByText('Edited by you')).toBeVisible();
+  const icon = card.getByRole('img', { name: 'Edited, not in your review' });
+  await expect(icon).toHaveCount(1);
+  const include = card.getByRole('button', { name: 'Include in my review' });
+  expect(Math.abs(await centre(icon) - await centre(include))).toBeLessThanOrEqual(1);
+  await include.click();
+  await expect(card.getByRole('img', { name: /^In your review, not posted/ })).toHaveCount(1);
+});
+
+test('an open AI finding you did not edit has no edit mark and no state icon', async ({ page }) => {
+  const review = await openReview(page);
+  await page.goto(`${review.url}/A3`);
+  const card = page.getByRole('main').getByText('Name the map callback').first().locator('xpath=ancestor::div[.//button[normalize-space()="Include in my review"]][1]');
+  await expect(card.getByText('Edited by you')).toHaveCount(0);
+  await expect(card.locator('[data-note-state]')).toHaveCount(0);
+});

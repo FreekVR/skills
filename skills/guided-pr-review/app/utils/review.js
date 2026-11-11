@@ -85,6 +85,9 @@ export function severityTone(severity) { return SEVERITY_TONES[severityLevel(sev
 export function verdictOf(hunkId) { return state.reviewer.hunkVerdicts[hunkId] }
 
 export function findingText(finding) { return state.reviewer.edits[finding.id] ?? finding.body }
+
+// Whether the reviewer changed the AI's text of a finding. The edit form trims its text, so whitespace at the ends does not count.
+export function findingEdited(finding) { return findingText(finding).trim() !== finding.body.trim() }
 export function findingSeverity(finding) { return state.reviewer.severities[finding.id] ?? finding.severity }
 export function decisionOf(finding) { return state.reviewer.decisions[finding.id] || 'open' }
 
@@ -100,7 +103,8 @@ export function severitySelect(finding) {
 export function acceptedItems() {
   const findings = state.review.findings
     .filter((finding) => decisionOf(finding) === 'accepted' && !postedInEarlierRound(finding.id) && (finding.hunkId === null || hunkById(finding.hunkId)))
-    .map((finding) => ({ id: finding.id, hunkId: finding.hunkId, startLine: finding.startLine, startSide: finding.startSide, line: finding.line, side: finding.side, severity: findingSeverity(finding), title: finding.title, rule: finding.rule, stack: finding.stack, body: findingText(finding), source: 'ai' }))
+    // A finding the reviewer edited is posted as their own text, without the AI disclosure.
+    .map((finding) => ({ id: finding.id, hunkId: finding.hunkId, startLine: finding.startLine, startSide: finding.startSide, line: finding.line, side: finding.side, severity: findingSeverity(finding), title: finding.title, rule: finding.rule, stack: finding.stack, body: findingText(finding), source: findingEdited(finding) ? 'reviewer' : 'ai' }))
   const remarks = state.reviewer.remarks
     .filter((remark) => remark.hunkId === null || hunkById(remark.hunkId))
     .map((remark) => ({ ...remark, source: remark.aiSuggested ? 'ai' : 'reviewer' }))

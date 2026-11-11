@@ -2,10 +2,12 @@
 // Whether a note goes into the review and where it stands on GitHub, as one icon whose label slides out on hover.
 // `decision` is the decision on an AI finding; a remark has none. An open finding shows nothing: its buttons say it.
 // `github` is the state of a comment that came from GitHub, which the page did not post: `posted` or `draft`.
-const props = defineProps<{ id: string, body: string, decision?: string | null, github?: 'posted' | 'draft' }>()
+// `edited` marks a finding whose text the reviewer changed; while it is open, the icon says that edit is not in the review.
+const props = defineProps<{ id: string, body: string, decision?: string | null, github?: 'posted' | 'draft', edited?: boolean }>()
 
 const STATES: Record<string, { icon: string, label: string, tone: string }> = {
   dismissed: { icon: 'i-lucide-circle-slash', label: 'Not in your review', tone: 'bg-elevated text-muted' },
+  edited: { icon: 'i-lucide-pencil-line', label: 'Edited, not in your review', tone: 'bg-elevated text-toned' },
   local: { icon: 'i-lucide-cloud-off', label: 'In your review, not posted', tone: 'bg-elevated text-toned' },
   draft: { icon: 'i-lucide-file-pen-line', label: 'In GitHub draft', tone: 'bg-warning/15 text-warning' },
   posted: { icon: 'i-lucide-cloud-check', label: 'On GitHub', tone: 'bg-success/15 text-success' },
@@ -14,7 +16,7 @@ const STATES: Record<string, { icon: string, label: string, tone: string }> = {
 
 const shown = computed(() => {
   if (props.github) return { ...STATES[props.github], hint: '' }
-  if (props.decision === 'open') return null
+  if (props.decision === 'open') return props.edited ? { ...STATES.edited, hint: '' } : null
   const badge = statusBadge(props.id, props.body)
   // A dismissed finding that GitHub already has stays on GitHub, so its GitHub state wins.
   if (props.decision === 'dismissed' && badge.status === 'local') return { ...STATES.dismissed, hint: '' }
