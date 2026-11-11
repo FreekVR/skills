@@ -166,7 +166,8 @@ test('Home shows the stack bottom to top, with each PR\'s AI line on hover', asy
     await expect(rows.nth(at).locator(`[title="${SUMMARIES[number]}"]`)).toHaveCount(1);
   }
   await expect(homeStack(page)).toContainText('Stack #31 · 4 PRs · base main');
-  await expect(rows.nth(0)).toContainText('Approved by you');
+  // #14 has a review here without a posted one, so GitHub's approval does not count: the row says what its page says.
+  await expect(rows.nth(0)).toContainText('Merged');
   await expect(rows.nth(1)).toContainText('this page');
   await expect(rows.nth(2)).toContainText('Not reviewed');
   await expect(rows.nth(0).getByRole('link', { name: '#14' })).toHaveAttribute('href', /example-org\/sample-widget\/issues\/14$/);
@@ -548,4 +549,32 @@ test('a finding that another PR fixes links to the review of that PR when it has
   await page.reload();
   await page.getByRole('complementary').getByRole('button', { name: /^Store the forecast/ }).click();
   await expect(page.getByRole('main').getByRole('link', { name: 'Open the review of #16' })).toHaveAttribute('href', /\/16$/);
+});
+
+// The stack bar says what each PR's own page says: the verdict of its posted review, or GitHub's approval when it has no review here.
+test('the stack bar shows the verdict of your posted review, and GitHub\'s approval only for a PR without a review here', async ({ page }) => {
+  const review = await openReview(page, { mutate: (data) => { onPage(data); data.pr.number = 16; data.pr.title = TITLES[16]; data.stack = stackFixture([14, 15, 16, 17], 16); data.stack.prs[3].approved = true; }, others: [merged()] });
+  postedReviewOf(review, 15);
+  const reviewer = path.join(review.stateHome, 'guided-pr-review', 'example-org', 'sample-widget', '15', 'reviewer.json');
+  const saved = JSON.parse(fs.readFileSync(reviewer, 'utf8'));
+  saved.sent[0].payload = { verdict: 'APPROVE' };
+  fs.writeFileSync(reviewer, JSON.stringify(saved));
+  await page.reload();
+  await button(page).click();
+  await expect(row(page, 15)).toContainText('Review posted · Approved');
+  await expect(row(page, 17)).toContainText('Approved by you');
+});
+
+test('a PR whose review started a new round shows its progress, not an earlier approval', async ({ page }) => {
+  const review = await openReview(page, { mutate: (data) => { onPage(data); data.pr.number = 16; data.pr.title = TITLES[16]; data.stack = stackFixture([14, 15, 16, 17], 16); data.stack.prs[1].approved = true; }, others: [merged()] });
+  postedReviewOf(review, 15);
+  const reviewer = path.join(review.stateHome, 'guided-pr-review', 'example-org', 'sample-widget', '15', 'reviewer.json');
+  const saved = JSON.parse(fs.readFileSync(reviewer, 'utf8'));
+  Object.assign(saved, { reopenedAfter: 'e1' });
+  saved.sent[0].payload = { verdict: 'APPROVE' };
+  fs.writeFileSync(reviewer, JSON.stringify(saved));
+  await page.reload();
+  await button(page).click();
+  await expect(row(page, 15)).toContainText('hunks seen');
+  await expect(row(page, 15)).not.toContainText('Approved');
 });

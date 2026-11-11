@@ -1,4 +1,4 @@
-import { state } from './state.js'
+import { state, VERDICTS } from './state.js'
 import { plural, ticketCriteria } from './review.js'
 import { agentState } from './posting.js'
 
@@ -42,22 +42,25 @@ export function stackRows() {
     const asked = !status?.hasReview && state.reviewer.sent.some((sent) => sent.type === 'start-review' && sent.number === pr.number)
     const action = status?.hasReview ? 'open' : done ? 'github' : !status || status.preparing || status.agentConnected || asked ? 'none' : 'start'
     const page = status?.page || `/${state.review.pr.owner}/${state.review.pr.repo}/${pr.number}`
+    // Approved as the PR's own page shows it; GitHub's approval counts only for a PR without a review here.
+    const approved = status?.hasReview ? status.posted === 'APPROVE' : Boolean(pr.approved)
     // A review from a session that ended has no watch: going there asks this review's agent to take it over.
     const takeOver = Boolean(status?.hasReview && !status.agentConnected && !status.preparing && !done && !state.static && pr.number !== state.review.pr.number)
-    return { number: pr.number, title: pr.title, summary: pr.summary || '', url: pr.url, page, state: pr.state, current: pr.number === state.review.pr.number, approved: Boolean(pr.approved), status, action, asked, takeOver }
+    return { number: pr.number, title: pr.title, summary: pr.summary || '', url: pr.url, page, state: pr.state, current: pr.number === state.review.pr.number, approved, status, action, asked, takeOver }
   })
 }
 
 // Get the line under a PR in the stack switch.
+// A PR with a review on this page says what that page's large button says; GitHub's approval counts only for a PR without one.
 export function stackRowLabel(row) {
-  if (row.approved) return 'Approved by you'
+  if (row.status?.posted) return ['Review posted', VERDICTS.find((option) => option.id === row.status.posted)?.done].filter(Boolean).join(' · ')
   if (row.state === 'merged') return 'Merged'
-  if (row.status?.posted) return 'Review posted'
   if (row.status?.preparing || row.asked) return agentState() === 'none' ? 'Waits for an agent' : 'Preparing the review…'
   if (row.status?.hasReview) {
     const { seen, hunks, remarks } = row.status
     return remarks ? `${seen} of ${hunks} hunks seen · ${plural(remarks, 'remark')}` : `${seen} of ${hunks} hunks seen`
   }
+  if (row.approved) return 'Approved by you'
   if (row.status?.agentConnected) return 'Reviewed in another session'
   return 'Not reviewed'
 }

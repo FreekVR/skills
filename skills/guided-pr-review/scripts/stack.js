@@ -43,4 +43,10 @@ function fromBranches(number, allOpenPulls) {
   return { number: null, source: 'branches', base: chain[0].base.ref, prs: chain.map(entry) };
 }
 
-module.exports = { fromGitHubStack, fromBranches };
+// Whether a user's latest review of a PR is an approval. Comments and a pending review do not count as a review here.
+function approvedBy(reviews, login) {
+  const own = reviews.filter((review) => review.user?.login === login && ['APPROVED', 'CHANGES_REQUESTED', 'DISMISSED'].includes(review.state));
+  return own.at(-1)?.state === 'APPROVED';
+}
+
+module.exports = { fromGitHubStack, fromBranches, approvedBy };
