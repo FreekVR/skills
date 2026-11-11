@@ -11,7 +11,7 @@ const label = computed(() => (open.value ? 'Close the questions about this hunk'
 const key = computed(() => `ask:${props.hunk.id}`)
 const question = computed({
   get: () => state.ui.drafts[key.value] || '',
-  set: (value: string) => { state.ui.drafts[key.value] = value },
+  set: (value: string) => setDraft(key.value, value),
 })
 
 // An answer turned into a remark continues in the remark form, which takes the focus; the panel closes and

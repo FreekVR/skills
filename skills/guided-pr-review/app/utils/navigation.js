@@ -1,7 +1,8 @@
 import { state, SHORTCUTS } from './state.js'
-import { hunkById, isSeen, lineById, lines, stationCode, verdictOf } from './review.js'
+import { decisionOf, hunkById, isSeen, lineById, lines, liveFindings, stationCode, verdictOf } from './review.js'
 import { postedReview } from './posting.js'
 import { markSeen, saveReviewer, setHunkVerdict } from './actions.js'
+import { notify } from './notify.js'
 
 // Where a hunk sits in reading order, so a move between hunks has a direction.
 export function stopOrder(view) {
@@ -99,7 +100,20 @@ let correctingAddress = false
 function showInAddress() {
   if (state.static) return
   const path = viewPath()
-  if (window.location.pathname !== path) navigateTo(path, { replace: correctingAddress })
+  if (window.location.pathname === path) return
+  ownAddresses.add(path)
+  navigateTo(path, { replace: correctingAddress })
+}
+
+// The addresses the page asked the router for and that have not arrived yet. The router changes the address a moment
+// later, so after two quick moves the first address still arrives; it is the page's own, not a step back.
+const ownAddresses = new Set()
+
+// Whether an address change comes from the page itself. The browser's back and forward buttons give other addresses.
+// Once the address matches the view, an address that never arrived is no longer expected.
+export function isOwnAddress(path) {
+  if (path === viewPath()) ownAddresses.clear()
+  return ownAddresses.delete(path)
 }
 
 // Move one hunk forward or back in reading order. Past the last hunk comes Submit review.
@@ -155,10 +169,21 @@ export function showShortcuts() { state.ui.shortcutsOpen = true }
 // Open the list of hunks not seen yet on Submit review.
 export function showUnseen() { state.ui.terminusOpen = { ...state.ui.terminusOpen, coverage: true } }
 
+// Go to the next hunk with an open finding, in reading order after the hunk in view; after the last one, start at the top.
+export function nextOpenFinding() {
+  const open = new Set(liveFindings().filter((finding) => finding.hunkId && decisionOf(finding) === 'open').map((finding) => finding.hunkId))
+  const stops = lines().flatMap((line) => line.stops.map((stop, index) => ({ line: line.id, index, hunkId: stop.hunkId })))
+  const at = state.view.kind === 'station' ? stops.findIndex((stop) => stop.line === state.view.line && stop.index === state.view.index) : -1
+  const next = [...stops.slice(at + 1), ...stops.slice(0, at + 1)].find((stop) => open.has(stop.hunkId))
+  if (next) go(next.line, next.index)
+  else notify('No open findings left.')
+}
+
 const SHORTCUT_ACTIONS = {
   nextHunk: () => step(1),
   previousHunk: () => step(-1),
   nextUnseen,
+  nextOpenFinding,
   approveHunk: () => pressHunkVerdict('approved'),
   requestChangesHunk: () => pressHunkVerdict('changes'),
   commentHunk: () => pressHunkVerdict('comment'),

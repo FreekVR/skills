@@ -13,7 +13,7 @@ onBeforeUnmount(stopPolling)
 
 // The browser's back and forward buttons change the address; the page opens the view it names.
 watch(() => route.path, () => {
-  if (state.review && route.path !== viewPath()) openPath(viewParts())
+  if (state.review && !isOwnAddress(route.path) && route.path !== viewPath()) openPath(viewParts())
 })
 
 const prRef = `${route.params.owner}/${route.params.repo}#${route.params.number}`

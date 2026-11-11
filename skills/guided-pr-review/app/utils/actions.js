@@ -1,7 +1,7 @@
 import { state, POLL_MS, CHECK_MS } from './state.js'
 import { reviewPath, transport } from './api.js'
 import { notify } from './notify.js'
-import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isSeen, lines, noteFreshHunks, setReview, severities } from './review.js'
+import { acceptedItems, decisionOf, emptyReviewer, firstStationOf, hunkById, isSeen, lineById, lines, noteFreshHunks, setReview, severities } from './review.js'
 import { answerFor, applySummaryDraft, buildPost, ghCommand, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
 import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, openPath } from './navigation.js'
@@ -22,8 +22,59 @@ export function saveReviewer() {
 // Save the reviewer state now, for example before the page goes to another review.
 async function saveReviewerNow() {
   clearTimeout(saveTimer)
-  try { await transport.saveReviewer(state.reviewer) }
+  saveTimer = null
+  try { await transport.saveReviewer(reviewerToSave()) }
   catch (error) { notify(`Your progress was not saved: ${error.message}. Keep this tab open and try again.`, true) }
+}
+
+// The reviewer state with the text being written and the open remark form, so a reload brings them back.
+function reviewerToSave() {
+  return { ...state.reviewer, drafts: state.ui.drafts, composer: state.ui.composer || undefined }
+}
+
+// Keep the text being written in a form, and save it.
+export function setDraft(key, value) {
+  state.ui.drafts[key] = value
+  saveReviewer()
+}
+
+// A save that still waits when the tab goes away is sent at once, so the last change is not lost. A keepalive request
+// carries at most 64 KB; a bigger state goes as a normal request, which the browser may still cut off.
+const KEEPALIVE_LIMIT = 60_000
+function saveBeforeLeaving() {
+  if (!saveTimer) return
+  clearTimeout(saveTimer)
+  saveTimer = null
+  const reviewer = reviewerToSave()
+  transport.saveReviewer(reviewer, { keepalive: JSON.stringify(reviewer).length < KEEPALIVE_LIMIT }).catch(() => {})
+}
+
+// Each tab of a review tells the others it is there, so the page can warn that their saves overwrite each other.
+const tabId = crypto.randomUUID()
+let tabChannel = null
+function watchOtherTabs() {
+  tabChannel?.close()
+  state.otherTabs = new Set()
+  if (typeof BroadcastChannel === 'undefined') return
+  const { owner, repo, number } = state.review.pr
+  tabChannel = new BroadcastChannel(`guided-pr-review:${owner}/${repo}/${number}`)
+  tabChannel.onmessage = ({ data }) => {
+    if (data.type === 'bye') state.otherTabs.delete(data.id)
+    else state.otherTabs.add(data.id)
+    if (data.type === 'hello') tabChannel.postMessage({ type: 'here', id: tabId })
+  }
+  tabChannel.postMessage({ type: 'hello', id: tabId })
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('pagehide', () => {
+    saveBeforeLeaving()
+    tabChannel?.postMessage({ type: 'bye', id: tabId })
+  })
+  // A tab that the browser restores from its back-forward cache said goodbye when it was hidden.
+  window.addEventListener('pageshow', (event) => {
+    if (event.persisted) tabChannel?.postMessage({ type: 'hello', id: tabId })
+  })
 }
 
 // Keep a sent event in the reviewer state, so the page knows what it asked the agent.
@@ -199,6 +250,7 @@ export function startEdit(id) { state.ui.editing = id }
 export function cancelEdit(id) {
   state.ui.editing = null
   delete state.ui.drafts[`edit:${id}`]
+  saveReviewer()
 }
 
 // Save the edited text of an AI finding. An empty text keeps the old one.
@@ -230,11 +282,16 @@ export function deleteRemark(id) {
 }
 
 // Open the remark form for a range of lines.
+// The open form is saved too, so a reload brings back the remark being written.
 export function openComposer(composer) {
   state.ui.composer = composer
+  saveReviewer()
 }
 
-export function cancelRemark() { state.ui.composer = null }
+export function cancelRemark() {
+  state.ui.composer = null
+  saveReviewer()
+}
 
 // Open the remark form on one row. Mouse selection uses startRowDrag; this is for the keyboard.
 export function remarkOnRow(hunkId, row) {
@@ -504,6 +561,9 @@ export async function boot(parts = []) {
     setAgent(agent)
     state.preparing = null
     state.reviewer = { ...emptyReviewer(), ...reviewer }
+    // The text being written and the open remark form are saved with the reviewer state, so a reload keeps them.
+    state.ui.drafts = { ...state.reviewer.drafts }
+    const openForm = state.reviewer.composer
     state.seen = new Set(state.reviewer.seen)
     noteFreshHunks()
     importOwnReview()
@@ -523,6 +583,12 @@ export async function boot(parts = []) {
       checkGitHub()
     }
     openPath(parts)
+    // Opening the view closes the form; a form on the hunk in view opens again.
+    const stop = state.view.kind === 'station' && lineById(state.view.line).stops[state.view.index]
+    if (openForm && stop?.hunkId === openForm.hunkId) openComposer(openForm)
+    if (!state.static) {
+      watchOtherTabs()
+    }
     // The switch is optional, so the page does not wait for the list.
     loadReviews()
     loadStack()

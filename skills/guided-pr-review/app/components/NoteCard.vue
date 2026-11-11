@@ -30,7 +30,7 @@ const editing = computed(() => state.ui.editing === props.item.id)
 // The edit form keeps its text in state.ui.drafts, so a redraw does not lose it.
 const draft = computed({
   get: () => state.ui.drafts[`edit:${props.item.id}`] ?? text.value,
-  set: (value: string) => { state.ui.drafts[`edit:${props.item.id}`] = value },
+  set: (value: string) => setDraft(`edit:${props.item.id}`, value),
 })
 const editSeverity = ref(props.item.severity)
 watch(editing, (open) => { if (open) editSeverity.value = props.item.severity })

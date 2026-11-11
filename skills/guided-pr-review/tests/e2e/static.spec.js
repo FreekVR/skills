@@ -44,6 +44,8 @@ test('keeps the reviewer state in the browser after a reload', async ({ page }) 
 
 test('Submit review shows the gh command that posts the review', async ({ page }) => {
   await openStatic(page);
+  // The page saves its state as it opens; wait for that save, so it cannot overwrite the state set below on the reload.
+  await page.waitForFunction(() => localStorage.getItem('guided-pr-review:example-org/sample-widget#17'));
   await page.evaluate(() => localStorage.setItem('guided-pr-review:example-org/sample-widget#17', JSON.stringify({ summary: "It's fine." })));
   await page.reload();
   await page.getByRole('main').waitFor();

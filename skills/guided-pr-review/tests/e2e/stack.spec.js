@@ -522,3 +522,11 @@ test('the Next button and the stack switch open the other PR on its Home, not wh
   await button(page).click();
   await expect(page.getByRole('dialog').getByRole('listitem').filter({ hasText: '#15' }).getByRole('link', { name: /#15/ })).toHaveAttribute('href', /\/15$/);
 });
+
+test('a finding that another PR fixes links to the review of that PR when it has one', async ({ page }) => {
+  const review = await openReview(page, { mutate: withStackTakes, others: [merged()] });
+  review.write(reviewOf16());
+  await page.reload();
+  await page.getByRole('complementary').getByRole('button', { name: /^Store the forecast/ }).click();
+  await expect(page.getByRole('main').getByRole('link', { name: 'Open the review of #16' })).toHaveAttribute('href', /\/16$/);
+});
