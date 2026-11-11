@@ -123,21 +123,29 @@ test.describe('a finding', () => {
   });
 });
 
-const postedF1 = {
+// f1 went out with a post; `kind` says whether it was a draft or a final review.
+const postedF1 = (kind) => ({
   mutate: (data) => { data.posts = [{ eventId: 'e1', status: 'posted' }]; },
-  reviewer: { sent: [{ id: 'e1', type: 'post', kind: 'final', contents: [{ id: 'f1', body: 'The TTL is 60 seconds, not one hour.' }] }] },
-};
+  reviewer: { sent: [{ id: 'e1', type: 'post', kind, contents: [{ id: 'f1', body: 'The TTL is 60 seconds, not one hour.' }] }], decisions: { f1: 'accepted' } },
+});
 
-test('a posted finding shows that it is on GitHub, also after you dismiss it', async ({ page }) => {
-  await openReview(page, { ...postedF1, reviewer: { ...postedF1.reviewer, decisions: { f1: 'accepted' } } });
+test('a finding in your GitHub draft shows that it is there, also after you dismiss it', async ({ page }) => {
+  await openReview(page, postedF1('draft'));
   await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
-  // The hunk also holds your posted comment gh-1, with an icon of its own: look at the finding's card only.
   const finding = page.getByRole('main').getByText('TTL is in milliseconds').first().locator('xpath=ancestor::div[.//*[@data-note-state]][1]');
-  await expect(finding.getByRole('img', { name: 'On GitHub' })).toBeVisible();
+  await expect(finding.getByRole('img', { name: 'In GitHub draft' })).toBeVisible();
   await finding.getByRole('button', { name: 'Dismiss' }).click();
   // The finding folds away, and the folded note keeps the GitHub state in view.
-  await expect(finding.getByRole('img', { name: 'On GitHub' })).toHaveCount(1);
-  await expect(finding.getByRole('img', { name: 'On GitHub' })).toBeVisible();
+  await expect(finding.getByRole('img', { name: 'In GitHub draft' })).toHaveCount(1);
+  await expect(finding.getByRole('img', { name: 'In GitHub draft' })).toBeVisible();
+});
+
+// A final review turned f1 into your own comment on GitHub, which stands for it from then on.
+test('a finding that an earlier final review posted no longer shows or counts; your posted comment stays', async ({ page }) => {
+  await openReview(page, postedF1('final'));
+  await openHunk(page, 'Store the forecast', /^B1 src\/cache\.ts/);
+  await expect(page.getByRole('main').getByText('TTL is in milliseconds')).toHaveCount(0);
+  await expect(page.locator('#note-gh-1')).toBeVisible();
 });
 
 test('a remark shows its GitHub state as an icon', async ({ page }) => {
