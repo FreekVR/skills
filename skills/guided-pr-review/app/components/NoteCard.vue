@@ -20,6 +20,8 @@ interface NoteItem {
 const props = defineProps<{ type: 'finding' | 'remark', item: NoteItem }>()
 
 const isFinding = computed(() => props.type === 'finding')
+// The reviewer changed the AI's text; those words are theirs and are posted only when they include the finding.
+const edited = computed(() => isFinding.value && findingEdited(props.item))
 const decision = computed(() => (isFinding.value ? decisionOf(props.item) : null))
 const text = computed(() => (isFinding.value ? findingText(props.item) : props.item.body))
 const select = computed(() => (isFinding.value ? severitySelect(props.item) : null))
@@ -78,6 +80,7 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
             <span v-if="select.changed" class="text-meta text-muted">AI said {{ select.suggested }}</span>
             <span v-if="item.rule" class="text-meta whitespace-nowrap text-muted">{{ item.rule }}</span>
             <span v-if="item.at" class="text-meta whitespace-nowrap text-muted">{{ timeLabel(item.at) }}</span>
+            <span v-if="edited" class="inline-flex items-center gap-1 text-meta whitespace-nowrap text-muted"><UIcon name="i-lucide-pencil" class="size-3.5" aria-hidden="true" />Edited by you</span>
           </template>
           <template v-else>
             <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
@@ -123,7 +126,7 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
             <UButton color="neutral" variant="ghost" class="text-toned" @click="startEdit(item.id)">Edit</UButton>
             <UButton color="error" variant="ghost" @click="deleteRemark(item.id)">Delete</UButton>
           </template>
-          <NoteState v-if="!gone" :id="item.id" :body="text" :decision="decision" />
+          <NoteState v-if="!gone" :id="item.id" :body="text" :decision="decision" :edited="edited" />
         </div>
       </template>
     </NoteFold>

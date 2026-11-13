@@ -321,3 +321,10 @@ test('a pending comment without a hunk shows in your remarks on the whole PR, wh
   const event = await eventOf(review, 'post');
   expect(event.body).not.toContain('Why two jane commands?');
 });
+
+test('a finding you edited is posted as your own text, without the AI disclosure', async ({ page }) => {
+  const review = await openSubmit(page, { ...draftOptions, reviewer: { ...draftOptions.reviewer, edits: { f2: 'Use a named function. I would add a test too.' } } });
+  await page.getByRole('main').getByRole('button', { name: /^Post as draft/ }).click();
+  const event = await eventOf(review, 'post');
+  expect(event.comments[0]).toEqual({ path: 'src/components/ForecastCard.tsx', line: 2, side: 'RIGHT', body: '**nit(style): Name the map callback**\n\nUse a named function. I would add a test too.' });
+});

@@ -194,7 +194,7 @@ Every event has `id`, `at`, `type` and `review`, the pull request it belongs to 
 [ { "path": "src/cache.ts", "start_line": 1, "start_side": "RIGHT", "line": 3, "side": "RIGHT", "body": "<text, with severity label and disclosure>" } ]
 ```
 
-The review page builds `body` and every comment `body` in full. A finding starts with the header line `**severity(rule): title**`; a remark starts with `**severity:**`. Only AI findings, and remarks that started from an AI answer, get the disclosure.
+The review page builds `body` and every comment `body` in full. A finding starts with the header line `**severity(rule): title**`; a remark starts with `**severity:**`. Only AI findings, and remarks that started from an AI answer, get the disclosure; a finding whose text the reviewer edited is posted as their own text, without it.
 
 A final `post` also answers threads. `unresolve` lists the resolved threads, the reviewer's own or someone else's, that they chose to open again; `replies` go to any open thread and to those threads; `resolve` lists the reviewer's own threads they chose to resolve:
 

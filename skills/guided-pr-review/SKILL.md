@@ -203,7 +203,7 @@ Write each finding:
 - Attach it to the hunk and line it is about, or set `hunkId` to null for a finding about the whole PR.
 - Set `sources` to what found it: the exact name of the review skill, or `check:<angle>` for a built-in check, for example `check:spec`. The angles are `spec`, `code-standards`, `sources` and `tests`.
 - When an open ticket in `context.relatedTickets` already covers it, name that ticket's key in the finding.
-- Write `body` as the comment text that would be posted, without the title, the severity label and the disclosure; the review page posts the finding as a header line `**severity(rule): title**`, then the body, then the disclosure.
+- Write `body` as the comment text that would be posted, without the title, the severity label and the disclosure; the review page posts the finding as a header line `**severity(rule): title**`, then the body, then the disclosure, unless the reviewer edited the text.
 - Write `body` in GitHub markdown: short paragraphs, a list for separate points, code in backticks, and a `suggestion` block for a concrete fix. In the JSON, write each line break as `\n`.
 
 Then judge each finding of the checks yourself, except an `acceptance-criteria` finding. You MUST compare it with the decisions in the tickets and their comments, and with the earlier requests: the review bodies, the review threads with their replies and the PR conversation comments from step 3, by the user and by others, the `ownRemarks` that `review.json` already holds from an earlier round, and the user's remarks in `reviewer.json` that are not posted yet.
