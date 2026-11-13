@@ -70,7 +70,7 @@ Each event from the review page is one request. The watch prints it as an `EVENT
 
 - `ask`: base the answer on the code and the context you read. Write it in markdown.
 - `summarize`: write the review summary from the remarks in the event only, in plain text the reviewer can edit, in at most 5 sentences. The remarks are posted right below it, as line comments and as a list of whole-PR remarks, so the summary is a short reading guide to them:
-  1. How serious the remarks are as a whole: which ones block the merge and which are small, by count or by severity, not one by one.
+  1. How serious the remarks are as a whole: which ones block the merge and which are small, by count or by severity, not one by one. A remark blocks the merge when its severity is `conventions.requestChangesFrom` or higher, the same threshold at which the review page proposes request changes.
   2. A shared cause: when several remarks point to the same problem or symptom, name it once and say how many remarks or which places show it.
   3. What the author should do first.
 
