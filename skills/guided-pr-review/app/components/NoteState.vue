@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Whether a note goes into the review and where it stands on GitHub, as one icon whose label slides out on hover.
 // `decision` is the decision on an AI finding; a remark has none. An open finding shows nothing: its buttons say it.
-const props = defineProps<{ id: string, body: string, decision?: string | null }>()
+// `github` is the state of a comment that came from GitHub, which the page did not post: `posted` or `draft`.
+const props = defineProps<{ id: string, body: string, decision?: string | null, github?: 'posted' | 'draft' }>()
 
 const STATES: Record<string, { icon: string, label: string, tone: string }> = {
   dismissed: { icon: 'i-lucide-circle-slash', label: 'Not in your review', tone: 'bg-elevated text-muted' },
@@ -12,6 +13,7 @@ const STATES: Record<string, { icon: string, label: string, tone: string }> = {
 }
 
 const shown = computed(() => {
+  if (props.github) return { ...STATES[props.github], hint: '' }
   if (props.decision === 'open') return null
   const badge = statusBadge(props.id, props.body)
   // A dismissed finding that GitHub already has stays on GitHub, so its GitHub state wins.

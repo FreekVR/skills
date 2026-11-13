@@ -132,7 +132,7 @@ export function threadActions(own) {
 
 // The first entry is the comment itself; the rest are replies.
 export function conversation(comment) {
-  return [{ author: comment.author || viewerLogin(), body: comment.body }, ...(comment.replies || [])]
+  return [{ author: comment.author || viewerLogin(), body: comment.body, at: comment.at }, ...(comment.replies || [])]
 }
 
 export function isCopied(comment) {

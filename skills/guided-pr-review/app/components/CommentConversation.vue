@@ -2,7 +2,7 @@
 // A comment and its replies. A line from avatar to avatar joins the replies to the comment they answer.
 // An avatar that does not load is hidden with its line, so no empty circle stays in front of the text.
 // The `first` slot sits under the first comment, before the replies, for what is about that comment only.
-const props = defineProps<{ comment: { author?: string, body: string, replies?: { author: string, body: string, at?: string }[] } }>()
+const props = defineProps<{ comment: { author?: string, body: string, at?: string, replies?: { author: string, body: string, at?: string }[] } }>()
 
 const entries = computed(() => conversation(props.comment) as { author: string, body: string, at?: string }[])
 </script>

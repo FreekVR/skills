@@ -9,7 +9,7 @@ export function importOwnReview() {
   const imported = new Set(state.reviewer.imported)
   for (const own of state.review.ownRemarks || []) {
     if (own.state !== 'pending' || imported.has(own.id)) continue
-    state.reviewer.remarks.push({ id: own.id, hunkId: own.hunkId, line: own.line, side: own.side, severity: own.severity ?? severities()[0], ...(own.severitySource === 'ai' && { severitySource: 'ai' }), body: own.body })
+    state.reviewer.remarks.push({ id: own.id, hunkId: own.hunkId, line: own.line, side: own.side, severity: own.severity ?? severities()[0], ...(own.severitySource === 'ai' && { severitySource: 'ai' }), body: own.body, ...(own.at && { at: own.at }) })
     imported.add(own.id)
   }
   const pending = state.review.ownPendingReview

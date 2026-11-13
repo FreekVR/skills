@@ -10,6 +10,7 @@ interface NoteItem {
   severitySource?: string
   stack?: { verdict: string, pr?: number, prs?: number[], note?: string }
   rule?: string
+  at?: string
   hunkId?: string | null
   line?: number
   startLine?: number
@@ -76,12 +77,13 @@ const edge = computed(() => (decision.value === 'dismissed' ? 'border-r-accented
             </span>
             <span v-if="select.changed" class="text-meta text-muted">AI said {{ select.suggested }}</span>
             <span v-if="item.rule" class="text-meta whitespace-nowrap text-muted">{{ item.rule }}</span>
+            <span v-if="item.at" class="text-meta whitespace-nowrap text-muted">{{ timeLabel(item.at) }}</span>
           </template>
           <template v-else>
             <UAvatar :src="avatar(viewerLogin())" alt="" size="xs" class="-mr-0.5 self-center bg-elevated ring-1 ring-default" />
             <DiffSeverity :severity="item.severity" />
             <span v-if="item.severitySource === 'ai'" class="text-meta text-muted"><AiTag label="" class="mr-1.5" />AI set the severity</span>
-            <span class="text-meta text-muted">{{ own ? 'Your pending remark from GitHub' : 'Your remark' }}{{ item.line ? ` · ${lineLabel(item)}` : '' }}</span>
+            <span class="text-meta text-muted">{{ own ? 'Your pending remark from GitHub' : 'Your remark' }}{{ item.line ? ` · ${lineLabel(item)}` : '' }}{{ item.at ? ` · ${timeLabel(item.at)}` : '' }}</span>
           </template>
         </div>
       </template>

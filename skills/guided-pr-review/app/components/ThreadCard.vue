@@ -2,7 +2,7 @@
 // One comment thread of a review on GitHub: where it is, its code, the conversation and what to do with it.
 // `mine` threads get the call to resolve or leave open; threads of others can be copied to the reviewer's own review. Any resolved thread can be unresolved.
 type Comment = {
-  id: string, author?: string, body: string, hunkId?: string | null, path?: string, line?: number, side?: string, diffHunk?: string,
+  id: string, author?: string, body: string, at?: string, state?: string, hunkId?: string | null, path?: string, line?: number, side?: string, diffHunk?: string,
   resolved?: boolean, resolvedBy?: string, outdated?: boolean, threadId?: string, canResolve?: boolean, canUnresolve?: boolean,
   replies?: { author: string, body: string, at?: string }[], opinion?: { stance?: string, text?: string }, fix?: { verdict: string, note?: string, reply?: string },
 }
@@ -59,12 +59,15 @@ const folded = computed(() => isCollapsed(props.comment.id, props.comment))
         </template>
       </CommentConversation>
       <ThreadActions v-if="mine || comment.resolved" :own="comment" />
-      <div v-if="!mine" class="mt-2 flex flex-wrap items-center gap-1.5">
-        <span v-if="copied" class="text-meta text-dimmed">Copied to your review</span>
-        <UButton v-else color="neutral" variant="ghost" size="sm" class="text-toned" @click="copyComment(comment)">
-          Copy to my review
-        </UButton>
-        <ThreadReply v-if="comment.threadId && !comment.resolved" :thread-id="comment.threadId" />
+      <div class="mt-2 flex flex-wrap items-center gap-1.5">
+        <template v-if="!mine">
+          <span v-if="copied" class="text-meta text-dimmed">Copied to your review</span>
+          <UButton v-else color="neutral" variant="ghost" size="sm" class="text-toned" @click="copyComment(comment)">
+            Copy to my review
+          </UButton>
+          <ThreadReply v-if="comment.threadId && !comment.resolved" :thread-id="comment.threadId" />
+        </template>
+        <NoteState :id="comment.id" :body="comment.body" :github="comment.state === 'pending' ? 'draft' : 'posted'" />
       </div>
     </NoteFold>
   </div>
