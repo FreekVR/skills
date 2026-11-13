@@ -8,7 +8,7 @@ A stack is a chain of PRs in one repository: each PR's base branch is the head b
 
 1. For a stack number, run `node scripts/review-data.js stack <owner>/<repo> <pr-number>` for the bottom PR of `GET /repos/{owner}/{repo}/stacks/<number>`.
 2. When the command exits 3, open PRs split above `split.base`. List the PRs in `split.prs` with title and state, ask which one to follow, and run the command again for that PR.
-3. When the user named a stack, or a ticket that links PRs of one stack, ask which PR to review. Suggest the lowest PR in the stack that is neither merged nor approved by the user; the user can pick another one. A PR is approved when the user's latest review on it in `GET /repos/{owner}/{repo}/pulls/{n}/reviews` is `APPROVED`. Ignore `COMMENTED` reviews.
+3. When the user named a stack, or a ticket that links PRs of one stack, ask which PR to review. Suggest the lowest PR in the stack that is neither merged nor approved by the user; the user can pick another one. The `stack` output marks each approved PR with `approved`.
 
 ## Step 3: read the context
 

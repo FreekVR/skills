@@ -558,14 +558,14 @@ test("stackStatus reports each PR's review directory", (t) => {
   const { root, write } = stackRoot(t);
   const hunks = (n) => Array.from({ length: n }, (_, i) => ({ id: `h${i + 1}` }));
   write(14, 'review.json', { pr: { headSha: 'new' }, hunks: hunks(3), posts: [{ eventId: 'e1', status: 'posted' }] });
-  write(14, 'reviewer.json', { sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: 'new' }] });
+  write(14, 'reviewer.json', { sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: 'new', payload: { verdict: 'APPROVE' } }] });
   write(15, 'review.json', { pr: { headSha: 'a' }, hunks: hunks(2) });
   write(15, 'reviewer.json', { seen: ['h1', 'removed'], remarks: [{ id: 'r1' }, { id: 'r2' }] });
   write(16, 'preparing', '');
   const status = stackStatus('example-org', 'sample-widget', [14, 15, 16, 17], root);
   const expected = [
-    { number: 14, page: '/example-org/sample-widget/14', hasReview: true, posted: true, hunks: 3 },
-    { number: 15, hasReview: true, seen: 1, remarks: 2, posted: false },
+    { number: 14, page: '/example-org/sample-widget/14', hasReview: true, posted: 'APPROVE', hunks: 3 },
+    { number: 15, hasReview: true, seen: 1, remarks: 2, posted: null },
     { number: 16, hasReview: false, preparing: true },
     { number: 17, hasReview: false, preparing: false },
   ];
@@ -591,8 +591,29 @@ test('waiting and answered print usage and exit 2 for an empty question or a mis
 test('stackStatus does not count a review posted before the latest commits', (t) => {
   const { root, write } = stackRoot(t);
   write(14, 'review.json', { pr: { headSha: 'new' }, hunks: [], posts: [{ eventId: 'e1', status: 'posted' }] });
-  write(14, 'reviewer.json', { sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: 'old' }] });
-  assert.strictEqual(stackStatus('example-org', 'sample-widget', [14], root)[0].posted, false);
+  write(14, 'reviewer.json', { sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: 'old', payload: { verdict: 'APPROVE' } }] });
+  assert.strictEqual(stackStatus('example-org', 'sample-widget', [14], root)[0].posted, null);
+});
+
+test('stackStatus does not count a posted review once the reviewer started a new round', (t) => {
+  const { root, write } = stackRoot(t);
+  write(14, 'review.json', { pr: { headSha: 'a' }, hunks: [], posts: [{ eventId: 'e1', status: 'posted' }] });
+  write(14, 'reviewer.json', { sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: 'a', payload: { verdict: 'APPROVE' } }], reopenedAfter: 'e1' });
+  assert.strictEqual(stackStatus('example-org', 'sample-widget', [14], root)[0].posted, null);
+});
+
+test('stackStatus gives the verdict of the last posted final review, and the saved verdict for a post without a payload', (t) => {
+  const { root, write } = stackRoot(t);
+  const posts = [{ eventId: 'e1', status: 'posted' }, { eventId: 'e2', status: 'posted' }, { eventId: 'e3', status: 'error' }];
+  write(14, 'review.json', { pr: { headSha: 'a' }, hunks: [], posts });
+  write(14, 'reviewer.json', { sent: [
+    { id: 'e1', type: 'post', kind: 'final', headSha: 'a', payload: { verdict: 'APPROVE' } },
+    { id: 'e2', type: 'post', kind: 'final', headSha: 'a', payload: { verdict: 'REQUEST_CHANGES' } },
+    { id: 'e3', type: 'post', kind: 'final', headSha: 'a', payload: { verdict: 'COMMENT' } },
+  ] });
+  write(15, 'review.json', { pr: { headSha: 'a' }, hunks: [], posts: [{ eventId: 'e1', status: 'posted' }] });
+  write(15, 'reviewer.json', { sent: [{ id: 'e1', type: 'post', kind: 'final', headSha: 'a' }], verdict: 'COMMENT' });
+  assert.deepStrictEqual(stackStatus('example-org', 'sample-widget', [14, 15], root).map((entry) => entry.posted), ['REQUEST_CHANGES', 'COMMENT']);
 });
 
 test("stackStatus gives each criterion's verdict", (t) => {

@@ -3,7 +3,7 @@
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { fromGitHubStack, fromBranches } = require('../scripts/stack.js');
+const { fromGitHubStack, fromBranches, approvedBy } = require('../scripts/stack.js');
 
 function pull(number, head, base, extra = {}) {
   return { number, title: `PR ${number}`, html_url: `https://github.com/example-org/sample-widget/pull/${number}`, state: 'open', merged_at: null, draft: false, head: { ref: head, repo: { full_name: 'example-org/sample-widget' } }, base: { ref: base, repo: { full_name: 'example-org/sample-widget' } }, ...extra };
@@ -55,4 +55,12 @@ test('fromBranches ignores a PR from a fork or a deleted fork that has the asked
   const asked = pull(30, 'feature', 'main');
   assert.strictEqual(fromBranches(30, [asked, fork, deleted]), null);
   assert.deepStrictEqual(fromBranches(30, [asked, fork, deleted, pull(42, 'h', 'feature')]).prs.map((p) => p.number), [30, 42]);
+});
+
+test("approvedBy is true only when the user's latest review is an approval, and skips comments and pending reviews", () => {
+  const review = (login, state) => ({ user: { login }, state });
+  assert.strictEqual(approvedBy([review('me', 'CHANGES_REQUESTED'), review('me', 'APPROVED'), review('me', 'COMMENTED'), review('me', 'PENDING')], 'me'), true);
+  assert.strictEqual(approvedBy([review('me', 'APPROVED'), review('me', 'CHANGES_REQUESTED')], 'me'), false);
+  assert.strictEqual(approvedBy([review('me', 'APPROVED'), review('me', 'DISMISSED')], 'me'), false);
+  assert.strictEqual(approvedBy([review('other', 'APPROVED')], 'me'), false);
 });

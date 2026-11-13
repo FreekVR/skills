@@ -202,14 +202,24 @@ function anyAgentConnected(root = stateRoot()) {
   return false;
 }
 
-// What the stack bar shows for each PR: whether it has a review, how far the reviewer is, and whether the review is posted.
-// A final review posted before the latest commits does not count as posted.
+// The verdict of the reviewer's last final review that GitHub accepted, as the large button of that PR's page shows it:
+// null once a new round started, by the reviewer or because the PR's head commit changed since that review.
+// Keep it in line with postedReview and startRoundOnNewCommits in app/utils/posting.js; the page cannot load this file.
+function stackPostedVerdict(review, reviewer) {
+  const sent = (reviewer.sent || []).filter((event) => event.type === 'post' && event.kind === 'final');
+  const accepted = sent.filter((event) => (review?.posts || []).some((post) => post.eventId === event.id && post.status === 'posted'));
+  const last = accepted.at(-1);
+  if (!last || last.id === reviewer.reopenedAfter || last.headSha !== review.pr?.headSha) return null;
+  // A post from before posts kept their payload, without a saved verdict, still counts as posted.
+  return last.payload?.verdict || reviewer.verdict || 'posted';
+}
+
+// What the stack bar shows for each PR: whether it has a review, how far the reviewer is, and the verdict of a posted review.
 function stackStatus(owner, repo, numbers, root = stateRoot()) {
   return numbers.filter((number) => /^\d+$/.test(String(number))).map((number) => {
     const dir = path.join(root, owner, repo, String(number));
     const review = readJson(path.join(dir, 'review.json'));
     const reviewer = readJson(path.join(dir, 'reviewer.json')) || {};
-    const sent = reviewer.sent || [];
     const hunkIds = new Set((review?.hunks || []).map((hunk) => hunk.id));
     const watcherPid = readJson(path.join(dir, 'session.json'))?.watcherPid;
     const criteria = {};
@@ -225,7 +235,7 @@ function stackStatus(owner, repo, numbers, root = stateRoot()) {
       hunks: hunkIds.size,
       seen: (reviewer.seen || []).filter((id) => hunkIds.has(id)).length,
       remarks: (reviewer.remarks || []).length,
-      posted: (review?.posts || []).some((post) => post.status === 'posted' && sent.some((event) => event.id === post.eventId && event.type === 'post' && event.kind === 'final' && event.headSha === review.pr?.headSha)),
+      posted: review ? stackPostedVerdict(review, reviewer) : null,
       criteria,
     };
   });

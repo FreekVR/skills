@@ -51,7 +51,7 @@ const path = require('path');
 const crypto = require('crypto');
 const os = require('os');
 const { execFileSync, spawn } = require('child_process');
-const { fromGitHubStack, fromBranches } = require('./stack.js');
+const { fromGitHubStack, fromBranches, approvedBy } = require('./stack.js');
 const { ownDiff } = require('./own-diff.js');
 const { sourceHash } = require('./build-stamp.js');
 
@@ -276,12 +276,20 @@ function gh(...args) {
 
 function readStack(repository, number) {
   const pull = gh(`repos/${repository}/pulls/${number}`);
+  let stack;
   if (pull.stack) {
-    const stack = gh(`repos/${repository}/stacks/${pull.stack.number}`);
-    const pulls = stack.pull_requests.map((pr) => (pr.number === pull.number ? pull : gh(`repos/${repository}/pulls/${pr.number}`)));
-    return fromGitHubStack(stack, pulls);
+    const githubStack = gh(`repos/${repository}/stacks/${pull.stack.number}`);
+    const pulls = githubStack.pull_requests.map((pr) => (pr.number === pull.number ? pull : gh(`repos/${repository}/pulls/${pr.number}`)));
+    stack = fromGitHubStack(githubStack, pulls);
+  } else {
+    stack = fromBranches(Number(number), gh('--paginate', '--slurp', `repos/${repository}/pulls?state=open&per_page=100`).flat());
   }
-  return fromBranches(Number(number), gh('--paginate', '--slurp', `repos/${repository}/pulls?state=open&per_page=100`).flat());
+  // A split above a base names no single stack: the agent asks which one, as references/stack.md says.
+  if (!stack || stack.split) return stack;
+  const login = gh('user').login;
+  // Only an open PR needs it: the stack bar shows a merged or closed PR as such.
+  for (const pr of stack.prs) pr.approved = pr.state === 'open' && approvedBy(gh('--paginate', '--slurp', `repos/${repository}/pulls/${pr.number}/reviews?per_page=100`).flat(), login);
+  return stack;
 }
 
 // Reads `<review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart | --resume]`; returns null when the arguments do not fit.
