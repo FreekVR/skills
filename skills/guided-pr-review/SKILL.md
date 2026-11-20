@@ -115,6 +115,7 @@ Read the other PRs, linked ones and the other PRs in a stack, as highlights only
 4. Read the files you need:
    - Small PR: read the diff and the files through GitHub. Save the PR head version of every changed file that the PR does not remove to `<review-dir>/files/<path in the repository>`, so the review page can show the whole file.
    - Big PR: read them in the worktree. Set `pr.localPath` to the absolute path of the worktree. The review page then reads whole files there, and links each file to VS Code, PHP files to PhpStorm, and each file to its folder.
+5. Find the generated files. For a small PR, also save every `.gitattributes` file and every `.openapi-generator/FILES` file of the PR head to `<review-dir>/files/<path in the repository>`. Run `node scripts/review-data.js generated <diff-file> <root>`, with `<root>` the `files/` folder (small PR) or the worktree (big PR). Then look for files that a tool writes and that the signals missed. Run `waiting` first, as step 2 says, and ask the user one structured question with every guess selected, each with one line of evidence. A file the user keeps gets the reason `confirmed`. Run `hunks` again once, with `--whole <path>` for every generated file, found and kept, and for each path of item 3. Write all of them to `generated.files`.
 
 ### 5. Read the conventions
 
@@ -134,7 +135,7 @@ Read the target repository's contribution guide and agent instruction files, if 
 Let the user choose what runs:
 
 1. Look through the skills available to you for ones that review code. Use skills only, not agent types. Keep the ones that fit this PR's language, platform and kind of change, and drop a skill that duplicates another one or a check below.
-2. Ask the user which angles to run, all selected at the start, each with one line on what it checks: spec (acceptance criteria and scope), code standards (conventions, new concepts and new terms), sources (hardcoded values and factual claims), and tests and breaking changes.
+2. Ask the user which angles to run, all selected at the start, each with one line on what it checks: spec (acceptance criteria and scope), code standards (conventions, new concepts and new terms), sources (hardcoded values and factual claims), and tests and breaking changes. When `generated.files` is not empty, add the angle generated files: does the output match its source, hand edits, changes the source does not explain, breaks handwritten code.
 3. For the angles the user kept, ask which review skills to use: each skill by its exact name, with its angle and one line on why it fits, all selected at the start. An angle with no fitting skill runs its checks only; a skill that fits no angle gets an option of its own. Say how many subagents you would start; the test coverage check runs in this session and does not count.
 4. Run only what the user chose, once for each PR. If you can start a subagent, run the chosen checks there, in no more subagents than the user agreed to, in the background, and go on with step 7. Otherwise, run them yourself in step 8. The test coverage check always runs in this session, in step 8.
 
@@ -143,7 +144,7 @@ If you can ask a structured multiple-choice question, use it for both rounds; ot
 Give each subagent a brief with these parts, and nothing more:
 
 1. The checks it runs: one review skill, or one or more of the built-in checks below, with their text. Run the test coverage check yourself, not in a subagent, because it reads the CI checks and bot comments with this session's tools.
-2. Where the PR is: the repository, the PR number, the head commit, the path of the diff file from step 4, and the list of hunks with their ID, file and line ranges. For a big PR, also the worktree path. Tell the subagent where its review skill reads the code: for a big PR, run the skill from the worktree, because a review skill can read the git diff of the folder it runs in; for a small PR, give the skill the diff file instead.
+2. Where the PR is: the repository, the PR number, the head commit, the path of the diff file from step 4, and the list of hunks with their ID, file and line ranges. For a big PR, also the worktree path. Also the paths in `generated.files`: every check except the generated files check MUST skip these files, also a hunk that later becomes a flow step. Tell the subagent where its review skill reads the code: for a big PR, run the skill from the worktree, because a review skill can read the git diff of the folder it runs in; for a small PR, give the skill the diff file instead.
 3. The scope summary: a few lines on what the tickets and issues, with their comments, say this PR must and must not do, for example that it is a quick fix. Write it once per PR and give every subagent the same text. The checks of acceptance criteria and scope also get the tickets as read in step 3. You MUST NOT give a subagent the earlier review comments, the PR conversation or the user's remarks.
 4. The code rules, and the severity labels with their meanings from step 5.
 5. The answer format: a JSON list of findings, each with `hunkId` (null for the whole PR), `line`, `side`, `severity`, `title`, `body` and `rule`; an empty list when the checks find nothing. The acceptance criteria check also returns, per criterion ID, a `verdict` and a one-line `note`.
@@ -165,6 +166,10 @@ The checks:
   - You MUST NOT run the test suite, run coverage tooling or install dependencies: they run code from the PR on the user's computer and change its state.
 - [ ] Verify that the PR names breaking changes if it introduces them.
 - [ ] Verify that the code does not invent new concepts. A new concept must be explained and justified.
+- [ ] Verify the generated files, only when `generated.files` is not empty. Check that the output matches its source, that nobody edited it by hand, that it holds no change the source does not explain, and that it does not break the handwritten code that uses it.
+  - You MUST NOT run the generator: read the source and the output only.
+  - When the source is not in the PR, or you cannot tell whether the output matches, write a finding with the lowest severity that says so.
+  - Give each finding `sources` `check:generated`.
 - [ ] Verify that the PR does not hardcode what a dependency already owns. List every map, limit, list of allowed values and business rule that the PR hardcodes. For each one, check whether an API specification, a library the project depends on, or, when the repository's docs name one, a reference implementation already provides it or handles it differently.
 - [ ] Verify every factual claim in new or changed comments, docblocks and documentation:
   - A factual claim says what something is or does: a value, a limit, a version, what a function or an API does, or why the code does something.
@@ -179,7 +184,8 @@ This is the most important step. Take the time it needs: read the surrounding co
 - Untangle the changes (change untangling, Barnett et al., ICSE 2015): split the PR into groups of changes that depend on each other, where one change defines or calls code that another change uses. Each group becomes a flow.
   - A hunk that two groups use, such as a shared function, goes in both flows.
   - Documentation, tests and configuration go next to the changed code they document, test or configure, in each flow that has it.
-  - A change that covers no changed code and is used by none, such as a lockfile or a format change, goes in its own flow or in `notInAnyFlow`, not in the flow of other changes.
+  - A generated hunk goes in a flow only when handwritten code in that flow uses it. Otherwise it stays in the generated group and MUST NOT go in `notInAnyFlow`.
+  - A change that covers no changed code and is used by none, such as a format change, goes in its own flow or in `notInAnyFlow`, not in the flow of other changes.
 - Order related changes together (Baum et al., Empirical Software Engineering 2019): in a flow, put hunks that depend on each other next to each other, such as a function and its callers, so the reviewer does not keep a change in memory while reading unrelated hunks.
 - A flow is a path through the code: a name in plain words, an entry point and an end point (fully qualified code names with their namespace or module path, such as `App\Weather\ForecastClient::fetch()` or `src/api/weatherClient.ts:fetchForecast()`, not sentences), and the ordered hunks it passes through.
 - Order the steps bottom-up by default (bottom-up program comprehension, Pennington): for example the request to a backend first, then the model, the repository, and last the UI or public API.
@@ -190,18 +196,20 @@ This is the most important step. Take the time it needs: read the surrounding co
 - A hunk MAY be in several flows. A hunk that is in no flow goes in `notInAnyFlow`.
 - When code paths do not apply to this PR, set `layout` to `directory` and leave `flows` empty. The review page then lists files by directory, then alphabetically.
 
+Write `generated.summary`, one line on what the generated files are and what changed in them, and `generated.sourceHunkIds`, the hunks of the source that they come from.
+
 Write a short `explanation` for each flow and each hunk, for a reviewer who does not know this code. Name the concepts the code uses; do not invent new terms.
 
-Then run `node scripts/review-data.js check <review-dir>/review.json --diff <diff-file>`, with the diff file from step 4. Fix every line about flows and hunks (the lines that start with `missing:`, `unknown:`, `no why:` or `diff:`) and run it again until it prints none; the lines about criteria, comments and the `stack` field belong to step 8. A `diff:` line means `review.json` and the diff file hold different hunks: run `hunks` again with the same `--whole` options, which `wholeFiles` in `review.json` lists. The same `hunks` run repairs a `review.json` from before `wholeFiles` existed.
+Then run `node scripts/review-data.js check <review-dir>/review.json --diff <diff-file>`, with the diff file from step 4. Fix every line about flows and hunks (the lines that start with `missing:`, `unknown:`, `no why:`, `diff:` or `generated:`) and run it again until it prints none; the lines about criteria, comments and the `stack` field belong to step 8. A `diff:` line means `review.json` and the diff file hold different hunks: run `hunks` again with the same `--whole` options, which `wholeFiles` in `review.json` lists. The same `hunks` run repairs a `review.json` from before `wholeFiles` existed.
 
 ### 8. Collect and judge the findings
 
-When the subagents have answered, or when you run the checks yourself, write the findings of step 6.
+When the subagents have answered, or when you run the checks yourself, write the findings of step 6. A check that you run yourself MUST skip the files in `generated.files` too, except the generated files check.
 
 Write each finding:
 
 - Attach it to the hunk and line it is about, or set `hunkId` to null for a finding about the whole PR.
-- Set `sources` to what found it: the exact name of the review skill, or `check:<angle>` for a built-in check, for example `check:spec`. The angles are `spec`, `code-standards`, `sources` and `tests`.
+- Set `sources` to what found it: the exact name of the review skill, or `check:<angle>` for a built-in check, for example `check:spec`. The angles are `spec`, `code-standards`, `sources`, `tests` and `generated`.
 - When an open ticket in `context.relatedTickets` already covers it, name that ticket's key in the finding.
 - Write `body` as the comment text that would be posted, without the title, the severity label and the disclosure; the review page posts the finding as a header line `**severity(rule): title**`, then the body, then the disclosure, unless the reviewer edited the text.
 - Write `body` in GitHub markdown: short paragraphs, a list for separate points, code in backticks, and a `suggestion` block for a concrete fix. In the JSON, write each line break as `\n`.
