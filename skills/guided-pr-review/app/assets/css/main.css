@@ -27,6 +27,7 @@
   --color-line-e: #a84f00;
   --color-line-f: #00777c;
   --color-unplaced: #6f6c66;
+  --color-generated: #3f3d38;
   /* The colour of a severity, from the lowest to the highest: the edge of a note and its tag. */
   --color-sev-0: #c9d6ea;
   --color-sev-1: #f2c200;
@@ -108,6 +109,7 @@
   --color-del-bg: #3a1d19;
   --color-del-ink: #f2a79c;
   --color-unplaced: #8d8a83;
+  --color-generated: #4a4a45;
   --color-line-a: #ff6b85;
   --color-line-b: #5b74ff;
   --color-line-c: #2fb35a;

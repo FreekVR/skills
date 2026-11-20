@@ -9,6 +9,8 @@ export const state = reactive({
   lines: [],
   hunks: new Map(),
   stations: new Map(),
+  // The hunk IDs of the generated files; null when review.json has no `generated` key.
+  generated: null,
   view: { kind: 'station', line: null, index: 0 },
   ui: { openExplain: new Set(), composer: null, drafts: {}, editing: null, waitingClosed: null },
   freshHunks: new Set(),

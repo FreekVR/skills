@@ -1,7 +1,7 @@
 // The data parts of the old page's render functions. The view draws them; icon names here are names, not icons:
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
-import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, viewerLogin, worstOf } from './review.js'
+import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, verdictOf, viewerLogin, worstOf } from './review.js'
 import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
@@ -326,13 +326,12 @@ export function notPostedFindings() {
 }
 
 export function hunkVerdictsCheck() {
-  const verdicts = state.reviewer.hunkVerdicts
   const without = hunksWithoutVerdict()
   return {
     done: without.length === 0,
-    approved: state.review.hunks.filter((hunk) => verdicts[hunk.id] === 'approved').length,
-    changes: state.review.hunks.filter((hunk) => verdicts[hunk.id] === 'changes'),
-    comments: state.review.hunks.filter((hunk) => verdicts[hunk.id] === 'comment').length,
+    approved: state.review.hunks.filter((hunk) => verdictOf(hunk.id) === 'approved').length,
+    changes: state.review.hunks.filter((hunk) => verdictOf(hunk.id) === 'changes'),
+    comments: state.review.hunks.filter((hunk) => verdictOf(hunk.id) === 'comment').length,
     without,
   }
 }
