@@ -212,6 +212,7 @@ export function viewTitle() {
   if (state.view.kind === 'home') return 'Home'
   if (state.view.kind === 'terminus') return postedReview() ? 'Review posted' : hasOwnReview() ? 'Post a new review' : 'Submit review'
   if (state.view.kind === 'reviews') return 'Existing reviews'
+  if (state.view.kind === 'generated') return 'Generated files'
   const line = lineById(state.view.line)
   const hunk = hunkById(line.stops[state.view.index]?.hunkId)
   return `${stationCode(line, state.view.index)} ${hunk ? fileName(hunk.file) : ''}`
