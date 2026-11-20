@@ -6,7 +6,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { parseDiff, mergeHunks, checkFlows, parseWatchArgs, detectGenerated } = require('../scripts/review-data.js');
+const { parseDiff, mergeHunks, checkFlows, checkGenerated, parseWatchArgs, detectGenerated } = require('../scripts/review-data.js');
 const { execFileSync, spawnSync, spawn } = require('child_process');
 const { reviewDir, writeSession, listReviews, removeReview, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus, readPreparing, setPreparing } = require('../scripts/reviews.js');
 
@@ -847,4 +847,46 @@ test('detectGenerated: ** in the middle of a .gitattributes pattern matches any 
 test('detectGenerated: a leading slash anchors a .gitattributes pattern to its folder', () => {
   const root = makeRoot({ '.gitattributes': '/gen.ts linguist-generated\n' });
   assert.deepEqual(detectGenerated([{ file: 'gen.ts', status: 'modified' }, { file: 'src/gen.ts', status: 'modified' }], root).map((f) => f.path), ['gen.ts']);
+});
+
+const generatedReview = (extra = {}) => ({
+  hunks: [{ id: 'h9', file: 'src/c.ts' }, { id: 'h1', file: 'src/a.ts' }, { id: 'h2', file: 'src/b.ts' }],
+  wholeFiles: ['src/a.ts', 'src/c.ts'],
+  flows: [],
+  ...extra,
+});
+
+test('checkFlows: a hunk of a generated file counts as placed', () => {
+  const review = generatedReview({
+    hunks: [{ id: 'h9', file: 'src/c.ts' }],
+    generated: { files: [{ path: 'src/c.ts', reason: 'header' }], summary: '', sourceHunkIds: [] },
+  });
+  assert.deepStrictEqual(checkFlows(review).missing, []);
+});
+
+test('checkGenerated: names each problem', () => {
+  const review = generatedReview({
+    notInAnyFlow: ['h9'],
+    generated: {
+      files: [
+        { path: 'src/nope.ts', reason: 'header' },
+        { path: 'src/a.ts', reason: 'guess' },
+        { path: 'src/b.ts', reason: 'name' },
+        { path: 'src/c.ts', reason: 'confirmed' },
+      ],
+      summary: '',
+      sourceHunkIds: ['h0'],
+    },
+  });
+  assert.deepStrictEqual(checkGenerated(review), [
+    'generated: src/nope.ts is not a file in the diff',
+    'generated: src/a.ts has the unknown reason "guess"',
+    'generated: src/b.ts is not in wholeFiles; run hunks with --whole src/b.ts',
+    'generated: hunk h9 of src/c.ts is in notInAnyFlow; the group holds it',
+    'generated: sourceHunkIds has h0, which is not a hunk',
+  ]);
+});
+
+test('checkGenerated: a review without generated has no problems', () => {
+  assert.deepStrictEqual(checkGenerated({ hunks: [] }), []);
 });
