@@ -1,9 +1,10 @@
 import { state, LINE_COLORS, LINE_SHAPES, flowLetter, OPINIONS, STATUS_LABELS, SEVERITY_TONES } from './state.js'
+import { generatedHunkIds, isGenerated } from './generated.js'
 import { githubStatus, hasOwnReview, postedInEarlierRound, postedReview, standingOwnRemarks } from './posting.js'
 
 // Get a reviewer state with every field set.
 export function emptyReviewer() {
-  return { seen: [], seenIn: {}, decisions: {}, edits: {}, severities: {}, remarks: [], summary: '', verdict: null, hunkVerdicts: {}, threadCalls: {}, threadReplies: {}, collapsed: {}, knownHunks: [], sent: [], imported: [], drafts: {} }
+  return { seen: [], seenIn: {}, decisions: {}, edits: {}, severities: {}, remarks: [], summary: '', verdict: null, generatedVerdict: null, hunkVerdicts: {}, threadCalls: {}, threadReplies: {}, collapsed: {}, knownHunks: [], sent: [], imported: [], drafts: {} }
 }
 
 // Lines, hunks and stations only change with review.json, so index them once per change.
@@ -21,12 +22,18 @@ export function setReview(review, json = JSON.stringify(review)) {
     })
   }
   state.stations = stations
+  const grouped = generatedHunkIds(review)
+  // A list of files without a hunk in the diff is no group.
+  state.generated = grouped.length ? { hunkIds: new Set(grouped) } : null
 }
 
 // Get the flows of a review as lines of stops. Without flows, one line holds all files.
 export function buildLines(review) {
   if (review.layout === 'directory' || !review.flows || review.flows.length === 0) {
-    const sorted = [...review.hunks].sort((a, b) => a.file.localeCompare(b.file) || (a.newStart || 0) - (b.newStart || 0))
+    // The group holds the generated hunks, except those that are also a step in a flow.
+    const steps = new Set((review.flows || []).flatMap((flow) => flow.steps.map((step) => step.hunkId)))
+    const grouped = new Set(generatedHunkIds(review).filter((id) => !steps.has(id)))
+    const sorted = review.hunks.filter((hunk) => !grouped.has(hunk.id)).sort((a, b) => a.file.localeCompare(b.file) || (a.newStart || 0) - (b.newStart || 0))
     return [{ id: '__files', letter: 'F', name: 'All files', explanation: 'Files in directory order.', color: 'unplaced', stops: sorted.map((hunk) => ({ hunkId: hunk.id, why: '' })), acceptanceCriteria: [] }]
   }
   const result = review.flows.map((flow, index) => ({
@@ -82,7 +89,7 @@ export function severityLevel(severity) {
 }
 export function severityTone(severity) { return SEVERITY_TONES[severityLevel(severity)] }
 
-export function verdictOf(hunkId) { return state.reviewer.hunkVerdicts[hunkId] }
+export function verdictOf(hunkId) { return state.reviewer.hunkVerdicts[hunkId] ?? (isGenerated(hunkId) ? state.reviewer.generatedVerdict : undefined) }
 
 export function findingText(finding) { return state.reviewer.edits[finding.id] ?? finding.body }
 
