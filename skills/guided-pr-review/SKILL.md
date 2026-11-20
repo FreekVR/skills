@@ -18,6 +18,8 @@ Read these references only when they apply:
 - `references/review-data.md`: the files and fields of the review directory, and the events table. Read it before you write `review.json`.
 - `references/posting.md`: a `post` event.
 - `references/checks.md`: step 6 and step 8, before you start the checks.
+- `references/existing-comments.md`: step 8, and a `check` or `refresh` event, a resume or a `post` that asks you to update the review comments or write a `fix`.
+- `references/summary.md`: a `summarize` event.
 
 ## Preflight
 
@@ -70,17 +72,12 @@ Step 2 starts when the watch runs and keeps running next to all other steps unti
 Each event from the review page is one request. The watch prints it as an `EVENT` line; it is also in `events.jsonl`. Its `review` field names the PR: handle it only in that PR's review directory. If an event names a PR that is not this session's, do not handle it, and tell the user once that the review page of that PR sends its events to this session. Handle each event when it arrives as the events table in `references/review-data.md` says, update `review.json`, and keep watching until the final review is posted.
 
 - `ask`: base the answer on the code and the context you read. Write it in markdown.
-- `summarize`: write the review summary from the remarks in the event only, in plain text the reviewer can edit, in at most 5 sentences. The remarks are posted right below it, as line comments and as a list of whole-PR remarks, so the summary is a short reading guide to them:
-  1. How serious the remarks are as a whole: which ones block the merge and which are small, by count or by severity, not one by one. A remark blocks the merge when its severity is `conventions.requestChangesFrom` or higher, the same threshold at which the review page proposes request changes.
-  2. A shared cause: when several remarks point to the same problem or symptom, name it once and say how many remarks or which places show it.
-  3. What the author should do first.
-
-  Group the remarks by the problem or the part of the code they share, with their weight, in the reviewer's first person. For example: "I have several remarks that point to code that is more complex than it needs to be, a few medium issues in the controllers, and some nits in the docs." Follow the user's review conventions. Do not add the disclosure; the review page adds it.
+- `summarize`: write the review summary as `references/summary.md` says.
 - `check`: the review page sends one when it opens and every 5 minutes after that. It updates reviews and comments and writes `remote`, but never changes hunks, flows or findings; only a `refresh` event does that.
-  - When it finds one of the user's comments newly resolved by someone else, write a new `fix` for it, as in step 8.
+  - When it finds one of the user's comments newly resolved by someone else, write a new `fix` for it, as `references/existing-comments.md` says.
   - When a call to GitHub fails, keep the other fields of `remote` as they are, set `remote.checkedAt` and write `remote.error` with the error message. Remove `remote.error` at the next `check` that succeeds.
   - In a stack, also follow "Step 2" in `references/stack.md`.
-- `refresh`: follow `references/resume.md` for a changed head commit. After it loaded a new head commit, also write a new `fix` for each open posted comment, the user's and others', and for each of the user's comments that someone else resolved, as in step 8. Report the result in `refreshes` and `changesSince`, not in the chat. In a stack, also follow "Step 2" in `references/stack.md`.
+- `refresh`: follow `references/resume.md` for a changed head commit. After it loaded a new head commit, also write a new `fix` for each open posted comment, the user's and others', and for each of the user's comments that someone else resolved, as `references/existing-comments.md` says. Report the result in `refreshes` and `changesSince`, not in the chat. In a stack, also follow "Step 2" in `references/stack.md`.
 - `post`: post the payload exactly as it is: no extra text, no changed words, no other comments. Read `references/posting.md` for the GitHub requests. The button press is the reviewer's approval. You MUST NOT post at any other moment, and you MUST NOT ask for a second approval in the chat.
 - `start-review`: see "Step 2" in `references/stack.md`. The reviewer's click is the request to start, so start at once: you MUST NOT ask for an OK to start in the chat. The questions of the review steps stay, such as the worktree question of Preflight item 8 and the angle and skill questions.
 
@@ -186,18 +183,7 @@ Then judge each finding of the checks yourself, except an `acceptance-criteria` 
 - Apply the out-of-scope rule of step 5 to each finding you keep.
 - When two or more findings with the same `hunkId`, `line` and `side` make the same claim, merge them into one: keep the clearest `title` and `body`, the `rule` of the finding you take them from, the highest severity, and all their `sources`. In a stack, keep the `stack` verdict that names the most PRs you read.
 
-Always verify the existing review comments from step 3, whatever the user chose above:
-
-- [ ] Keep every review comment on GitHub, by the user and by others, in `review.json`: resolved and outdated ones too, and ones you think are fixed or no longer apply. You MUST NOT remove or leave out a comment, also not on a later `check` or `refresh`, and MUST keep its `id`; your view goes in `fix` and `opinion`, which the review page shows with it.
-- [ ] Reviews: add every submitted review, by the user and by others, to `reviews`, with its body verbatim and its `commit_id` as `commitId`. You MUST leave out a `COMMENTED` review that has no body and no comments of its own.
-- [ ] Comments by others: add each one to `reviewComments` with its body and replies exactly as their authors wrote them. You MUST NOT restate, shorten or correct them.
-  - For an open one, add an `opinion`: whether the comment is right (agree, disagree or not sure), and why, in one line. The opinion does not say whether the author fixed it.
-  - You MUST add a `fix` as for the user's own remarks, without `reply`, to every resolved one, whoever resolved it, and to an open one when commits came after it. `check` reports a resolved comment without it.
-- [ ] The user's own remarks, posted or pending: add each to `ownRemarks`.
-  - For each posted one, open or resolved by anyone, with or without new commits, read the code at its lines now, the commits since the comment and the replies. Add a `fix`: whether the author fixed it, with a one-line note that names the commit or line, and for `not-fixed` a short draft reply that says what is still missing. `check` reports a posted one without it; the review page shows "not checked" for it.
-  - For each pending one and each posted one that is not resolved, also add an `opinion` as for comments by others.
-  - A comment whose text starts with no severity label gets the `severity` you would give it as a finding, with `severitySource` set to `ai`, in that same pass; the user's conventions decide the labels. Keep a label the user wrote.
-  - Put the ID and body of the user's pending review, if any, in `ownPendingReview`.
+Always verify the existing review comments from step 3, as `references/existing-comments.md` says, whatever the user chose above.
 
 ### 9. Complete the review page
 
