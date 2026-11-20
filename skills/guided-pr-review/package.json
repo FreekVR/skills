@@ -20,7 +20,7 @@
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "test": "node --test tests/*.test.js",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright install chromium && playwright test"
   },
   "devDependencies": {
     "@comark/nuxt": "0.8.1",
