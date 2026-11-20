@@ -61,6 +61,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
       <HomeView v-if="state.view.kind === 'home'" />
       <TerminusView v-else-if="state.view.kind === 'terminus'" />
       <ReviewsView v-else-if="state.view.kind === 'reviews'" />
+      <GeneratedView v-else-if="state.view.kind === 'generated'" />
       <StationView v-else />
     </main>
     <ReviewNotices />

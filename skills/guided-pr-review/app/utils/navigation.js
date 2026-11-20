@@ -1,6 +1,7 @@
 import { state, SHORTCUTS } from './state.js'
 import { decisionOf, hunkById, isSeen, lineById, lines, liveFindings, stationCode } from './review.js'
 import { postedReview } from './posting.js'
+import { GENERATED_LINE, groupVerdict, hasGenerated, setGeneratedVerdict } from './generated.js'
 import { markSeen, saveReviewer, setHunkVerdict } from './actions.js'
 import { notify } from './notify.js'
 
@@ -45,6 +46,7 @@ export function showComment(commentId, lineId, index) {
 export function goHome() { openPage('home') }
 export function goReviews() { openPage('reviews') }
 export function goTerminus() { openPage('terminus') }
+export function goGenerated() { openPage('generated') }
 
 function openPage(kind) {
   state.view = { kind }
@@ -56,6 +58,7 @@ function openPage(kind) {
 // Back to the hunk the reviewer last had open in this flow. A flow not opened yet, or one whose hunks changed since,
 // starts at its first unseen hunk. A position saved before the page kept the flow's hunks with it counts as changed.
 export function openFlow(lineId) {
+  if (lineId === GENERATED_LINE.id) return goGenerated()
   const line = lineById(lineId)
   const saved = state.reviewer.flowPositions?.[line.id]
   const unchanged = saved?.stops?.join() === line.stops.map((stop) => stop.hunkId).join()
@@ -72,6 +75,7 @@ export function viewPath(view = state.view) {
   if (view.kind === 'home') return base
   if (view.kind === 'reviews') return `${base}/reviews`
   if (view.kind === 'terminus') return `${base}/submit`
+  if (view.kind === 'generated') return `${base}/generated`
   return `${base}/${stationCode(lineById(view.line), view.index)}`
 }
 
@@ -85,6 +89,7 @@ function openNamedView(parts) {
   const [name] = parts
   if (name === 'reviews') return goReviews()
   if (name === 'submit') return goTerminus()
+  if (name === 'generated' && hasGenerated()) return goGenerated()
   const code = /^([A-Z]+)(\d+)$/.exec(name || '')
   const line = code && lines().find((candidate) => candidate.letter === code[1])
   if (line && Number(code[2]) >= 1 && Number(code[2]) <= line.stops.length) return go(line.id, Number(code[2]) - 1)
@@ -116,32 +121,35 @@ export function isOwnAddress(path) {
   return ownAddresses.delete(path)
 }
 
+// The views of the reading order: the hunks of the flows, then the group of generated files, then the hunks
+// that are not in a flow.
+function readingOrder() {
+  const stopsOf = (line) => line.stops.map((stop, index) => ({ kind: 'station', line: line.id, index }))
+  const flows = lines().filter((line) => line.id !== '__none')
+  const unplaced = lines().filter((line) => line.id === '__none')
+  return [...flows.flatMap(stopsOf), ...(hasGenerated() ? [{ kind: 'generated' }] : []), ...unplaced.flatMap(stopsOf)]
+}
+
+function openInOrder(view) { return view.kind === 'generated' ? goGenerated() : go(view.line, view.index) }
+
 // Move one hunk forward or back in reading order. Past the last hunk comes Submit review.
 export function step(delta) {
   if (state.view.kind === 'home') return delta > 0 ? nextUnseen() : undefined
   if (state.view.kind === 'reviews') return delta > 0 ? goTerminus() : undefined
-  if (state.view.kind === 'terminus') {
-    if (delta < 0) {
-      const all = lines()
-      const last = all[all.length - 1]
-      go(last.id, last.stops.length - 1)
-    }
-    return
-  }
-  const all = lines()
-  const lineIndex = all.findIndex((line) => line.id === state.view.line)
-  const line = all[lineIndex]
-  const next = state.view.index + delta
-  if (next >= 0 && next < line.stops.length) return go(line.id, next)
-  if (delta > 0) return lineIndex + 1 < all.length ? go(all[lineIndex + 1].id, 0) : goTerminus()
-  if (lineIndex > 0) return go(all[lineIndex - 1].id, all[lineIndex - 1].stops.length - 1)
+  const order = readingOrder()
+  if (state.view.kind === 'terminus') return delta < 0 && order.length ? openInOrder(order[order.length - 1]) : undefined
+  const at = order.findIndex((view) => view.kind === state.view.kind && view.line === state.view.line && view.index === state.view.index)
+  const next = order[at + delta]
+  if (next) return openInOrder(next)
+  if (delta > 0) goTerminus()
 }
 
 // After a verdict: the next unseen hunk in reading order after the hunk in view, else the first unseen hunk from the top.
-// When the reviewer saw every hunk, Submit review.
+// When the reviewer saw every hunk, the group of generated files if it has no verdict, else Submit review.
 export function nextAfterVerdict() {
   const next = nextStopWhere((hunkId) => !isSeen(hunkId))
-  return next ? go(next.line, next.index) : goTerminus()
+  if (next) return go(next.line, next.index)
+  return hasGenerated() && !groupVerdict() ? goGenerated() : goTerminus()
 }
 
 // The first hunk in reading order after the hunk in view whose ID passes the check; after the last one, start at the top.
@@ -156,13 +164,15 @@ export function nextUnseen() {
     const index = line.stops.findIndex((stop) => !isSeen(stop.hunkId))
     if (index !== -1) return go(line.id, index)
   }
-  goTerminus()
+  return hasGenerated() && !groupVerdict() ? goGenerated() : goTerminus()
 }
 
 // A verdict key does what the verdict button of the hunk in view does, so both follow the same rules.
-// The buttons only show on a hunk, and not after the review is posted.
+// The buttons only show on a hunk or the group of generated files, and not after the review is posted.
 export function pressHunkVerdict(verdict) {
-  if (state.view.kind !== 'station' || postedReview()) return
+  if (postedReview()) return
+  if (state.view.kind === 'generated') return setGeneratedVerdict(verdict)
+  if (state.view.kind !== 'station') return
   const hunk = hunkById(lineById(state.view.line).stops[state.view.index]?.hunkId)
   if (hunk) setHunkVerdict(hunk.id, verdict)
 }
