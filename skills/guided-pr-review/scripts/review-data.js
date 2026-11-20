@@ -241,9 +241,39 @@ function checkCriteria(review) {
   return problems;
 }
 
+const GENERATED_REASONS = new Set(['gitattributes', 'generator-list', 'header', 'name', 'confirmed']);
+
+// The hunk IDs of the files in the generated group.
+function generatedHunkIds(review) {
+  const paths = new Set((review.generated?.files || []).map((file) => file.path));
+  return review.hunks.filter((hunk) => paths.has(hunk.file)).map((hunk) => hunk.id);
+}
+
+function checkGenerated(review) {
+  if (!review.generated) return [];
+  const problems = [];
+  const hunkIds = new Set(review.hunks.map((hunk) => hunk.id));
+  const filesInDiff = new Set(review.hunks.map((hunk) => hunk.file));
+  const whole = new Set(review.wholeFiles || []);
+  for (const { path: file, reason } of review.generated.files || []) {
+    if (!filesInDiff.has(file)) problems.push(`generated: ${file} is not a file in the diff`);
+    if (!GENERATED_REASONS.has(reason)) problems.push(`generated: ${file} has the unknown reason "${reason}"`);
+    if (filesInDiff.has(file) && !whole.has(file)) problems.push(`generated: ${file} is not in wholeFiles; run hunks with --whole ${file}`);
+  }
+  const grouped = new Set(generatedHunkIds(review));
+  const hunkFile = new Map(review.hunks.map((hunk) => [hunk.id, hunk.file]));
+  for (const id of review.notInAnyFlow || []) {
+    if (grouped.has(id)) problems.push(`generated: hunk ${id} of ${hunkFile.get(id)} is in notInAnyFlow; the group holds it`);
+  }
+  for (const id of review.generated.sourceHunkIds || []) {
+    if (!hunkIds.has(id)) problems.push(`generated: sourceHunkIds has ${id}, which is not a hunk`);
+  }
+  return problems;
+}
+
 function checkFlows(review) {
   const hunkIds = new Set(review.hunks.map((hunk) => hunk.id));
-  const placed = new Set(review.notInAnyFlow || []);
+  const placed = new Set([...(review.notInAnyFlow || []), ...generatedHunkIds(review)]);
   const withoutWhy = [];
   for (const flow of review.flows || []) {
     for (const step of flow.steps) {
@@ -528,6 +558,7 @@ function main([command, ...args]) {
   if (command === 'check' && (args.length === 1 || (args.length === 3 && args[1] === '--diff'))) {
     const review = JSON.parse(fs.readFileSync(args[0], 'utf8'));
     const { missing, unknown, withoutWhy, stack, criteria, fixes } = checkFlows(review);
+    const generated = checkGenerated(review);
     const diff = args.length === 3 ? checkDiff(review, fs.readFileSync(args[2], 'utf8')) : [];
     missing.forEach((id) => console.log(`missing: ${id} is not in any flow and not in notInAnyFlow`));
     unknown.forEach((id) => console.log(`unknown: ${id} is not a hunk of this PR`));
@@ -535,8 +566,9 @@ function main([command, ...args]) {
     stack.forEach((problem) => console.log(`stack: ${problem}`));
     criteria.forEach((problem) => console.log(`criteria: ${problem}`));
     fixes.forEach((problem) => console.log(`fix: ${problem}`));
+    generated.forEach((problem) => console.log(problem));
     diff.forEach((problem) => console.log(`diff: ${problem}`));
-    if (missing.length || unknown.length || withoutWhy.length || stack.length || criteria.length || fixes.length || diff.length) {
+    if (missing.length || unknown.length || withoutWhy.length || stack.length || criteria.length || fixes.length || generated.length || diff.length) {
       return 1;
     }
     console.log('ok: every hunk is placed');
@@ -626,4 +658,4 @@ if (require.main === module) {
   process.exitCode = main(process.argv.slice(2));
 }
 
-module.exports = { detectGenerated, parseDiff, mergeHunks, checkFlows, parseWatchArgs };
+module.exports = { detectGenerated, parseDiff, mergeHunks, checkFlows, checkGenerated, parseWatchArgs };
