@@ -5,6 +5,8 @@
 //                                                        Write the hunks of a unified diff into review.json, keeping
 //                                                        the explanations of hunks that did not change. Each file
 //                                                        passed with --whole becomes one hunk.
+//   node review-data.js generated <diff-file> <root>     Print the generated files of a diff as JSON, found by signal. The root
+//                                                        holds the head version of the files at their repo paths.
 //   node review-data.js check <review-file> [--diff <diff-file>]
 //                                                        Check that every hunk is in a flow or in "notInAnyFlow".
 //                                                        With --diff, also check that the hunks of review.json are
@@ -417,6 +419,88 @@ function writeStatic(dir, outFile) {
   console.log(outFile);
 }
 
+const GENERATED_NAMES = new Set(['package-lock.json', 'npm-shrinkwrap.json', 'pnpm-lock.yaml', 'yarn.lock', 'composer.lock', 'Gemfile.lock', 'poetry.lock', 'Pipfile.lock', 'Cargo.lock', 'go.sum']);
+const GENERATED_HEADER = /@generated|Code generated .* DO NOT EDIT|auto-generated|do not edit/i;
+
+// Match a path against a gitattributes pattern. Not path.matchesGlob: it prints an experimental warning on Node 24.
+function matchesPattern(candidate, pattern) {
+  let source = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const rest = pattern.slice(i);
+    if (rest.startsWith('**/')) { source += '(?:.*/)?'; i += 2; }
+    else if (rest.startsWith('**')) { source += '.*'; i += 1; }
+    else if (pattern[i] === '*') source += '[^/]*';
+    else if (pattern[i] === '?') source += '[^/]';
+    else source += pattern[i].replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  }
+  return new RegExp(`^${source}$`).test(candidate);
+}
+
+// Whether .gitattributes marks the file as generated. Every .gitattributes from the root down to the file's
+// folder counts; a later line and a deeper file win.
+function attributeGenerated(file, root) {
+  const folders = path.dirname(file) === '.' ? [] : path.dirname(file).split('/');
+  let result = null;
+  for (let depth = 0; depth <= folders.length; depth++) {
+    const base = folders.slice(0, depth).join('/');
+    const attributes = path.join(root, base, '.gitattributes');
+    if (!fs.existsSync(attributes)) continue;
+    const relative = file.slice(base ? base.length + 1 : 0);
+    for (const line of fs.readFileSync(attributes, 'utf8').split('\n')) {
+      const [pattern, ...attrs] = line.trim().split(/\s+/);
+      if (!pattern || pattern.startsWith('#')) continue;
+      // A leading slash anchors the pattern to this folder, like a slash anywhere else in it.
+      const matches = pattern.includes('/') ? matchesPattern(relative, pattern.replace(/^\//, '')) : matchesPattern(path.basename(relative), pattern);
+      if (!matches) continue;
+      for (const attr of attrs) {
+        if (attr === 'linguist-generated' || attr === 'linguist-generated=true') result = base ? `${base}/.gitattributes` : '.gitattributes';
+        else if (attr === '-linguist-generated' || attr === 'linguist-generated=false') result = null;
+      }
+    }
+  }
+  return result;
+}
+
+// Get the repo paths that the .openapi-generator/FILES lists under root name as generated, with the list each one is in.
+function generatorListed(root) {
+  const listed = new Map();
+  const walk = (folder) => {
+    for (const entry of fs.readdirSync(path.join(root, folder), { withFileTypes: true })) {
+      const repoPath = folder ? `${folder}/${entry.name}` : entry.name;
+      if (entry.isDirectory() && entry.name !== '.git' && entry.name !== 'node_modules') walk(repoPath);
+      else if (entry.isFile() && repoPath.endsWith('.openapi-generator/FILES')) {
+        const parent = path.dirname(path.dirname(repoPath)).replace(/^\.$/, '');
+        for (const line of fs.readFileSync(path.join(root, repoPath), 'utf8').split('\n')) {
+          if (line.trim()) listed.set(path.posix.join(parent, line.trim()), repoPath);
+        }
+      }
+    }
+  };
+  walk('');
+  return listed;
+}
+
+function headerGenerated(file, root) {
+  const head = path.join(root, file);
+  if (!fs.existsSync(head) || !fs.statSync(head).isFile()) return false;
+  return GENERATED_HEADER.test(fs.readFileSync(head, 'utf8').split('\n').slice(0, 5).join('\n'));
+}
+
+// Find the generated files of a PR by signal. The first signal that matches gives the reason.
+// The root holds the head version of the files at their repo paths.
+function detectGenerated(files, root) {
+  const listed = generatorListed(root);
+  const found = [];
+  for (const { file } of files) {
+    const attributes = attributeGenerated(file, root);
+    if (attributes) found.push({ path: file, reason: 'gitattributes', detail: attributes });
+    else if (listed.has(file)) found.push({ path: file, reason: 'generator-list', detail: listed.get(file) });
+    else if (headerGenerated(file, root)) found.push({ path: file, reason: 'header' });
+    else if (GENERATED_NAMES.has(path.basename(file)) || matchesPattern(file, '**/__snapshots__/*.snap')) found.push({ path: file, reason: 'name' });
+  }
+  return found;
+}
+
 function main([command, ...args]) {
   if (command === 'dir' && args.length === 2) {
     const [repository, number] = args;
@@ -434,6 +518,11 @@ function main([command, ...args]) {
     review.wholeFiles = [...whole];
     writeAtomic(reviewFile, JSON.stringify(review) + '\n');
     review.hunks.forEach((hunk) => console.log(`${hunk.id} ${hunk.file} ${hunk.explanation ? 'kept' : 'new'} +${count(hunk, '+')} -${count(hunk, '-')}`));
+    return 0;
+  }
+  if (command === 'generated' && reviewFile && !options.length) {
+    const files = [...new Map(parseDiff(fs.readFileSync(diffFile, 'utf8')).map((hunk) => [hunk.file, { file: hunk.file, status: hunk.status }])).values()];
+    console.log(JSON.stringify(detectGenerated(files, reviewFile), null, 2));
     return 0;
   }
   if (command === 'check' && (args.length === 1 || (args.length === 3 && args[1] === '--diff'))) {
@@ -529,7 +618,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | check <review-file> [--diff <diff-file>] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart | --resume] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | checked <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | static <review-dir> <out-file> | shell [<out-file>] | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | generated <diff-file> <root> | check <review-file> [--diff <diff-file>] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart | --resume] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | checked <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | static <review-dir> <out-file> | shell [<out-file>] | list');
   return 2;
 }
 
@@ -537,4 +626,4 @@ if (require.main === module) {
   process.exitCode = main(process.argv.slice(2));
 }
 
-module.exports = { parseDiff, mergeHunks, checkFlows, parseWatchArgs };
+module.exports = { detectGenerated, parseDiff, mergeHunks, checkFlows, parseWatchArgs };
