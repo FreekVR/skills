@@ -762,6 +762,47 @@ test('hunks writes the --whole files, and check --diff reads them so a whole fil
   assert.strictEqual(without.status, 1);
 });
 
+const TWO_FILES_DIFF = ['a', 'b', 'c'].map((name) => `diff --git a/${name} b/${name}
+--- a/${name}
++++ b/${name}
+@@ -1 +1 @@
+-x
++y
+@@ -20 +20 @@
+-x
++y
+`).join('');
+
+test('hunks keeps the whole files of earlier runs', (t) => {
+  const first = runReviewData(t, { 'pr.diff': TWO_FILES_DIFF }, 'hunks', '@pr.diff', '@review.json', '--whole', 'a');
+  const second = runReviewData(t, { 'pr.diff': TWO_FILES_DIFF, 'review.json': fs.readFileSync(path.join(first.dir, 'review.json'), 'utf8') }, 'hunks', '@pr.diff', '@review.json', '--whole', 'b');
+  assert.strictEqual(second.status, 0);
+  const review = JSON.parse(fs.readFileSync(path.join(second.dir, 'review.json'), 'utf8'));
+  assert.deepStrictEqual(review.wholeFiles, ['a', 'b']);
+  assert.strictEqual(review.hunks.filter((hunk) => hunk.file === 'a').length, 1);
+  assert.strictEqual(review.hunks.filter((hunk) => hunk.file === 'b').length, 1);
+  assert.strictEqual(review.hunks.filter((hunk) => hunk.file === 'c').length, 2);
+});
+
+test('hunks makes every file in generated.files one hunk', (t) => {
+  const review = { generated: { files: [{ path: 'c', reason: 'name' }] } };
+  const result = runReviewData(t, { 'pr.diff': TWO_FILES_DIFF, 'review.json': JSON.stringify(review) }, 'hunks', '@pr.diff', '@review.json');
+  assert.strictEqual(result.status, 0);
+  const written = JSON.parse(fs.readFileSync(path.join(result.dir, 'review.json'), 'utf8'));
+  assert.deepStrictEqual(written.wholeFiles, ['c']);
+  assert.strictEqual(written.hunks.filter((hunk) => hunk.file === 'c').length, 1);
+});
+
+test('check names the command that repairs a diff or wholeFiles problem', (t) => {
+  const hunks = parseDiff(DIFF);
+  const review = { hunks: [...hunks.slice(1), { id: 'zzzzzzzz', file: 'src/extra.ts' }], notInAnyFlow: [], generated: { files: [{ path: 'src/cache.ts', reason: 'name' }] } };
+  const result = runReviewData(t, { 'pr.diff': DIFF, 'review.json': JSON.stringify(review) }, 'check', '@review.json', '--diff', '@pr.diff');
+  const lines = result.stdout.split('\n').filter((line) => line.startsWith('diff:') || line.startsWith('generated:'));
+  assert.ok(lines.includes('generated: src/cache.ts is not in wholeFiles; run hunks again'), lines.join('\n'));
+  assert.ok(lines.some((line) => line.startsWith('diff: hunk ') && line.endsWith(' is not in review.json; run hunks again')), lines.join('\n'));
+  assert.ok(lines.includes('diff: hunk zzzzzzzz is not in the diff; run hunks again'), lines.join('\n'));
+});
+
 test('static writes one page with review.json in it and a < in the review escaped', () => {
   const { review: fixture } = require('./e2e/fixture.js');
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-static-'));
@@ -881,7 +922,7 @@ test('checkGenerated: names each problem', () => {
   assert.deepStrictEqual(checkGenerated(review), [
     'generated: src/nope.ts is not a file in the diff',
     'generated: src/a.ts has the unknown reason "guess"',
-    'generated: src/b.ts is not in wholeFiles; run hunks with --whole src/b.ts',
+    'generated: src/b.ts is not in wholeFiles; run hunks again',
     'generated: hunk h9 of src/c.ts is in notInAnyFlow; the group holds it',
     'generated: sourceHunkIds has h0, which is not a hunk',
   ]);

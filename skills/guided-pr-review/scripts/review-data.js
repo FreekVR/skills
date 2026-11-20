@@ -4,7 +4,8 @@
 //   node review-data.js hunks <diff-file> <review-file> [--whole <path>]...
 //                                                        Write the hunks of a unified diff into review.json, keeping
 //                                                        the explanations of hunks that did not change. Each file
-//                                                        passed with --whole becomes one hunk.
+//                                                        passed with --whole, in this or an earlier run, or listed in
+//                                                        generated.files, becomes one hunk.
 //   node review-data.js generated <diff-file> <root>     Print the generated files of a diff as JSON, found by signal. The root
 //                                                        holds the head version of the files at their repo paths.
 //   node review-data.js check <review-file> [--diff <diff-file>]
@@ -258,7 +259,7 @@ function checkGenerated(review) {
   for (const { path: file, reason } of review.generated.files || []) {
     if (!filesInDiff.has(file)) problems.push(`generated: ${file} is not a file in the diff`);
     if (!GENERATED_REASONS.has(reason)) problems.push(`generated: ${file} has the unknown reason "${reason}"`);
-    if (filesInDiff.has(file) && !whole.has(file)) problems.push(`generated: ${file} is not in wholeFiles; run hunks with --whole ${file}`);
+    if (filesInDiff.has(file) && !whole.has(file)) problems.push(`generated: ${file} is not in wholeFiles; run hunks again`);
   }
   const grouped = new Set(generatedHunkIds(review));
   const hunkFile = new Map(review.hunks.map((hunk) => [hunk.id, hunk.file]));
@@ -297,8 +298,8 @@ function checkDiff(review, diffText) {
   const have = new Set((review.hunks || []).map((hunk) => hunk.id));
   const want = new Set(expected.map((hunk) => hunk.id));
   return [
-    ...expected.filter((hunk) => !have.has(hunk.id)).map((hunk) => `hunk ${hunk.id} of ${hunk.file} is not in review.json`),
-    ...[...have].filter((id) => !want.has(id)).map((id) => `hunk ${id} is not in the diff`),
+    ...expected.filter((hunk) => !have.has(hunk.id)).map((hunk) => `hunk ${hunk.id} of ${hunk.file} is not in review.json; run hunks again`),
+    ...[...have].filter((id) => !want.has(id)).map((id) => `hunk ${id} is not in the diff; run hunks again`),
   ];
 }
 
@@ -540,10 +541,12 @@ function main([command, ...args]) {
     return 0;
   }
   const [diffFile, reviewFile, ...options] = args;
-  const whole = new Set();
-  while (options[0] === '--whole' && options[1]) whole.add(options.splice(0, 2)[1]);
+  const passed = [];
+  while (options[0] === '--whole' && options[1]) passed.push(options.splice(0, 2)[1]);
   if (command === 'hunks' && reviewFile && !options.length) {
     const review = fs.existsSync(reviewFile) ? JSON.parse(fs.readFileSync(reviewFile, 'utf8')) : {};
+    // A later run must not split a whole file again, so the paths of earlier runs stay.
+    const whole = new Set([...(review.wholeFiles || []), ...passed, ...((review.generated && review.generated.files) || []).map((file) => file.path)]);
     review.hunks = mergeHunks(parseDiff(fs.readFileSync(diffFile, 'utf8'), whole), review.hunks || []);
     review.wholeFiles = [...whole];
     writeAtomic(reviewFile, JSON.stringify(review) + '\n');
