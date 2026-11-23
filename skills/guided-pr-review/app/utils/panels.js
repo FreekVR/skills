@@ -2,6 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, verdictOf, viewerLogin, worstOf } from './review.js'
+import { generatedFiles, groupVerdict, hasGenerated } from './generated.js'
 import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
@@ -368,6 +369,7 @@ export function terminus() {
     unseenByFlow: state.lines
       .map((line) => ({ line, open: line.stops.map((stop, index) => ({ stop, index })).filter(({ stop }) => !isSeen(stop.hunkId)) }))
       .filter(({ open }) => open.length),
+    generatedOpen: hasGenerated() && (!groupVerdict() || [...state.generated.hunkIds].some((id) => !isSeen(id))) ? { files: generatedFiles().length } : null,
   }
 }
 

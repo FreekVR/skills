@@ -310,3 +310,106 @@ test('every icon next to text on the group page lines up with that text', async 
   await expectAligned(page, dialog.getByRole('button', { name: 'Next file' }).locator('.iconify'), dialog.getByText('2 of 4'));
   await expectAligned(page, dialog.getByRole('button', { name: 'Previous file' }).locator('.iconify'), dialog.getByText('2 of 4'));
 });
+
+const rail = (page) => page.getByRole('complementary', { name: 'Review navigation' });
+const ALL_SEEN = [...HANDWRITTEN_SEEN, H.lock, GEN.api, GEN.model, GEN.sql];
+
+test('the rail has a Generated files row after the flows and before Not in a flow, with the file count', async ({ page }) => {
+  await openAt(page, '/');
+  const rows = rail(page).getByRole('listitem');
+  await expect(rows).toHaveCount(5);
+  await expect(rows.nth(3)).toContainText('Generated files');
+  await expect(rows.nth(3)).toContainText('4 files');
+  await expect(rows.nth(3).getByTitle(/^(All hunks approved|Changes requested|Reviewed with comments)$/)).toHaveCount(0);
+  await expect(rows.nth(4)).toContainText('Not in a flow');
+  await rows.nth(3).getByRole('button').click();
+  await expect(heading(page)).toHaveText('Generated files');
+});
+
+test('the rail row shows a disc in the colour of what the group counts as, after the count', async ({ page }) => {
+  await openAt(page, '/', { reviewer: RAISED });
+  const row = rail(page).getByRole('listitem').nth(3);
+  await expect(row).toContainText('4 files');
+  const disc = row.getByTitle('Changes requested');
+  await expect(disc).toHaveClass(/bg-error/);
+  const [count, box] = await Promise.all([row.getByText('4 files').boundingBox(), disc.boundingBox()]);
+  expect(box.x).toBeGreaterThan(count.x + count.width - 1);
+});
+
+test('Home has a Generated files tile on its own row that opens the group', async ({ page }) => {
+  await openAt(page, '/');
+  const main = page.getByRole('banner');
+  const tile = main.getByRole('button', { name: /^Generated files/ });
+  await expect(tile).toContainText('4 files · 1 finding · one verdict');
+  const [other, own] = await Promise.all([main.getByRole('button', { name: /^Not in a flow/ }).boundingBox(), tile.boundingBox()]);
+  expect(own.y).toBeGreaterThanOrEqual(other.y + other.height);
+  await tile.click();
+  await expect(heading(page)).toHaveText('Generated files');
+});
+
+test('the Home tile says what the group counts as once it has a verdict', async ({ page }) => {
+  await openAt(page, '/', { reviewer: RAISED });
+  await expect(page.getByRole('banner').getByRole('button', { name: /^Generated files/ })).toContainText('Counts as request changes');
+});
+
+test('Submit review lists the group as one line until it has a verdict', async ({ page }) => {
+  await openAt(page, '/submit', { reviewer: { seen: HANDWRITTEN_SEEN } });
+  await page.getByText('Hunks and flows you have seen').click();
+  const coverage = page.locator('#term-coverage');
+  await expect(coverage).toContainText('Generated files');
+  await expect(coverage).toContainText('no verdict yet · 4 files');
+  await expect(coverage).not.toContainText('WeatherApi.ts');
+  await coverage.getByRole('button', { name: 'Open the group' }).click();
+  await expect(heading(page)).toHaveText('Generated files');
+});
+
+test('Submit review leaves the group out once it has a verdict, and lists it again when an update adds a changed hunk', async ({ page }) => {
+  const review = await openAt(page, '/submit', { reviewer: { seen: ALL_SEEN, generatedVerdict: 'approved' } });
+  await page.getByText('Hunks and flows you have seen').click();
+  const coverage = page.locator('#term-coverage');
+  await expect(coverage).toContainText('You have seen every hunk.');
+  await expect(coverage.getByRole('button', { name: 'Open the group' })).toHaveCount(0);
+  review.update((data) => { data.hunks.find((hunk) => hunk.id === GEN.api).id = 'bbbbbbbbbbb9'; });
+  await expect(coverage.getByRole('button', { name: 'Open the group' })).toBeVisible();
+  await expect(coverage).toContainText('not all seen · 4 files');
+  await expect(coverage).not.toContainText('no verdict yet');
+  // The group keeps its verdict, and the changed hunk is not seen.
+  await expect(rail(page).getByRole('listitem').nth(3).getByTitle('All hunks approved')).toBeVisible();
+  expect(review.reviewer().generatedVerdict).toBe('approved');
+  expect(review.reviewer().seen).not.toContain('bbbbbbbbbbb9');
+});
+
+test('the coverage item is not done while every hunk is seen but the group has no verdict', async ({ page }) => {
+  await openAt(page, '/submit', { reviewer: { seen: ALL_SEEN } });
+  const summary = page.locator('#term-coverage summary');
+  await expect(summary).not.toContainText('Done:');
+  await summary.click();
+  await expect(page.locator('#term-coverage').getByRole('button', { name: 'Open the group' })).toBeVisible();
+});
+
+test('without a generated key the rail, Home and Submit review show no group', async ({ page }) => {
+  const review = await openAt(page, '/', { mutate: () => {} });
+  await expect(rail(page).getByRole('listitem')).toHaveCount(4);
+  await expect(page.getByRole('banner').getByRole('button', { name: /^Generated files/ })).toHaveCount(0);
+  await page.goto(`${review.url}/submit`);
+  await page.getByText('Hunks and flows you have seen').click();
+  await expect(page.locator('#term-coverage')).not.toContainText('Generated files');
+});
+
+test('the icons of the group on Home, in the rail and on Submit review line up with their text', async ({ page }) => {
+  const review = await openAt(page, '/', { reviewer: RAISED });
+  const row = rail(page).getByRole('listitem').nth(3);
+  await expectAligned(page, row.getByTitle('Generated files'), row.getByText('Generated files'));
+  await expectAligned(page, row.getByTitle('Changes requested'), row.getByText('4 files'));
+  const tile = page.getByRole('banner').getByRole('button', { name: /^Generated files/ });
+  // The tile's text is two lines, so the bullet centres on both lines together, as it does on the flow tiles.
+  const [bullet, text] = await Promise.all([tile.getByTitle('Generated files').boundingBox(), tile.locator('span.grid').boundingBox()]);
+  expect(Math.abs((bullet.y + bullet.height / 2) - (text.y + text.height / 2))).toBeLessThanOrEqual(1);
+  const [cog, square] = await Promise.all([tile.getByTitle('Generated files').locator('.iconify').boundingBox(), tile.getByTitle('Generated files').locator('svg').first().boundingBox()]);
+  expect(Math.abs((cog.y + cog.height / 2) - (square.y + square.height / 2))).toBeLessThanOrEqual(1);
+  await page.goto(`${review.url}/submit`);
+  await page.getByText('Hunks and flows you have seen').click();
+  const entry = page.locator('#term-coverage p', { hasText: 'Generated files' });
+  await expect(entry).toBeVisible();
+  await expectAligned(page, entry.getByTitle('Generated files'), entry.locator('b'));
+});
