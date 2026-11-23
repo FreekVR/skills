@@ -48,6 +48,7 @@ const stops = computed(() => {
       label: `${stationCode(current, at)} ${hunk ? hunk.file : 'missing hunk'}${seen ? ', seen' : ', not seen'}`,
       seen,
       verdict: verdictOf(stop.hunkId),
+      generated: isGenerated(stop.hunkId),
       fresh: state.freshHunks.has(stop.hunkId),
       stamp: state.ui.stamp === stop.hunkId,
       others: linesOf(stop.hunkId).filter((other: { id: string }) => other.id !== current.id),
@@ -332,7 +333,12 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
       <div v-if="hunk" class="compact-hide mx-gutter mt-6 flex flex-wrap items-end gap-x-5 gap-y-2">
         <span class="font-display text-code tracking-[-.04em] font-black">{{ code }}</span>
         <div class="min-w-0 pb-1">
-          <h2 class="m-0 font-mono text-title leading-[1.2] font-semibold break-all">{{ fileName(hunk.file) }}</h2>
+          <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+            <h2 class="m-0 font-mono text-title leading-[1.2] font-semibold break-all">{{ fileName(hunk.file) }}</h2>
+            <span v-if="isGenerated(hunk.id)" class="inline-flex items-center rounded-full bg-white py-0.5 pr-2.5 pl-0.5 font-display text-meta leading-none font-bold text-(--line)" title="This file is also in Generated files" data-generated-tag>
+              <FlowBullet :line="GENERATED_LINE" mini class="ml-0! mr-1.5"><UIcon name="i-lucide-cog" class="relative size-[1.2em]" /></FlowBullet><span>Generated</span>
+            </span>
+          </div>
           <p class="m-0 mt-1.5 flex flex-wrap items-baseline gap-x-2 font-mono text-label text-toned">
             <span class="inline-flex items-baseline gap-1" :title="folder ? `Folder: ${folder}` : 'The file is in the root of the repository'">
               <UIcon name="i-lucide-folder" class="size-3.5 shrink-0 self-center" aria-hidden="true" />
@@ -395,6 +401,10 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
             >
               <VerdictIcon v-if="stop.verdict" :verdict="stop.verdict" :class="stop.verdict === 'approved' ? 'size-2.5' : 'size-3.5'" />
             </span>
+            <!-- Centred on the tick (the track is at 37px) and clear of the current tick, which is scaled up. -->
+            <FlowBullet v-if="stop.generated" :line="GENERATED_LINE" mini on-band class="absolute! top-[27px] left-[calc(50%+22px)] ml-0! shadow-[0_0_0_2px_var(--band)]" data-generated-mark>
+              <UIcon name="i-lucide-cog" class="relative size-[1.2em]" />
+            </FlowBullet>
             <span
               class="compact-hide mt-3 block truncate px-1 text-meta leading-tight group-hover:text-default group-hover:underline group-hover:underline-offset-3"
               :class="stop.at === index ? 'font-bold text-default' : 'text-toned'"

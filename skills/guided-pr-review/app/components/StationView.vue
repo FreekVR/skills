@@ -6,6 +6,9 @@ const line = computed(() => lineById(state.view.line) as Line)
 const stop = computed(() => line.value.stops[state.view.index])
 const hunk = computed(() => (stop.value ? hunkById(stop.value.hunkId) : null))
 const isFirst = computed(() => line.value === lines()[0] && state.view.index === 0)
+// The generated file this hunk is, when a flow also uses it.
+const generatedFile = computed(() => (hunk.value ? generatedFiles().find((file: { hunkId: string }) => file.hunkId === hunk.value.id) : null))
+const generatedCount = computed(() => generatedFiles().length)
 const showIntro = computed(() => state.view.index === 0 && Boolean(line.value.explanation || line.value.entry))
 
 // The other flows that pass this hunk, each with the stop where they do.
@@ -72,7 +75,16 @@ function hideLeaving(element: Element) {
           <span v-if="seenBefore(hunk.id)">You saw this hunk in another flow already.</span>
         </div>
 
-        <StationContext :hunk="hunk" :why="stop.why" />
+        <StationContext :hunk="hunk" :why="stop.why">
+          <!-- The icon box is one line high, so the cog stays on the first line when the text wraps. -->
+          <p v-if="generatedFile" class="mt-1.5 mb-0 flex flex-wrap items-start gap-x-2 gap-y-1 text-ui leading-6 text-muted" data-generated-note>
+            <span class="flex h-6 shrink-0 items-center"><FlowBullet :line="GENERATED_LINE" mini class="ml-0!"><UIcon name="i-lucide-cog" class="relative size-[1.2em]" /></FlowBullet></span>
+            <span class="min-w-0 flex-1 basis-80">
+              <b class="font-semibold text-toned">A tool writes this file</b><template v-if="reasonLabel(generatedFile)"> ({{ reasonLabel(generatedFile) }})</template>. It is also one of the {{ generatedCount }} files in <b class="font-semibold text-toned">Generated files</b>. Your verdict here counts for that group: the group takes the most severe verdict of its files.
+            </span>
+            <UButton color="neutral" variant="soft" size="sm" trailing-icon="i-lucide-arrow-right" class="font-normal text-default" @click="goGenerated()">Open the group</UButton>
+          </p>
+        </StationContext>
         <DiffView :hunk="hunk" />
         <StationAdvice :hunk="hunk" />
         <StationAsk v-if="!state.static" :hunk="hunk" />
