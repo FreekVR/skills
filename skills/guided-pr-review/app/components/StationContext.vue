@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // What the AI says about a hunk: why it is at this stop, its explanation, and a longer explanation on request.
-const props = defineProps<{ hunk: { id: string, explanation?: string, explanationMore?: string }, why?: string }>()
+// `plain` leaves out the request, for a text that is not about one hunk. The default slot adds a line under "Why here".
+const props = defineProps<{ hunk: { id: string, explanation?: string, explanationMore?: string }, why?: string, plain?: boolean }>()
 
 const open = computed(() => state.ui.openExplain.has(props.hunk.id))
 const pending = computed(() => explainPending(props.hunk))
@@ -15,6 +16,7 @@ function onToggle(event: Event) {
   <section class="mt-5 max-w-[80ch]" aria-label="Context written by the AI">
     <AiTag label="AI context" />
     <p v-if="why" class="mt-1.5 mb-0 text-ui text-muted"><b class="font-semibold text-toned">Why here:</b> <MarkupText :text="why" /></p>
+    <slot />
     <div class="mt-3.5 max-w-[70ch] text-body">
       <p v-if="hunk.explanation" class="lead mt-0 mb-3"><MarkupText :text="hunk.explanation" /></p>
       <details v-if="hunk.explanationMore" class="explain-more group mt-1 rounded-lg bg-elevated text-body" :open="open" @toggle="onToggle">
@@ -28,7 +30,7 @@ function onToggle(event: Event) {
         </div>
       </details>
       <AgentPending v-else-if="pending" text="The AI is writing a longer explanation…" />
-      <UButton v-else-if="!state.static" color="neutral" variant="ghost" icon="i-lucide-message-square-text" class="text-toned" title="Ask the AI for a longer explanation of this hunk" @click="explainMore(hunk.id)">Explain more</UButton>
+      <UButton v-else-if="!state.static && !plain" color="neutral" variant="ghost" icon="i-lucide-message-square-text" class="text-toned" title="Ask the AI for a longer explanation of this hunk" @click="explainMore(hunk.id)">Explain more</UButton>
     </div>
   </section>
 </template>

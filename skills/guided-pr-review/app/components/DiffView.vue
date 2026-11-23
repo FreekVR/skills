@@ -4,7 +4,8 @@ import type { CodeToken } from './DiffCode.vue'
 
 // The diff of one hunk: its head with the file tools, the notes without a line, and the rows with their notes.
 // A press on a line number starts a selection of lines; with shift it extends the open remark form.
-const props = defineProps<{ hunk: { id: string, file: string, status?: string, oldFile?: string, lines: string[] } }>()
+// `noWholeFile` leaves out the Whole file button, for a diff that is already in the file dialog.
+const props = defineProps<{ hunk: { id: string, file: string, status?: string, oldFile?: string, lines: string[] }, noWholeFile?: boolean }>()
 
 // The status of the file in the head, as an icon with a tooltip.
 const STATUSES: Record<string, { icon: string, label: string }> = {
@@ -113,7 +114,7 @@ useEventListener(document, 'pointerup', () => {
       >
         {{ deletedOpen ? 'Hide the deleted lines' : 'Show the deleted lines' }}
       </UButton>
-      <StationFileTools :hunk="hunk" whole />
+      <StationFileTools :hunk="hunk" :whole="!noWholeFile" />
       <span v-if="rows.length" class="whitespace-nowrap" :title="diff.ranges">
         <span class="font-semibold text-success" aria-hidden="true">+{{ diff.added }}</span>
         <span class="font-semibold text-error" aria-hidden="true">−{{ diff.removed }}</span>

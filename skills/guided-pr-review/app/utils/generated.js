@@ -1,5 +1,5 @@
-import { state } from './state.js'
-import { hunkById, standingSeverities, stationsOf, verdictOf } from './review.js'
+import { state, VERDICTS } from './state.js'
+import { hunkById, liveFindings, standingSeverities, stationsOf, verdictOf } from './review.js'
 import { markSeen, saveReviewer } from './actions.js'
 import { nextAfterVerdict } from './navigation.js'
 
@@ -32,6 +32,13 @@ export function generatedFiles() {
   })
 }
 
+// Get the generated files in the order of the file list: files with findings, then shared files, then by path.
+export function generatedFilesInOrder() {
+  const withFindings = new Set(liveFindings().map((finding) => finding.hunkId))
+  const rank = (file) => (withFindings.has(file.hunkId) ? 0 : file.shared.length ? 1 : 2)
+  return generatedFiles().sort((a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path))
+}
+
 // Get the text that tells why a file counts as generated.
 export function reasonLabel(file) { return REASON_LABELS[file.reason] ?? file.detail ?? '' }
 
@@ -43,6 +50,15 @@ export function groupCountsAs() {
   if (!hasGenerated() || !groupVerdict()) return null
   const levels = [...state.generated.hunkIds].map((id) => SEVERITY_ORDER.indexOf(verdictOf(id)))
   return SEVERITY_ORDER[Math.max(...levels)]
+}
+
+// Get the verdict name the verdict buttons use, in lower case: approve, request changes or comment.
+export function verdictWord(verdict) { return VERDICTS.find((option) => option.icon === verdict)?.label.toLowerCase() || '' }
+
+// Get the line that says what the group counts as, or null while the group has no verdict.
+export function countsAsLabel() {
+  const countsAs = groupCountsAs()
+  return countsAs ? `Counts as ${verdictWord(countsAs)}` : null
 }
 
 // Get the severities that stand on the generated hunks, for the suggested verdict.

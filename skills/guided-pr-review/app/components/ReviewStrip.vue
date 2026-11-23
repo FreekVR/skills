@@ -8,6 +8,20 @@ const reducedMotion = usePreferredReducedMotion()
 const map = useTemplateRef<HTMLElement>('map')
 
 const line = computed(() => (state.view.kind === 'station' ? lineById(state.view.line) : null))
+// The band takes the colour and bullet of the hunk's line, or of the group on the generated files page; the map is for a hunk only.
+const bandLine = computed(() => (state.view.kind === 'generated' ? GENERATED_LINE : line.value))
+const generatedBand = computed(() => {
+  if (state.view.kind !== 'generated') return null
+  const diffs = generatedFiles().map((file: { hunkId: string }) => hunkDiff(hunkById(file.hunkId)))
+  const sources = (state.review.generated?.sourceHunkIds || []).map((id: string) => hunkById(id)?.file).filter(Boolean)
+  return {
+    files: diffs.length,
+    added: diffs.reduce((sum: number, diff: { added: number }) => sum + diff.added, 0),
+    removed: diffs.reduce((sum: number, diff: { removed: number }) => sum + diff.removed, 0),
+    sources: new Intl.ListFormat('en').format([...new Set(sources)]),
+    countsAs: groupCountsAs(),
+  }
+})
 const index = computed(() => Math.max(0, state.view.index || 0))
 const seenCount = computed(() => line.value?.stops.filter((stop: { hunkId: string }) => isSeen(stop.hunkId)).length ?? 0)
 const criteria = computed(() => (line.value ? flowCriteria(line.value) : []))
@@ -185,16 +199,18 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
   <header
     ref="header"
     class="band relative z-5"
-    :class="{ 'compact': shownCollapsed, 'band-line': line }"
-    :style="line ? { '--line': `var(--color-${line.color})` } : undefined"
+    :class="{ 'compact': shownCollapsed, 'band-line': bandLine }"
+    :style="bandLine ? { '--line': `var(--color-${bandLine.color})` } : undefined"
     @wheel="onHeaderWheel"
   >
     <!-- The controls wrap below the title until the band is wide enough for both, also next to the rail on a tablet. -->
     <div class="strip-top flex items-center gap-5 px-gutter pt-5 max-rail:flex-wrap" :class="{ 'pb-4': !line }">
       <div class="flex min-w-0 flex-1 items-center gap-3 max-md:basis-full">
-        <FlowBullet v-if="line" :line="line" on-band class="size-9! text-lead!" />
+        <FlowBullet v-if="bandLine" :line="bandLine" on-band class="size-9! text-lead!">
+          <UIcon v-if="!line" name="i-lucide-cog" class="relative size-[1.2em]" />
+        </FlowBullet>
         <div class="min-w-0">
-          <h1 tabindex="-1" class="m-0 font-display outline-none leading-none" :class="line ? 'text-title' : 'text-lead'">
+          <h1 tabindex="-1" class="m-0 font-display outline-none leading-none" :class="bandLine ? 'text-title' : 'text-lead'">
             <FlowIcon :icon="line?.icon" class="mr-[.4em] size-[1.05em] align-[-.15em]" />{{ line ? line.name : viewTitle() }}
           </h1>
           <p v-if="line" class="compact-hide m-0 mt-1.5 truncate text-label text-muted max-md:hidden">
@@ -270,6 +286,18 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
     </p>
 
     <HomeHero v-if="state.view.kind === 'home'" />
+    <div v-else-if="generatedBand" class="flex flex-wrap items-end gap-x-8 gap-y-3 px-gutter pt-2 pb-6">
+      <p class="m-0 flex items-end gap-4">
+        <span class="font-display text-code tracking-[-.04em] font-black">{{ generatedBand.files }}</span> <span class="grid gap-1.5 pb-1">
+          <b class="font-display text-title leading-none">{{ generatedBand.files === 1 ? 'file' : 'files' }} made by tools</b>
+          <span class="text-label text-muted">+{{ generatedBand.added }} −{{ generatedBand.removed }} lines<template v-if="generatedBand.sources"> · from <span class="font-mono">{{ generatedBand.sources }}</span></template></span>
+        </span>
+      </p>
+      <p v-if="generatedBand.countsAs" class="m-0 flex items-center gap-2 pb-1 font-display text-lead font-bold" data-counts-as>
+        <span class="grid size-6 shrink-0 place-items-center rounded-full bg-white" :class="TICK_ICON_COLORS[generatedBand.countsAs]"><VerdictIcon :verdict="generatedBand.countsAs" class="size-3.5" /></span>
+        <span>{{ countsAsLabel() }}</span>
+      </p>
+    </div>
 
     <template v-if="line">
       <details v-if="criteria.length" class="criteria compact-hide mx-gutter mt-4 mb-0.5 max-w-[110ch] rounded-card bg-elevated px-3.5 py-2.5" :open="criteriaOpen" @toggle="onCriteriaToggle">
