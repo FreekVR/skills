@@ -69,6 +69,22 @@ test('generatedFiles lists the hunk and the flow steps of each file', () => {
   assert.deepStrictEqual(gen.shared.map(({ line, index }) => [line.id, index]), [['f1', 1]]);
 });
 
+test('generatedFilesInOrder lists files with findings, then shared files, then by path', () => {
+  const json = data();
+  json.hunks.push(hunk('h4', 'gen/z.js'), hunk('h5', 'gen/a.js'));
+  json.generated.files.push({ path: 'gen/z.js', reason: 'header' }, { path: 'gen/a.js', reason: 'header' });
+  json.findings = [{ id: 'x', hunkId: 'h4', severity: 'minor', body: '' }];
+  load(json);
+  assert.deepStrictEqual(generated.generatedFilesInOrder().map((file) => file.path), ['gen/z.js', 'src/gen.js', 'gen/a.js', 'pnpm-lock.yaml']);
+});
+
+test('countsAsLabel names what the group counts as', () => {
+  load(data(), { generatedVerdict: 'approved', hunkVerdicts: { h3: 'changes' } });
+  assert.strictEqual(generated.countsAsLabel(), 'Counts as request changes');
+  load(data());
+  assert.strictEqual(generated.countsAsLabel(), null);
+});
+
 test('reasonLabel shows the detail for a generator list', () => {
   assert.strictEqual(generated.reasonLabel({ reason: 'header' }), 'Header says generated');
   assert.strictEqual(generated.reasonLabel({ reason: 'generator-list', detail: 'listed in x' }), 'listed in x');

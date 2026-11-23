@@ -7,6 +7,7 @@ import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowInde
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, openPath } from './navigation.js'
 import { composerKey, newerOnGitHub, refreshState } from './panels.js'
 import { hasStack } from './stack.js'
+import { GENERATED_LINE, generatedFilesInOrder } from './generated.js'
 
 let saveTimer = null
 let pollTimer = null
@@ -472,6 +473,12 @@ export async function showWholeFile(hunk) {
     return notify(`Cannot show ${hunk.file}: ${error.message}`, true)
   }
   state.ui.wholeFile = { hunkId: hunk.id, file: hunk.file, language: languageOf(hunk.file), rows: wholeFileRows(hunk, text), focusLine: firstChangedLine(hunk) }
+}
+
+// Open a generated file in the file dialog, with the group's files to walk. Opening it counts as seeing its hunk.
+export function openGeneratedFile(hunkId) {
+  state.ui.wholeFile = { hunkId, file: hunkById(hunkId).file, list: generatedFilesInOrder().map((file) => file.hunkId) }
+  markSeen(hunkId, GENERATED_LINE.id)
 }
 
 // Show a file of the local clone in its folder.

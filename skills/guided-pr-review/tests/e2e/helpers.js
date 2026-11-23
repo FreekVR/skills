@@ -83,4 +83,18 @@ async function openHunk(page, flow, stop) {
   await page.getByRole('navigation', { name: /^Hunks in / }).getByRole('button', { name: stop }).click();
 }
 
-module.exports = { openReview, openHunk, eventOf, expectPoll };
+// Asserts that an icon and its text share a vertical centre, within 1px. `icon` and `text` are locators or selectors.
+// The text counts by the glyphs of its first line, not by its box, so a line height around it does not hide a shift.
+async function expectAligned(page, icon, text) {
+  const resolve = (target) => (typeof target === 'string' ? page.locator(target) : target);
+  // Both boxes come from one frame, so a moving parent, such as a dialog that opens, moves both alike.
+  const [iconBox, textBox] = await resolve(text).evaluate((element, iconElement) => {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT, { acceptNode: (node) => (node.textContent.trim() ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP) });
+    const range = document.createRange();
+    range.selectNodeContents(walker.nextNode());
+    return [iconElement.getBoundingClientRect(), range.getClientRects()[0]].map(({ y, height }) => ({ y, height }));
+  }, await resolve(icon).elementHandle());
+  expect(Math.abs((iconBox.y + iconBox.height / 2) - (textBox.y + textBox.height / 2))).toBeLessThanOrEqual(1);
+}
+
+module.exports = { openReview, openHunk, eventOf, expectPoll, expectAligned };
