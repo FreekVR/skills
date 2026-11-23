@@ -89,8 +89,8 @@ async function showThem() {
               <NoteCard v-for="finding in view.general" :key="finding.id" type="finding" :item="finding" />
             </template>
           </TerminusCheckItem>
-          <TerminusCheckItem :number="3" :done="view.unseen.length === 0" section="coverage" title="Hunks and flows you have seen" :counts="coverageCounts" :open="view.outdated.length + view.outdatedFindings.length > 0">
-            <template v-if="view.unseen.length">
+          <TerminusCheckItem :number="3" :done="view.unseen.length === 0 && !view.generatedOpen" section="coverage" title="Hunks and flows you have seen" :counts="coverageCounts" :open="view.outdated.length + view.outdatedFindings.length > 0">
+            <template v-if="view.unseen.length || view.generatedOpen">
               <div v-for="{ line, open } in view.unseenByFlow" :key="line.id" class="mt-4.5 first:mt-0">
                 <p class="m-0 mb-1.5 flex flex-wrap items-center gap-2">
                   <FlowBullet :line="line" :hollow="line.id.startsWith('__')" />
@@ -105,6 +105,14 @@ async function showThem() {
                     </UButton>
                   </li>
                 </ul>
+              </div>
+              <div v-if="view.generatedOpen" class="mt-4.5 first:mt-0">
+                <p class="m-0 mb-1.5 flex flex-wrap items-center gap-2">
+                  <FlowBullet :line="GENERATED_LINE"><UIcon name="i-lucide-cog" class="relative size-[1.2em]" /></FlowBullet>
+                  <b>{{ GENERATED_LINE.name }}</b>
+                  <span class="text-ui text-toned">{{ groupVerdict() ? 'not all seen' : 'no verdict yet' }} · {{ plural(view.generatedOpen.files, 'file') }}</span>
+                </p>
+                <UButton color="neutral" variant="ghost" class="-ml-2 text-left text-label text-toned" @click="goGenerated()">Open the group</UButton>
               </div>
             </template>
             <p v-else :class="LEDE">

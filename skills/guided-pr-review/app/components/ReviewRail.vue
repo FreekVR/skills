@@ -4,12 +4,21 @@ const SUBMIT_COLORS: Record<string, string> = { approved: 'var(--ui-success)', c
 const total = computed(() => state.review.hunks.length)
 const seen = computed(() => total.value - unseenHunks().length)
 
-const flows = computed(() => lines().map((line: { id: string, color: string, stops: { hunkId: string }[] }) => ({
-  line,
-  decided: line.stops.filter((stop) => verdictOf(stop.hunkId)).length,
-  verdict: flowVerdict(line),
-  current: state.view.kind === 'station' && state.view.line === line.id,
-})))
+const rows = computed(() => {
+  const flows = lines().map((line: { id: string, color: string, stops: { hunkId: string }[] }) => ({
+    line,
+    decided: line.stops.filter((stop) => verdictOf(stop.hunkId)).length,
+    verdict: flowVerdict(line),
+    current: state.view.kind === 'station' && state.view.line === line.id,
+    group: false,
+  }))
+  if (!hasGenerated()) return flows
+  const group = { line: GENERATED_LINE, decided: 0, verdict: groupCountsAs(), current: state.view.kind === 'generated', group: true }
+  // The group comes after the flows and before "Not in a flow".
+  const none = flows.findIndex((flow) => flow.line.id === '__none')
+  return flows.toSpliced(none === -1 ? flows.length : none, 0, group)
+})
+const generatedCount = computed(() => plural(generatedFiles().length, 'file'))
 
 const reviewCounts = computed(() => {
   const others = othersReviewCount()
@@ -52,24 +61,27 @@ const itemClass = (current: boolean) => ['w-full items-start gap-2.5 rounded-lg 
     <div class="relative min-h-0 flex-1 overflow-y-auto max-md:overflow-visible">
       <h2 class="mx-5 mt-4 mb-2 text-tag font-bold tracking-[.12em] text-muted uppercase">Lines</h2>
       <ul role="list" class="m-0 grid list-none gap-0.5 px-2.5 py-0">
-        <li v-for="{ line, decided, verdict, current } in flows" :key="line.id">
+        <li v-for="{ line, decided, verdict, current, group } in rows" :key="line.id">
           <UButton
             color="neutral"
             variant="ghost"
-            :class="[itemClass(current), 'grid grid-cols-[28px_1fr_auto] hover:text-current']"
+            :class="[itemClass(current), group && verdict ? 'grid grid-cols-[28px_1fr_auto_auto] hover:text-current' : 'grid grid-cols-[28px_1fr_auto] hover:text-current']"
             :style="current ? { '--ui-text': `var(--color-${line.color})` } : undefined"
             :aria-current="current"
             @click="openFlow(line.id)"
           >
-            <FlowBullet :line="line" :hollow="line.id === '__none' || line.id === '__files'" :on-band="current" />
+            <FlowBullet :line="line" :hollow="line.id === '__none' || line.id === '__files'" :on-band="current">
+              <UIcon v-if="group" name="i-lucide-cog" class="relative size-[1.2em]" />
+            </FlowBullet>
             <span class="pt-1.5 text-ui leading-[1.3] font-semibold">
               <FlowIcon :icon="line.icon" class="mr-[.4em] size-[1.1em] align-[-.15em]" :style="current ? undefined : { color: `var(--color-${line.color})` }" />{{ line.name }}
             </span>
+            <span v-if="group" class="font-mono text-meta leading-none font-semibold" :class="[verdict ? 'pt-2.5' : 'pt-2', current ? 'opacity-85' : 'text-muted']">{{ generatedCount }}</span>
             <span v-if="verdict" class="mt-1 grid size-6 place-items-center rounded-full text-inverted" :class="FLOW_VERDICT_COLORS[verdict]" :title="FLOW_VERDICT_LABELS[verdict]">
               <VerdictIcon :verdict="verdict" class="size-3.5" />
               <span class="sr-only">{{ FLOW_VERDICT_LABELS[verdict] }}</span>
             </span>
-            <span v-else class="pt-2 font-mono text-meta leading-none font-semibold" :class="current ? 'opacity-85' : 'text-muted'" :title="`${decided} of ${line.stops.length} hunks have a verdict`">{{ decided }}/{{ line.stops.length }}</span>
+            <span v-else-if="!group" class="pt-2 font-mono text-meta leading-none font-semibold" :class="current ? 'opacity-85' : 'text-muted'" :title="`${decided} of ${line.stops.length} hunks have a verdict`">{{ decided }}/{{ line.stops.length }}</span>
           </UButton>
         </li>
       </ul>
