@@ -3,6 +3,7 @@ import { acceptedItems, hunkById, plural, severities, severityRank, verdictOf, v
 import { refreshState } from './panels.js'
 import { saveReviewer } from './actions.js'
 import { stackLine } from './stack.js'
+import { SEVERITY_ORDER } from './generated.js'
 
 // Posting replaces the user's pending GitHub review, so its remarks and body must be in the page first.
 export function importOwnReview() {
@@ -154,12 +155,11 @@ export function hunksWithoutVerdict() { return state.review.hunks.filter((hunk) 
 // posts and what is already on GitHub, not the findings the reviewer left open; the hunk verdicts can only raise it.
 export function proposedVerdict() {
   if (hunksWithoutVerdict().length) return null
-  const order = ['approved', 'comment', 'changes']
   const posted = standingOwnRemarks().map((own) => own.severity)
   const severities = [...acceptedItems().map((item) => item.severity), ...posted]
   // Only the hunks of this review count: a verdict on a hunk that new commits removed is kept, but no longer applies.
   const levels = [verdictFromSeverities(severities), ...state.review.hunks.map((hunk) => verdictOf(hunk.id))]
-  return REVIEW_EVENTS[order[Math.max(...levels.map((level) => order.indexOf(level)))]]
+  return REVIEW_EVENTS[SEVERITY_ORDER[Math.max(...levels.map((level) => SEVERITY_ORDER.indexOf(level)))]]
 }
 
 // Get the IDs of comments the page showed before that are no longer in review.json. The agent keeps every comment, so

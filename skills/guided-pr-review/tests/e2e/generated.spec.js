@@ -413,3 +413,63 @@ test('the icons of the group on Home, in the rail and on Submit review line up w
   await expect(entry).toBeVisible();
   await expectAligned(page, entry.getByTitle('Generated files'), entry.locator('b'));
 });
+
+test('a generated hunk in a flow shows the Generated tag, a cog on its map stop and a line that opens the group', async ({ page }) => {
+  await openAt(page, '/B2');
+  const band = page.getByRole('banner');
+  await expect(band.locator('[data-generated-tag]')).toHaveText('Generated');
+  await expect(band.locator('[data-generated-mark]')).toHaveCount(1);
+  const note = page.locator('[data-generated-note]');
+  await expect(note).toContainText('A tool writes this file (Lockfile or snapshot name)');
+  await expect(note).toContainText('one of the 4 files in Generated files');
+  await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Request changes' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Comment' })).toBeVisible();
+  await note.getByRole('button', { name: 'Open the group' }).click();
+  await expect(heading(page)).toHaveText('Generated files');
+});
+
+test('the generated line, tag and map mark line up with their text', async ({ page }) => {
+  await openAt(page, '/B2');
+  const band = page.getByRole('banner');
+  const tag = band.locator('[data-generated-tag]');
+  await expectAligned(page, tag.getByTitle('Generated files'), tag.locator('span').last());
+  const note = page.locator('[data-generated-note]');
+  await expectAligned(page, note.getByTitle('Generated files'), note.locator('b').first());
+  const [mark, tick] = await Promise.all([band.locator('[data-generated-mark]').boundingBox(), band.locator('[data-tick]').nth(1).boundingBox()]);
+  expect(Math.abs((mark.y + mark.height / 2) - (tick.y + tick.height / 2))).toBeLessThanOrEqual(1);
+  const [cog, square] = await Promise.all([band.locator('[data-generated-mark] .iconify').boundingBox(), band.locator('[data-generated-mark] svg').first().boundingBox()]);
+  expect(Math.abs((cog.y + cog.height / 2) - (square.y + square.height / 2))).toBeLessThanOrEqual(1);
+});
+
+test('a stop that is not generated shows no tag or line, and only the generated stop has a mark on the map', async ({ page }) => {
+  await openAt(page, '/B1');
+  await expect(page.locator('[data-generated-tag], [data-generated-note], [data-group-hint]')).toHaveCount(0);
+  await expect(page.getByRole('banner').getByRole('button', { name: /^B2 package-lock.json/ }).locator('[data-generated-mark]')).toHaveCount(1);
+  await expect(page.getByRole('banner').getByRole('button', { name: /^B1 / }).locator('[data-generated-mark]')).toHaveCount(0);
+});
+
+test('a shared stop more severe than the approved group says the group counts as that verdict, and leaves the group verdict alone', async ({ page }) => {
+  const review = await openAt(page, '/B2', { reviewer: RAISED });
+  const hint = page.locator('[data-group-hint]');
+  await expect(hint).toHaveText('Counts as request changes for the group');
+  await expectAligned(page, hint.locator('.iconify'), hint.locator('span:not(.iconify)'));
+  expect(review.reviewer().generatedVerdict).toBe('approved');
+});
+
+test('the hint shows for a group verdict of comment and a stop on request changes', async ({ page }) => {
+  await openAt(page, '/B2', { reviewer: { generatedVerdict: 'comment', hunkVerdicts: { [H.lock]: 'changes' } } });
+  await expect(page.locator('[data-group-hint]')).toHaveText('Counts as request changes for the group');
+});
+
+test('the hint is absent while the group has no verdict, and when the stop is not more severe', async ({ page }) => {
+  await openAt(page, '/B2', { reviewer: { hunkVerdicts: { [H.lock]: 'changes' } } });
+  await expect(page.getByRole('button', { name: 'Request changes' })).toBeVisible();
+  await expect(page.locator('[data-group-hint]')).toHaveCount(0);
+});
+
+test('the hint is absent when the stop is not more severe than the group', async ({ page }) => {
+  await openAt(page, '/B2', { reviewer: { generatedVerdict: 'comment', hunkVerdicts: { [H.lock]: 'approved' } } });
+  await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
+  await expect(page.locator('[data-group-hint]')).toHaveCount(0);
+});

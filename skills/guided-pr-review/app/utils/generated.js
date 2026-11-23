@@ -9,7 +9,7 @@ export const GENERATED_LINE = { id: '__generated', name: 'Generated files', lett
 // A null label means the file's own detail says why.
 export const REASON_LABELS = { gitattributes: '.gitattributes', 'generator-list': null, header: 'Header says generated', name: 'Lockfile or snapshot name', confirmed: 'You confirmed' }
 
-const SEVERITY_ORDER = ['approved', 'comment', 'changes']
+export const SEVERITY_ORDER = ['approved', 'comment', 'changes']
 
 // Get the IDs of the hunks of the generated files. Each generated file is one hunk, so a file's hunk is the one on its path.
 export function generatedHunkIds(review) {

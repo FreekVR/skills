@@ -29,6 +29,9 @@ const raisedBy = computed(() => {
     .join(', ')
 })
 
+// A shared hunk's verdict that is more severe than the group's own makes the group count as that verdict; the group's own verdict stays as it is.
+const raisesGroup = computed(() => !props.group && isGenerated(props.hunkId!) && Boolean(mine.value) && groupCountsAs() !== groupVerdict() && mine.value === groupCountsAs())
+
 function title(verdict: string, label: string) {
   if (props.group) return `${verdict === suggested.value ? 'Suggested for these files. ' : ''}${label} for all ${files.value} files and go on. Local only: GitHub has no verdict per file.`
   return `${verdict === suggested.value ? 'Suggested for this hunk. ' : ''}${label} and go to the next hunk. Local only: GitHub has no per-hunk verdict.`
@@ -45,7 +48,11 @@ function choose(verdict: string) {
     <VerdictIcon v-if="mine" :verdict="mine" class="size-3.5" />{{ postedText }}
     · review posted
   </span>
-  <span v-else class="inline-flex flex-wrap gap-2" role="group" :aria-label="groupLabel">
+  <!-- Beside the buttons, so the effect on the group is not a surprise. -->
+  <p v-if="raisesGroup && !posted" class="m-0 ml-auto flex items-center gap-2 self-center text-ui text-toned" data-group-hint>
+    <VerdictIcon :verdict="mine!" class="size-4" /><span>{{ `Counts as ${verdictWord(mine)} for the group` }}</span>
+  </p>
+  <span v-if="!posted" class="inline-flex flex-wrap gap-2" role="group" :aria-label="groupLabel">
     <UButton
       v-for="button in BUTTONS"
       :key="button.verdict"
