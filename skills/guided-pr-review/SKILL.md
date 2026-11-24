@@ -114,6 +114,11 @@ Read the other PRs, linked ones and the other PRs in a stack, as highlights only
    - Small PR: read the diff and the files through GitHub. Save the PR head version of every changed file that the PR does not remove to `<review-dir>/files/<path in the repository>`, so the review page can show the whole file.
    - Big PR: read them in the worktree. Set `pr.localPath` to the absolute path of the worktree. The review page then reads whole files there, and links each file to VS Code, PHP files to PhpStorm, and each file to its folder.
 5. Find the generated files. For a small PR, also save every `.gitattributes` file and every `.openapi-generator/FILES` file of the PR head to `<review-dir>/files/<path in the repository>`. Run `node scripts/review-data.js generated <diff-file> <root>`, with `<root>` the `files/` folder (small PR) or the worktree (big PR). Then look for files that a tool writes and that the signals missed. Run `waiting` first, as step 2 says, and ask the user one structured question with every guess selected, each with one line of evidence. On a `refresh` the review page is open, so you MUST ask in plain chat text instead, as step 2 says. A file the user keeps gets the reason `confirmed`. Keep every entry already in `generated.files` whose file is still in the diff, the `confirmed` ones in particular, and ask only about new guesses. When there is no new guess, ask nothing. Write every generated file, found and kept, to `generated.files`, then run `hunks` again.
+6. Find the changes since the user's last review: their newest review submitted on GitHub, also one made outside this skill. Nothing else counts. With `pr.headSha` set to the head commit of the diff of item 1, run `node scripts/review-data.js since <review-dir>/review.json`.
+   - When it prints `none`, the user has no submitted review: go on with step 5.
+   - When it prints `from <commit>`, get the PR's own diff at that commit: with a local clone, as step 1 of "Old hunk IDs" in `references/resume.md` says; without a clone, or when that fails, the diff of `<pr.baseRef>...<commit>` through GitHub. When `<commit>` is `pr.headSha`, it is the diff file of item 1. Save it to a file and run `since` again with that file and the diff file of item 1. It writes `changesSince.files`, the files changed or moved since that review.
+   - Write a `summary` for each entry in `changesSince.files`, then `changesSince.summary` from those entries only, as `references/review-data.md` says. When `files` is empty, write no summary.
+   - When you cannot get the old diff, write `changesSince.summary` from the commits since `<commit>`, without `files`.
 
 ### 5. Read the conventions
 
@@ -136,6 +141,8 @@ Let the user choose what runs:
 2. Ask the user which angles to run, all selected at the start, each with one line on what it checks: spec (acceptance criteria and scope), code standards (conventions, new concepts and new terms), sources (hardcoded values and factual claims), and tests and breaking changes. When `generated.files` is not empty, add the angle generated files: does the output match its source, hand edits, changes the source does not explain, breaks handwritten code.
 3. For the angles the user kept, ask which review skills to use: each skill by its exact name, with its angle and one line on why it fits, all selected at the start. An angle with no fitting skill runs its checks only; a skill that fits no angle gets an option of its own. Say how many subagents you would start; the test coverage check runs in this session and does not count.
 4. Run only what the user chose, once for each PR. If you can start a subagent, run the chosen checks there, in no more subagents than the user agreed to, in the background, and go on with step 7. Otherwise, run them yourself in step 8. The test coverage check always runs in this session, in step 8.
+
+A review with `changesSince.files` is a re-review: the checks, the test coverage check too, MUST get only the hunks in those files, and the first question says so. Without `files`, they get every hunk.
 
 If you can ask a structured multiple-choice question, use it for both rounds; otherwise ask in the chat. While a review page of this session is open, run `waiting` before you ask, as step 2 says.
 
@@ -162,7 +169,7 @@ Write `generated.summary`, one line on what the generated files are and what cha
 
 Write a short `explanation` for each flow and each hunk, for a reviewer who does not know this code. Name the concepts the code uses; do not invent new terms.
 
-Then run `node scripts/review-data.js check <review-dir>/review.json --diff <diff-file>`, with the diff file from step 4. Fix every line about flows and hunks (the lines that start with `missing:`, `unknown:`, `no why:`, `diff:` or `generated:`) and run it again until it prints none; the lines about criteria, comments and the `stack` field belong to step 8. A `diff:` line means `review.json` and the diff file hold different hunks: run `hunks` again. The same `hunks` run repairs a `review.json` from before `wholeFiles` existed.
+Then run `node scripts/review-data.js check <review-dir>/review.json --diff <diff-file>`, with the diff file from step 4. Fix every line about flows and hunks (the lines that start with `missing:`, `unknown:`, `no why:`, `diff:`, `generated:` or `since:`) and run it again until it prints none; the lines about criteria, comments and the `stack` field belong to step 8. A `diff:` line means `review.json` and the diff file hold different hunks: run `hunks` again. The same `hunks` run repairs a `review.json` from before `wholeFiles` existed.
 
 ### 8. Collect and judge the findings
 
@@ -171,6 +178,7 @@ When the subagents have answered, or when you run the checks yourself, write the
 Write each finding:
 
 - Attach it to the hunk and line it is about, or set `hunkId` to null for a finding about the whole PR.
+- On a re-review, drop a finding of the checks on a hunk outside `changesSince.files`.
 - Set `sources` to what found it: the exact name of the review skill, or `check:<angle>` for a built-in check, for example `check:spec`. The angles are `spec`, `code-standards`, `sources`, `tests` and `generated`.
 - When an open ticket in `context.relatedTickets` already covers it, name that ticket's key in the finding.
 - Write `body` as the comment text that would be posted, without the title, the severity label and the disclosure; the review page posts the finding as a header line `**severity(rule): title**`, then the body, then the disclosure, unless the reviewer edited the text.
@@ -189,7 +197,7 @@ Always verify the existing review comments from step 3, as `references/existing-
 
 1. Write the parts of `review.json` that are still missing, as described in `references/review-data.md`. A flow for which the acceptance criteria check found no criteria MUST keep or get its `noCriteria`. In every text you write for the review page (explanations, findings, answers), refer to tickets, issues and PRs by key or number only, for example `ABC-123` or `#123`, never with their URL: the review page links them and shows their title.
    Then run `node scripts/review-data.js check <review-dir>/review.json --diff <diff-file>` again, fix every line it prints, and run it until it prints `ok`.
-2. When steps 5 to 8 ran for every hunk of `pr.headSha`, run `node scripts/review-data.js checked <review-dir>`. It records that commit in `checkedSha`, and the review page asks the reviewer to get it checked when `checkedSha` is another commit.
+2. When steps 5 to 8 ran for every hunk of `pr.headSha`, on a re-review for every hunk in `changesSince.files`, run `node scripts/review-data.js checked <review-dir>`. It records that commit in `checkedSha`, and the review page asks the reviewer to get it checked when `checkedSha` is another commit.
 3. Run `node scripts/review-data.js prepared <review-dir>`, if you did not run it after steps 7 and 8.
 4. Tell the user in two or three sentences what the PR does and how many flows and hunks there are. Do not list findings in the chat; they are in the review page.
 

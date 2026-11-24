@@ -5,20 +5,24 @@ const total = computed(() => state.review.hunks.length)
 const seen = computed(() => total.value - unseenHunks().length)
 
 const rows = computed(() => {
-  const flows = lines().map((line: { id: string, color: string, stops: { hunkId: string }[] }) => ({
+  const flows = shownLines().map((line: { id: string, color: string, stops: { hunkId: string }[] }) => ({
     line,
     decided: line.stops.filter((stop) => verdictOf(stop.hunkId)).length,
     verdict: flowVerdict(line),
     current: state.view.kind === 'station' && state.view.line === line.id,
     group: false,
   }))
-  if (!hasGenerated()) return flows
+  if (!groupShown()) return flows
   const group = { line: GENERATED_LINE, decided: 0, verdict: groupCountsAs(), current: state.view.kind === 'generated', group: true }
   // The group comes after the flows and before "Not in a flow".
   const none = flows.findIndex((flow) => flow.line.id === '__none')
   return flows.toSpliced(none === -1 ? flows.length : none, 0, group)
 })
 const generatedCount = computed(() => plural(generatedFiles().length, 'file'))
+
+// Only a re-review with a list of changed files gets the choice; the list starts at the reviewer's newest review.
+const scopes = computed(() => (sinceFiles().size ? [{ label: 'Changed since last review', value: 'since' }, { label: `Changes vs ${state.review.pr.baseRef || 'the base branch'}`, value: 'all' }] : []))
+const scope = computed({ get: () => (scopeActive() ? 'since' : 'all'), set: setScope })
 
 const reviewCounts = computed(() => {
   const others = othersReviewCount()
@@ -59,6 +63,7 @@ const itemClass = (current: boolean) => ['w-full items-start gap-2.5 rounded-lg 
     </div>
 
     <div class="relative min-h-0 flex-1 overflow-y-auto max-md:overflow-visible">
+      <USelect v-if="scopes.length" v-model="scope" :items="scopes" color="neutral" variant="soft" icon="i-lucide-history" class="mx-2.5 mt-4 w-[calc(100%-1.25rem)]" aria-label="Which changes to show" />
       <h2 class="mx-5 mt-4 mb-2 text-tag font-bold tracking-[.12em] text-muted uppercase">Lines</h2>
       <ul role="list" class="m-0 grid list-none gap-0.5 px-2.5 py-0">
         <li v-for="{ line, decided, verdict, current, group } in rows" :key="line.id">

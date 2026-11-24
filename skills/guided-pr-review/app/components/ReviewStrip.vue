@@ -32,12 +32,14 @@ const folder = computed(() => {
   const file: string = hunk.value?.file || ''
   return file.includes('/') ? file.slice(0, file.lastIndexOf('/')) : ''
 })
-const criteriaOpen = computed(() => state.ui.criteriaOpen ?? state.view.index === 0)
+// The criteria start open on the flow's first shown hunk, which the scope can move past the first stop.
+const criteriaOpen = computed(() => state.ui.criteriaOpen ?? (line.value ? state.view.index === shownStops(line.value)[0]?.index : state.view.index === 0))
 
 const stops = computed(() => {
   const current = line.value
   if (!current) return []
-  return current.stops.map((stop: { hunkId: string }, at: number) => {
+  return shownStops(current).map((stop: { hunkId: string, index: number }) => {
+    const at = stop.index
     const hunk = hunkById(stop.hunkId)
     const seen = isSeen(stop.hunkId)
     return {
@@ -55,6 +57,9 @@ const stops = computed(() => {
     }
   })
 })
+
+// Where the stop in view sits on the map, which can leave out stops outside the scope.
+const place = computed(() => Math.max(0, stops.value.findIndex((stop: { at: number }) => stop.at === index.value)))
 
 const reviewCount = computed(() => state.reviews?.length || 0)
 const groups = computed(sessionGroups)
@@ -82,7 +87,7 @@ function onCriteriaToggle(event: Event) {
 // The map keeps the hunk in view in its middle. A move within the flow scrolls there smoothly; another flow starts there.
 function centerMap(smooth = false) {
   if (!map.value) return
-  const left = Math.max(0, index.value * STOP_WIDTH + STOP_WIDTH / 2 - map.value.clientWidth / 2)
+  const left = Math.max(0, place.value * STOP_WIDTH + STOP_WIDTH / 2 - map.value.clientWidth / 2)
   map.value.scrollTo({ left, behavior: smooth && reducedMotion.value !== 'reduce' ? 'smooth' : 'instant' })
 }
 watch(() => (line.value ? [line.value.id, index.value] : null), (now, before) => centerMap(Boolean(now && before && now[0] === before[0])), { flush: 'post' })
@@ -379,7 +384,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
           <!-- The bar spans the whole line and is scaled to the current stop: a transform animates without a new layout. -->
           <div
             class="absolute top-[34px] left-[66px] h-1.5 origin-left rounded-[3px] bg-white transition-transform duration-[380ms] ease-review motion-reduce:transition-none"
-            :style="{ width: `${(stops.length - 1) * STOP_WIDTH}px`, transform: `scaleX(${stops.length > 1 ? index / (stops.length - 1) : 0})` }"
+            :style="{ width: `${(stops.length - 1) * STOP_WIDTH}px`, transform: `scaleX(${stops.length > 1 ? place / (stops.length - 1) : 0})` }"
             data-map-done
           />
           <button

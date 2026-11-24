@@ -268,9 +268,9 @@ export function headUnchecked() {
 }
 
 // What changed since the reviewer last looked: the new or changed hunks, the open findings on them and the agent's summary.
-// `sinceReview` is true when the summary starts at a commit the reviewer submitted a review on; without such a review it
-// starts at the commit the page showed before, their last visit. `check` is `running` while the agent works on the
-// head commit and `needed` when the head commit is not checked and nothing works on it. Null when nothing changed.
+// `sinceReview` is true when the summary starts at the commit of the reviewer's newest submitted review. `check` is
+// `running` while the agent works on the head commit and `needed` when the head commit is not checked and nothing works
+// on it. Null when nothing changed.
 export function sinceLastTime() {
   const changes = changesSince()
   const fresh = [...state.freshHunks]
@@ -279,8 +279,7 @@ export function sinceLastTime() {
   const check = headUnchecked() ? (working() ? 'running' : 'needed') : null
   if (!changes && !fresh.length && !check) return null
   const findings = liveFindings().filter((finding) => fresh.includes(finding.hunkId) && decisionOf(finding) === 'open')
-  const sameCommit = (a, b) => Boolean(a && b) && (a.startsWith(b) || b.startsWith(a))
-  const sinceReview = Boolean(changes) && (state.review.reviews || []).some((review) => review.author === viewerLogin() && sameCommit(review.commitId, changes.from))
+  const sinceReview = Boolean(changes) && sameCommit(newestOwnReview()?.commitId, changes.from)
   return { changes, fresh, findings, sinceReview, check }
 }
 
@@ -432,6 +431,13 @@ export function existingReviews() {
   const reviews = [...(state.review.reviews || [])].sort((a, b) => (b.submittedAt || '').localeCompare(a.submittedAt || ''))
   return { reviews, mine: reviews.filter((review) => review.author === viewerLogin()), others: reviews.filter((review) => review.author !== viewerLogin()) }
 }
+
+// Get the viewer's newest review submitted on GitHub: a re-review shows the changes since its commit. The `since` command
+// of review-data.js picks the same review.
+export function newestOwnReview() { return existingReviews().mine.find((review) => review.commitId) || null }
+
+// Check whether two commits are the same; either can be written short.
+export function sameCommit(a, b) { return Boolean(a && b) && (a.startsWith(b) || b.startsWith(a)) }
 
 // The reviewer's newest review is their current one: it holds the update. Their older ones and approvals are closed.
 export function reviewCard(review, current) {

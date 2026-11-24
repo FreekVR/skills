@@ -6,7 +6,7 @@ const assert = require('node:assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { parseDiff, mergeHunks, checkFlows, checkGenerated, parseWatchArgs, detectGenerated } = require('../scripts/review-data.js');
+const { parseDiff, mergeHunks, checkFlows, checkGenerated, checkSince, parseWatchArgs, detectGenerated } = require('../scripts/review-data.js');
 const { execFileSync, spawnSync, spawn } = require('child_process');
 const { reviewDir, writeSession, listReviews, removeReview, watchEvents, watchReview, stackStatus, setWaiting, readWaiting, agentStatus, readPreparing, setPreparing } = require('../scripts/reviews.js');
 
@@ -935,4 +935,115 @@ test('checkGenerated: names each problem', () => {
 
 test('checkGenerated: a review without generated has no problems', () => {
   assert.deepStrictEqual(checkGenerated({ hunks: [] }), []);
+});
+
+const fileDiff = (file, from, to, oldFile = file) => `diff --git a/${oldFile} b/${file}
+${oldFile === file ? '' : `similarity index 90%\nrename from ${oldFile}\nrename to ${file}\n`}--- a/${oldFile}
++++ b/${file}
+@@ -1 +1 @@
+-${from}
++${to}
+`;
+// The PR's diff at the commit of the user's review, and now: a.ts changed since, b.ts is the same, c.ts moved to lib/c.ts.
+const OLD_DIFF = fileDiff('a.ts', 'x', 'y') + fileDiff('b.ts', 'x', 'y') + fileDiff('c.ts', 'x', 'y');
+const NEW_DIFF = fileDiff('a.ts', 'x', 'z') + fileDiff('b.ts', 'x', 'y') + fileDiff('lib/c.ts', 'x', 'y', 'c.ts');
+const sinceReview = (extra = {}) => ({
+  pr: { headSha: 'head2' },
+  viewer: { login: 'me' },
+  reviews: [
+    { id: 1, author: 'me', state: 'CHANGES_REQUESTED', commitId: 'old1', submittedAt: '2026-11-01T09:00:00Z' },
+    { id: 2, author: 'me', state: 'COMMENTED', commitId: 'head1', submittedAt: '2026-11-02T09:00:00Z' },
+    { id: 3, author: 'someone-else', state: 'APPROVED', commitId: 'other', submittedAt: '2026-11-03T09:00:00Z' },
+  ],
+  hunks: parseDiff(NEW_DIFF),
+  ...extra,
+});
+const readReview = (dir) => JSON.parse(fs.readFileSync(path.join(dir, 'review.json'), 'utf8'));
+
+test('since prints the commit of the newest own review, in any state, and writes from and to', (t) => {
+  const result = runReviewData(t, { 'review.json': JSON.stringify(sinceReview()) }, 'since', '@review.json');
+  assert.strictEqual(result.status, 0);
+  assert.strictEqual(result.stdout.trim(), 'from head1');
+  assert.deepStrictEqual(readReview(result.dir).changesSince, { from: 'head1', to: 'head2' });
+});
+
+test('since prints none and removes changesSince when the user has no submitted review', (t) => {
+  const review = sinceReview({ reviews: [{ id: 3, author: 'someone-else', state: 'APPROVED', commitId: 'other', submittedAt: '2026-11-03T09:00:00Z' }], changesSince: { from: 'x', to: 'y', summary: 's' } });
+  const result = runReviewData(t, { 'review.json': JSON.stringify(review) }, 'since', '@review.json');
+  assert.strictEqual(result.stdout.trim(), 'none');
+  assert.strictEqual(readReview(result.dir).changesSince, undefined);
+});
+
+test('since with both diffs lists the files changed or moved since the review, and leaves out the same ones', (t) => {
+  const result = runReviewData(t, { 'review.json': JSON.stringify(sinceReview()), 'old.diff': OLD_DIFF, 'new.diff': NEW_DIFF }, 'since', '@review.json', '@old.diff', '@new.diff');
+  assert.strictEqual(result.status, 0);
+  assert.deepStrictEqual(readReview(result.dir).changesSince, {
+    from: 'head1',
+    to: 'head2',
+    files: [{ path: 'a.ts' }, { path: 'lib/c.ts', previousPath: 'c.ts' }],
+  });
+  assert.match(result.stdout, /^a\.ts$/m);
+  assert.match(result.stdout, /^lib\/c\.ts \(moved from c\.ts\)$/m);
+});
+
+test('since leaves out a file whose hunk only moved to another line', (t) => {
+  const shifted = NEW_DIFF.replace('diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -1 +1 @@', 'diff --git a/b.ts b/b.ts\n--- a/b.ts\n+++ b/b.ts\n@@ -9 +9 @@');
+  const result = runReviewData(t, { 'review.json': JSON.stringify(sinceReview()), 'old.diff': OLD_DIFF, 'new.diff': shifted }, 'since', '@review.json', '@old.diff', '@new.diff');
+  assert.ok(!readReview(result.dir).changesSince.files.some((file) => file.path === 'b.ts'));
+});
+
+test('since reads both diffs with the whole files of review.json', (t) => {
+  const twoHunks = (last) => `diff --git a/w.ts b/w.ts\n--- a/w.ts\n+++ b/w.ts\n@@ -1 +1 @@\n-x\n+y\n@@ -20 +20 @@\n-x\n+${last}\n`;
+  const review = sinceReview({ wholeFiles: ['w.ts'] });
+  const same = runReviewData(t, { 'review.json': JSON.stringify(review), 'old.diff': twoHunks('y'), 'new.diff': twoHunks('y') }, 'since', '@review.json', '@old.diff', '@new.diff');
+  assert.deepStrictEqual(readReview(same.dir).changesSince.files, []);
+  const changed = runReviewData(t, { 'review.json': JSON.stringify(review), 'old.diff': twoHunks('y'), 'new.diff': twoHunks('z') }, 'since', '@review.json', '@old.diff', '@new.diff');
+  assert.deepStrictEqual(readReview(changed.dir).changesSince.files, [{ path: 'w.ts' }]);
+});
+
+test('since keeps the summaries when it runs again for the same review and head commit, and drops them for another', (t) => {
+  const written = { from: 'head1', to: 'head2', summary: '- All of it.', files: [{ path: 'a.ts', summary: 'The value is z.' }, { path: 'lib/c.ts', previousPath: 'c.ts', summary: 'Moved.' }] };
+  const again = runReviewData(t, { 'review.json': JSON.stringify(sinceReview({ changesSince: written })), 'old.diff': OLD_DIFF, 'new.diff': NEW_DIFF }, 'since', '@review.json', '@old.diff', '@new.diff');
+  assert.deepStrictEqual(readReview(again.dir).changesSince, written);
+  const newer = runReviewData(t, { 'review.json': JSON.stringify(sinceReview({ changesSince: { ...written, to: 'head1b' } })), 'old.diff': OLD_DIFF, 'new.diff': NEW_DIFF }, 'since', '@review.json', '@old.diff', '@new.diff');
+  assert.deepStrictEqual(readReview(newer.dir).changesSince, { from: 'head1', to: 'head2', files: [{ path: 'a.ts' }, { path: 'lib/c.ts', previousPath: 'c.ts' }] });
+});
+
+test('checkSince names a file that is not in the diff, a file without summary, and a from that is not the newest own review', () => {
+  const review = sinceReview({ changesSince: { from: 'old1', to: 'head2', summary: 's', files: [{ path: 'gone.ts', summary: 'x' }, { path: 'a.ts' }] } });
+  assert.deepStrictEqual(checkSince(review), [
+    'since: changesSince.from is not the commit of the newest review by the user; run since again',
+    'since: gone.ts is not a file in the diff; run since again',
+    'since: a.ts has no summary',
+  ]);
+});
+
+test('checkSince passes a list that matches, and a review without changesSince', () => {
+  assert.deepStrictEqual(checkSince(sinceReview({ changesSince: { from: 'head1', to: 'head2', summary: 's', files: [{ path: 'a.ts', summary: 'z' }] } })), []);
+  assert.deepStrictEqual(checkSince(sinceReview()), []);
+});
+
+test('checkSince wants no changesSince without an own review', () => {
+  assert.deepStrictEqual(checkSince(sinceReview({ reviews: [], changesSince: { from: 'head1', to: 'head2', summary: 's' } })), [
+    'since: changesSince.from is not the commit of the newest review by the user; run since again',
+  ]);
+});
+
+test('check exits 1 and prints the since problems', (t) => {
+  const review = sinceReview({ notInAnyFlow: parseDiff(NEW_DIFF).map((hunk) => hunk.id), changesSince: { from: 'head1', to: 'head2', summary: 's', files: [{ path: 'a.ts' }] } });
+  const result = runReviewData(t, { 'review.json': JSON.stringify(review) }, 'check', '@review.json');
+  assert.strictEqual(result.status, 1);
+  assert.match(result.stdout, /^since: a\.ts has no summary$/m);
+});
+
+test('since lists a file that only lost a hunk since the review', (t) => {
+  const twoHunks = `diff --git a/r.ts b/r.ts\n--- a/r.ts\n+++ b/r.ts\n@@ -1 +1 @@\n-x\n+y\n@@ -20 +20 @@\n-x\n+z\n`;
+  const oneHunk = `diff --git a/r.ts b/r.ts\n--- a/r.ts\n+++ b/r.ts\n@@ -1 +1 @@\n-x\n+y\n`;
+  const result = runReviewData(t, { 'review.json': JSON.stringify(sinceReview()), 'old.diff': twoHunks, 'new.diff': oneHunk }, 'since', '@review.json', '@old.diff', '@new.diff');
+  assert.deepStrictEqual(readReview(result.dir).changesSince.files, [{ path: 'r.ts' }]);
+});
+
+test('checkSince wants a summary when there are changed files', () => {
+  const review = sinceReview({ changesSince: { from: 'head1', to: 'head2', files: [{ path: 'a.ts', summary: 'z' }] } });
+  assert.deepStrictEqual(checkSince(review), ['since: changesSince has files but no summary']);
 });
