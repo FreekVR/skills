@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // The letter of a flow on a solid disk in its colour and shape. `line` is an entry of state.lines.
 // Its baseline is the baseline of the letter, so in a line of text it sits centred on that text.
-// The default slot replaces the letter, as the cog of the generated files does.
+// The generated files line shows a cog instead of the letter.
 // `hollow` draws the disk as an outline, for "Not on a line"; `onBand` draws it white with the letter in the line colour.
-const props = defineProps<{ line: { name: string, letter: string, color: string, shape?: string }, hollow?: boolean, mini?: boolean, onBand?: boolean }>()
+const props = defineProps<{ line: { id?: string, name: string, letter: string, color: string, shape?: string }, hollow?: boolean, mini?: boolean, onBand?: boolean }>()
 
 // Circle and square are drawn as their own elements; these shapes are paths.
 const PATHS: Record<string, string> = {
@@ -29,7 +29,8 @@ const ink = computed(() => (props.hollow ? (props.onBand ? 'text-white' : 'text-
       <rect v-else-if="shape === 'square'" x="2" y="2" width="20" height="20" rx="3" />
       <path v-else :d="PATHS[shape]" />
     </svg>
-    <!-- The letter sits a little lower to centre its capital; an icon in the slot is centred as it is. -->
-    <slot><span class="relative pt-[.15em]">{{ line.letter }}</span></slot>
+    <!-- The letter sits a little lower to centre its capital; the icon is centred as it is. -->
+    <UIcon v-if="line.id === GENERATED_LINE.id" name="i-lucide-cog" class="relative size-[1.2em]" />
+    <span v-else class="relative pt-[.15em]">{{ line.letter }}</span>
   </span>
 </template>

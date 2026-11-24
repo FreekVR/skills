@@ -108,7 +108,7 @@ async function showThem() {
               </div>
               <div v-if="view.generatedOpen" class="mt-4.5 first:mt-0">
                 <p class="m-0 mb-1.5 flex flex-wrap items-center gap-2">
-                  <FlowBullet :line="GENERATED_LINE"><UIcon name="i-lucide-cog" class="relative size-[1.2em]" /></FlowBullet>
+                  <FlowBullet :line="GENERATED_LINE" />
                   <b>{{ GENERATED_LINE.name }}</b>
                   <span class="text-ui text-toned">{{ groupVerdict() ? 'not all seen' : 'no verdict yet' }} · {{ plural(view.generatedOpen.files, 'file') }}</span>
                 </p>

@@ -3,6 +3,7 @@
 // With `group`, the verdict is on all generated files at once.
 const props = defineProps<{ hunkId?: string, group?: boolean }>()
 
+const GROUP_VERDICT_WORDS: Record<string, string> = { approved: 'approved', changes: 'changes requested', comment: 'commented' }
 const BUTTONS = [
   { verdict: 'approved', label: 'Approve', color: 'success' as const },
   { verdict: 'changes', label: 'Request changes', color: 'error' as const },
@@ -12,10 +13,11 @@ const mine = computed(() => (props.group ? groupVerdict() : verdictOf(props.hunk
 const posted = computed(() => Boolean(postedReview()))
 const suggested = computed(() => verdictFromSeverities(props.group ? groupSeverities() : standingSeverities(props.hunkId!)))
 const files = computed(() => (props.group ? generatedFiles().length : 0))
-const groupLabel = computed(() => (props.group ? `Your verdict on all ${files.value} files. Local only: GitHub has no verdict per file.` : 'Your verdict on this hunk. Local only: GitHub has no per-hunk verdict.'))
+const all = computed(() => (files.value === 1 ? 'this file' : `all ${files.value} files`))
+const groupLabel = computed(() => (props.group ? `Your verdict on ${all.value}. Local only: GitHub has no verdict per file.` : 'Your verdict on this hunk. Local only: GitHub has no per-hunk verdict.'))
 const postedText = computed(() => {
   if (!mine.value) return props.group ? 'No verdict on these files' : 'No verdict on this hunk'
-  return props.group ? `Your verdict on all ${files.value} files: ${verdictWord(mine.value)}` : POSTED_HUNK_VERDICTS[mine.value]
+  return props.group ? `Your verdict on ${all.value}: ${GROUP_VERDICT_WORDS[mine.value]}` : POSTED_HUNK_VERDICTS[mine.value]
 })
 
 interface SharedFile { path: string, hunkId: string, shared: { line: { name: string, letter: string }, index: number }[] }
@@ -33,7 +35,7 @@ const raisedBy = computed(() => {
 const raisesGroup = computed(() => !props.group && isGenerated(props.hunkId!) && Boolean(mine.value) && groupCountsAs() !== groupVerdict() && mine.value === groupCountsAs())
 
 function title(verdict: string, label: string) {
-  if (props.group) return `${verdict === suggested.value ? 'Suggested for these files. ' : ''}${label} for all ${files.value} files and go on. Local only: GitHub has no verdict per file.`
+  if (props.group) return `${verdict === suggested.value ? 'Suggested for these files. ' : ''}${label} for ${all.value} and go on. Local only: GitHub has no verdict per file.`
   return `${verdict === suggested.value ? 'Suggested for this hunk. ' : ''}${label} and go to the next hunk. Local only: GitHub has no per-hunk verdict.`
 }
 

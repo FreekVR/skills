@@ -7,7 +7,7 @@ import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowInde
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, openPath } from './navigation.js'
 import { composerKey, newerOnGitHub, refreshState } from './panels.js'
 import { hasStack } from './stack.js'
-import { GENERATED_LINE, generatedFilesInOrder } from './generated.js'
+import { GENERATED_LINE, generatedFilesInOrder, hasGenerated, isGenerated } from './generated.js'
 
 let saveTimer = null
 let pollTimer = null
@@ -191,8 +191,8 @@ export function showNewComments() {
   const first = newComments()[0]
   state.reviewer.knownComments = (state.review.reviewComments || []).map((comment) => comment.id)
   saveReviewer()
-  const at = first?.hunkId ? firstStationOf(first.hunkId) : null
-  return at ? go(at.line.id, at.index) : goHome()
+  if (first?.hunkId && openHunk(first.hunkId)) return
+  return goHome()
 }
 
 // The reason the page cannot post this yet, shown to the reviewer, or null.
@@ -368,9 +368,8 @@ export function answerToRemark(eventId) {
 export function copyComment(comment) {
   const text = `> @${comment.author}: ${comment.body.replace(/\n/g, '\n> ')}\n\n`
   const hunk = comment.hunkId && hunkById(comment.hunkId)
-  const at = hunk && comment.line && diffRows(hunk).some((row) => rowMatches(row, comment)) && firstStationOf(hunk.id)
-  if (at) {
-    go(at.line.id, at.index)
+  const inDiff = hunk && comment.line && diffRows(hunk).some((row) => rowMatches(row, comment))
+  if (inDiff && openHunk(hunk.id)) {
     // A copy starts at the lowest severity, so copying a question never raises the proposed verdict by itself.
     return openComposer({ hunkId: hunk.id, startLine: comment.startLine ?? comment.line, startSide: comment.startSide ?? comment.side, line: comment.line, side: comment.side, text, copiedFrom: comment.id, severity: severities()[0] })
   }
@@ -481,6 +480,15 @@ export function openGeneratedFile(hunkId) {
   markSeen(hunkId, GENERATED_LINE.id)
 }
 
+// Open a hunk at its first stop, or a generated hunk that no flow uses in the file dialog. Return false for any other hunk.
+export function openHunk(hunkId) {
+  const at = firstStationOf(hunkId)
+  if (at) go(at.line.id, at.index)
+  else if (isGenerated(hunkId)) openGeneratedFile(hunkId)
+  else return false
+  return true
+}
+
 // Show a file of the local clone in its folder.
 export function showInFolder(file) {
   return transport.openFolder(file).catch((error) => notify(`Cannot open the folder: ${error.message}`, true))
@@ -508,6 +516,8 @@ export async function poll() {
     const json = JSON.stringify(review)
     if (json !== state.reviewJson && isComplete(review)) {
       setReview(review, json)
+      // An update that removes the group while its page is open leaves nothing to show there.
+      if (state.view.kind === 'generated' && !hasGenerated()) goHome()
       noteFreshHunks()
       importOwnReview()
       startRoundOnNewCommits()

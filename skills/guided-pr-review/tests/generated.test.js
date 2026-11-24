@@ -13,6 +13,7 @@ let review;
 let generated;
 let pageState;
 let panels;
+let posting;
 
 test.before(async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'guided-pr-review-utils-'));
@@ -25,6 +26,7 @@ test.before(async () => {
   review = await import(pathToFileURL(path.join(dir, 'review.js')));
   generated = await import(pathToFileURL(path.join(dir, 'generated.js')));
   panels = await import(pathToFileURL(path.join(dir, 'panels.js')));
+  posting = await import(pathToFileURL(path.join(dir, 'posting.js')));
   pageState = (await import(pathToFileURL(path.join(dir, 'state.js')))).state;
   test.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 });
@@ -146,4 +148,44 @@ test('a generated list without hunks in the diff is no group', () => {
   load(data({ generated: { files: [{ path: 'gone.lock', reason: 'name' }], summary: '', sourceHunkIds: [] } }), { generatedVerdict: 'approved' });
   assert.strictEqual(generated.hasGenerated(), false);
   assert.strictEqual(generated.groupCountsAs(), null);
+});
+
+test('the group counts as its own verdict when every generated hunk has a milder verdict of its own', () => {
+  load(data(), { generatedVerdict: 'changes', hunkVerdicts: { h2: 'approved', h3: 'approved' } });
+  assert.strictEqual(generated.groupCountsAs(), 'changes');
+  assert.strictEqual(generated.countsAsLabel(), 'Counts as request changes');
+});
+
+test('the proposed verdict includes the group verdict when every hunk has its own verdict', () => {
+  load(data(), { generatedVerdict: 'changes', hunkVerdicts: { h1: 'approved', h2: 'approved', h3: 'approved' } });
+  assert.strictEqual(posting.proposedVerdict(), 'REQUEST_CHANGES');
+  load(data(), { generatedVerdict: 'approved', hunkVerdicts: { h1: 'approved', h2: 'approved', h3: 'approved' } });
+  assert.strictEqual(posting.proposedVerdict(), 'APPROVE');
+});
+
+test('a group verdict from before an update that removed the group no longer counts', () => {
+  load(data({ generated: { files: [{ path: 'gone.lock', reason: 'name' }], summary: '', sourceHunkIds: [] } }), { generatedVerdict: 'changes', hunkVerdicts: { h1: 'approved', h2: 'approved', h3: 'approved' } });
+  assert.strictEqual(generated.groupVerdict(), null);
+  assert.strictEqual(posting.proposedVerdict(), 'APPROVE');
+});
+
+test('a PR of only generated hunks has no files line, with or without flows', () => {
+  const only = { hunks: [hunk('h2', 'pnpm-lock.yaml')], generated: { files: [{ path: 'pnpm-lock.yaml', reason: 'name' }], summary: '', sourceHunkIds: [] } };
+  assert.deepStrictEqual(review.buildLines(only), []);
+  assert.deepStrictEqual(review.buildLines({ ...only, layout: 'directory' }), []);
+});
+
+test('the line about a hunk seen before names the group', () => {
+  load(data(), { seenIn: { h2: '__generated', h1: 'f1' } });
+  pageState.view = { kind: 'station', line: 'f1', index: 0 };
+  assert.strictEqual(panels.seenBefore('h2'), 'You saw this hunk in Generated files already.');
+  assert.strictEqual(panels.seenBefore('h1'), '');
+  pageState.reviewer.seenIn.h1 = 'other';
+  assert.strictEqual(panels.seenBefore('h1'), 'You saw this hunk in another flow already.');
+});
+
+test('the worst open finding on a generated hunk without a stop names Generated files', () => {
+  load(data({ findings: [{ id: 'x', hunkId: 'h2', severity: 'minor', title: 'Lock drift', body: '' }] }));
+  const finding = panels.homeChecks().attention.find((item) => item.id === 'findings');
+  assert.strictEqual(finding.line, 'Worst: Lock drift (Generated files, minor)');
 });

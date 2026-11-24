@@ -34,6 +34,8 @@ export function buildLines(review) {
     const steps = new Set((review.flows || []).flatMap((flow) => flow.steps.map((step) => step.hunkId)))
     const grouped = new Set(generatedHunkIds(review).filter((id) => !steps.has(id)))
     const sorted = review.hunks.filter((hunk) => !grouped.has(hunk.id)).sort((a, b) => a.file.localeCompare(b.file) || (a.newStart || 0) - (b.newStart || 0))
+    // A PR of only generated files has nothing for this line; the group page holds them.
+    if (!sorted.length && grouped.size) return []
     return [{ id: '__files', letter: 'F', name: 'All files', explanation: 'Files in directory order.', color: 'unplaced', stops: sorted.map((hunk) => ({ hunkId: hunk.id, why: '' })), acceptanceCriteria: [] }]
   }
   const result = review.flows.map((flow, index) => ({
@@ -206,6 +208,9 @@ export function timeLabel(at) {
 }
 
 export function fileName(path) { return path.split('/').pop() }
+
+// Get the folder part of a path with its closing slash, or an empty string for a file in the root.
+export function folderOf(path) { return path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '' }
 
 // Get the title of the current view, for the review strip.
 export function viewTitle() {

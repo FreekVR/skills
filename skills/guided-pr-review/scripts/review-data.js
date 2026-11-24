@@ -492,37 +492,49 @@ function attributeGenerated(file, root) {
   return result;
 }
 
-// Get the repo paths that the .openapi-generator/FILES lists under root name as generated, with the list each one is in.
-function generatorListed(root) {
+// Get the repo paths that the .openapi-generator/FILES lists name as generated, with the list each one is in.
+// A list sits in the generator's output folder, so only the folders above a changed file can hold one for it.
+function generatorListed(files, root) {
   const listed = new Map();
-  const walk = (folder) => {
-    for (const entry of fs.readdirSync(path.join(root, folder), { withFileTypes: true })) {
-      const repoPath = folder ? `${folder}/${entry.name}` : entry.name;
-      if (entry.isDirectory() && entry.name !== '.git' && entry.name !== 'node_modules') walk(repoPath);
-      else if (entry.isFile() && repoPath.endsWith('.openapi-generator/FILES')) {
-        const parent = path.dirname(path.dirname(repoPath)).replace(/^\.$/, '');
-        for (const line of fs.readFileSync(path.join(root, repoPath), 'utf8').split('\n')) {
-          if (line.trim()) listed.set(path.posix.join(parent, line.trim()), repoPath);
-        }
+  // A PR that only removes files saves no head files, so the root may not exist.
+  if (!fs.existsSync(root)) return listed;
+  const read = new Set();
+  for (const file of files) {
+    const folders = path.dirname(file) === '.' ? [] : path.dirname(file).split('/');
+    for (let depth = 0; depth <= folders.length; depth++) {
+      const parent = folders.slice(0, depth).join('/');
+      if (read.has(parent)) continue;
+      read.add(parent);
+      const list = path.posix.join(parent, '.openapi-generator/FILES');
+      if (!fs.existsSync(path.join(root, list))) continue;
+      for (const line of fs.readFileSync(path.join(root, list), 'utf8').split('\n')) {
+        if (line.trim()) listed.set(path.posix.join(parent, line.trim()), list);
       }
     }
-  };
-  walk('');
+  }
   return listed;
 }
 
+// Whether the first 5 lines of the head version name the file as generated; 4 KB holds them.
 function headerGenerated(file, root) {
   const head = path.join(root, file);
   if (!fs.existsSync(head) || !fs.statSync(head).isFile()) return false;
-  return GENERATED_HEADER.test(fs.readFileSync(head, 'utf8').split('\n').slice(0, 5).join('\n'));
+  const buffer = Buffer.alloc(4096);
+  const descriptor = fs.openSync(head, 'r');
+  try {
+    const length = fs.readSync(descriptor, buffer, 0, buffer.length, 0);
+    return GENERATED_HEADER.test(buffer.toString('utf8', 0, length).split('\n').slice(0, 5).join('\n'));
+  } finally {
+    fs.closeSync(descriptor);
+  }
 }
 
 // Find the generated files of a PR by signal. The first signal that matches gives the reason.
 // The root holds the head version of the files at their repo paths.
 function detectGenerated(files, root) {
-  const listed = generatorListed(root);
+  const listed = generatorListed(files, root);
   const found = [];
-  for (const { file } of files) {
+  for (const file of files) {
     const attributes = attributeGenerated(file, root);
     if (attributes) found.push({ path: file, reason: 'gitattributes', detail: attributes });
     else if (listed.has(file)) found.push({ path: file, reason: 'generator-list', detail: listed.get(file) });
@@ -546,7 +558,7 @@ function main([command, ...args]) {
   if (command === 'hunks' && reviewFile && !options.length) {
     const review = fs.existsSync(reviewFile) ? JSON.parse(fs.readFileSync(reviewFile, 'utf8')) : {};
     // A later run must not split a whole file again, so the paths of earlier runs stay.
-    const whole = new Set([...(review.wholeFiles || []), ...passed, ...((review.generated && review.generated.files) || []).map((file) => file.path)]);
+    const whole = new Set([...(review.wholeFiles || []), ...passed, ...(review.generated?.files || []).map((file) => file.path)]);
     review.hunks = mergeHunks(parseDiff(fs.readFileSync(diffFile, 'utf8'), whole), review.hunks || []);
     review.wholeFiles = [...whole];
     writeAtomic(reviewFile, JSON.stringify(review) + '\n');
@@ -554,7 +566,7 @@ function main([command, ...args]) {
     return 0;
   }
   if (command === 'generated' && reviewFile && !options.length) {
-    const files = [...new Map(parseDiff(fs.readFileSync(diffFile, 'utf8')).map((hunk) => [hunk.file, { file: hunk.file, status: hunk.status }])).values()];
+    const files = [...new Set(parseDiff(fs.readFileSync(diffFile, 'utf8')).map((hunk) => hunk.file))];
     console.log(JSON.stringify(detectGenerated(files, reviewFile), null, 2));
     return 0;
   }

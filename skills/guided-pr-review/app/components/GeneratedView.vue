@@ -7,10 +7,17 @@ const files = computed(() => generatedFilesInOrder() as GroupFile[])
 const summary = computed(() => ({ id: GENERATED_LINE.id, explanation: state.review.generated?.summary || '' }))
 const sources = computed(() => (state.review.generated?.sourceHunkIds || []).map(hunkById).filter(Boolean))
 const findings = computed(() => liveFindings().filter((finding: Finding) => isGenerated(finding.hunkId)) as Finding[])
-const findingsOn = (hunkId: string) => findings.value.filter((finding) => finding.hunkId === hunkId)
+const findingsByHunk = computed(() => {
+  const byHunk = new Map<string, Finding[]>()
+  for (const finding of findings.value) {
+    if (!byHunk.has(finding.hunkId)) byHunk.set(finding.hunkId, [])
+    byHunk.get(finding.hunkId).push(finding)
+  }
+  return byHunk
+})
+const findingsOn = (hunkId: string) => findingsByHunk.value.get(hunkId) || []
 const withFindings = computed(() => files.value.filter((file) => findingsOn(file.hunkId).length))
-const diffs = computed(() => new Map(files.value.map((file) => [file.hunkId, hunkDiff(hunkById(file.hunkId)) as { added: number, removed: number }])))
-const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.lastIndexOf('/') + 1) : '')
+const diffs = computed(() => new Map(files.value.map((file) => [file.hunkId, lineCounts(hunkById(file.hunkId)) as { added: number, removed: number }])))
 </script>
 
 <template>
@@ -87,7 +94,7 @@ const folderOf = (path: string) => (path.includes('/') ? path.slice(0, path.last
     </section>
 
     <div class="mt-10 flex flex-wrap items-center justify-between gap-3 rounded-card bg-elevated px-4 py-3.5">
-      <h2 class="m-0 font-display text-lead">Your verdict on all {{ files.length }} files</h2>
+      <h2 class="m-0 font-display text-lead">Your verdict on {{ files.length === 1 ? 'this file' : `all ${files.length} files` }}</h2>
       <StationVerdicts group />
     </div>
 

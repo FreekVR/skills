@@ -3,7 +3,7 @@ import { acceptedItems, hunkById, plural, severities, severityRank, verdictOf, v
 import { refreshState } from './panels.js'
 import { saveReviewer } from './actions.js'
 import { stackLine } from './stack.js'
-import { SEVERITY_ORDER } from './generated.js'
+import { groupVerdict, worstVerdict } from './generated.js'
 
 // Posting replaces the user's pending GitHub review, so its remarks and body must be in the page first.
 export function importOwnReview() {
@@ -158,8 +158,8 @@ export function proposedVerdict() {
   const posted = standingOwnRemarks().map((own) => own.severity)
   const severities = [...acceptedItems().map((item) => item.severity), ...posted]
   // Only the hunks of this review count: a verdict on a hunk that new commits removed is kept, but no longer applies.
-  const levels = [verdictFromSeverities(severities), ...state.review.hunks.map((hunk) => verdictOf(hunk.id))]
-  return REVIEW_EVENTS[SEVERITY_ORDER[Math.max(...levels.map((level) => SEVERITY_ORDER.indexOf(level)))]]
+  // The group's own verdict counts too: a hunk with its own verdict does not fall back to it.
+  return REVIEW_EVENTS[worstVerdict([verdictFromSeverities(severities), ...state.review.hunks.map((hunk) => verdictOf(hunk.id)), groupVerdict()])]
 }
 
 // Get the IDs of comments the page showed before that are no longer in review.json. The agent keeps every comment, so
