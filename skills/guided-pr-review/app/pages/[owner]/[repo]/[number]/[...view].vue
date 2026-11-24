@@ -64,6 +64,8 @@ useEventListener('keydown', (event: KeyboardEvent) => {
       <GeneratedView v-else-if="state.view.kind === 'generated'" />
       <StationView v-else />
     </main>
+    <!-- The group page and a hunk carry their own file dialog; the other pages open a generated file in this one. -->
+    <StationWholeFile v-if="['home', 'terminus', 'reviews'].includes(state.view.kind)" />
     <ReviewNotices />
     <ShortcutsModal />
     <AgentWaiting />

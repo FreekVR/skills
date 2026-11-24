@@ -12,7 +12,7 @@ const line = computed(() => (state.view.kind === 'station' ? lineById(state.view
 const bandLine = computed(() => (state.view.kind === 'generated' ? GENERATED_LINE : line.value))
 const generatedBand = computed(() => {
   if (state.view.kind !== 'generated') return null
-  const diffs = generatedFiles().map((file: { hunkId: string }) => hunkDiff(hunkById(file.hunkId)))
+  const diffs = generatedFiles().map((file: { hunkId: string }) => lineCounts(hunkById(file.hunkId)))
   const sources = (state.review.generated?.sourceHunkIds || []).map((id: string) => hunkById(id)?.file).filter(Boolean)
   return {
     files: diffs.length,
@@ -207,9 +207,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
     <!-- The controls wrap below the title until the band is wide enough for both, also next to the rail on a tablet. -->
     <div class="strip-top flex items-center gap-5 px-gutter pt-5 max-rail:flex-wrap" :class="{ 'pb-4': !line }">
       <div class="flex min-w-0 flex-1 items-center gap-3 max-md:basis-full">
-        <FlowBullet v-if="bandLine" :line="bandLine" on-band class="size-9! text-lead!">
-          <UIcon v-if="!line" name="i-lucide-cog" class="relative size-[1.2em]" />
-        </FlowBullet>
+        <FlowBullet v-if="bandLine" :line="bandLine" on-band class="size-9! text-lead!" />
         <div class="min-w-0">
           <h1 tabindex="-1" class="m-0 font-display outline-none leading-none" :class="bandLine ? 'text-title' : 'text-lead'">
             <FlowIcon :icon="line?.icon" class="mr-[.4em] size-[1.05em] align-[-.15em]" />{{ line ? line.name : viewTitle() }}
@@ -336,7 +334,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
           <div class="flex flex-wrap items-center gap-x-2.5 gap-y-1">
             <h2 class="m-0 font-mono text-title leading-[1.2] font-semibold break-all">{{ fileName(hunk.file) }}</h2>
             <span v-if="isGenerated(hunk.id)" class="inline-flex items-center rounded-full bg-white py-0.5 pr-2.5 pl-0.5 font-display text-meta leading-none font-bold text-(--line)" title="This file is also in Generated files" data-generated-tag>
-              <FlowBullet :line="GENERATED_LINE" mini class="ml-0! mr-1.5"><UIcon name="i-lucide-cog" class="relative size-[1.2em]" /></FlowBullet><span>Generated</span>
+              <FlowBullet :line="GENERATED_LINE" mini class="ml-0! mr-1.5" /><span>Generated</span>
             </span>
           </div>
           <p class="m-0 mt-1.5 flex flex-wrap items-baseline gap-x-2 font-mono text-label text-toned">
@@ -402,9 +400,7 @@ async function switchLayout(strip: HTMLElement, collapse: boolean) {
               <VerdictIcon v-if="stop.verdict" :verdict="stop.verdict" :class="stop.verdict === 'approved' ? 'size-2.5' : 'size-3.5'" />
             </span>
             <!-- Centred on the tick (the track is at 37px) and clear of the current tick, which is scaled up. -->
-            <FlowBullet v-if="stop.generated" :line="GENERATED_LINE" mini on-band class="absolute! top-[27px] left-[calc(50%+22px)] ml-0! shadow-[0_0_0_2px_var(--band)]" data-generated-mark>
-              <UIcon name="i-lucide-cog" class="relative size-[1.2em]" />
-            </FlowBullet>
+            <FlowBullet v-if="stop.generated" :line="GENERATED_LINE" mini on-band class="absolute! top-[27px] left-[calc(50%+22px)] ml-0! shadow-[0_0_0_2px_var(--band)]" data-generated-mark />
             <span
               class="compact-hide mt-3 block truncate px-1 text-meta leading-tight group-hover:text-default group-hover:underline group-hover:underline-offset-3"
               :class="stop.at === index ? 'font-bold text-default' : 'text-toned'"

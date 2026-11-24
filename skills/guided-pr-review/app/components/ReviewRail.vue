@@ -70,9 +70,7 @@ const itemClass = (current: boolean) => ['w-full items-start gap-2.5 rounded-lg 
             :aria-current="current"
             @click="openFlow(line.id)"
           >
-            <FlowBullet :line="line" :hollow="line.id === '__none' || line.id === '__files'" :on-band="current">
-              <UIcon v-if="group" name="i-lucide-cog" class="relative size-[1.2em]" />
-            </FlowBullet>
+            <FlowBullet :line="line" :hollow="line.id === '__none' || line.id === '__files'" :on-band="current" />
             <span class="pt-1.5 text-ui leading-[1.3] font-semibold">
               <FlowIcon :icon="line.icon" class="mr-[.4em] size-[1.1em] align-[-.15em]" :style="current ? undefined : { color: `var(--color-${line.color})` }" />{{ line.name }}
             </span>

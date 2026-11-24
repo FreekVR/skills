@@ -42,9 +42,7 @@ function tileLabel(flow: { line: { stops: { hunkId: string }[] }, seen: number, 
           :style="{ '--line': `var(--color-${flow.line.color})` }"
           @click="openFlow(flow.line.id)"
         >
-          <FlowBullet :line="flow.line" :hollow="flow.line.id === '__none' || flow.line.id === '__files'" :on-band="!flow.group" class="size-8! text-ui!">
-            <UIcon v-if="flow.group" name="i-lucide-cog" class="relative size-[1.2em]" />
-          </FlowBullet>
+          <FlowBullet :line="flow.line" :hollow="flow.line.id === '__none' || flow.line.id === '__files'" :on-band="!flow.group" class="size-8! text-ui!" />
           <span class="grid gap-0.5">
             <b class="text-ui leading-[1.3]"><FlowIcon :icon="flow.line.icon" class="mr-[.4em] size-[1.05em] align-[-.15em]" />{{ flow.line.name }}</b>
             <span class="text-meta leading-none opacity-90">{{ tileLabel(flow) }}</span>

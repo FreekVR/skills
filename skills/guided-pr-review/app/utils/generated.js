@@ -1,6 +1,7 @@
 import { state, VERDICTS } from './state.js'
-import { hunkById, liveFindings, standingSeverities, stationsOf, verdictOf } from './review.js'
+import { hunkById, isSeen, liveFindings, standingSeverities, stationsOf, verdictOf } from './review.js'
 import { markSeen, saveReviewer } from './actions.js'
+import { diffRows } from './diff.js'
 import { nextAfterVerdict } from './navigation.js'
 
 // Not in state.lines: a line there would make the generated hunks stops for go() and nextStopWhere.
@@ -10,6 +11,9 @@ export const GENERATED_LINE = { id: '__generated', name: 'Generated files', lett
 export const REASON_LABELS = { gitattributes: '.gitattributes', 'generator-list': null, header: 'Header says generated', name: 'Lockfile or snapshot name', confirmed: 'You confirmed' }
 
 export const SEVERITY_ORDER = ['approved', 'comment', 'changes']
+
+// Get the worst of some verdicts, where a null counts as no verdict.
+export function worstVerdict(verdicts) { return SEVERITY_ORDER[Math.max(...verdicts.map((verdict) => SEVERITY_ORDER.indexOf(verdict)))] }
 
 // Get the IDs of the hunks of the generated files. Each generated file is one hunk, so a file's hunk is the one on its path.
 export function generatedHunkIds(review) {
@@ -22,6 +26,11 @@ export function hasGenerated() { return Boolean(state.generated) }
 
 // Check whether a hunk belongs to the group of generated files.
 export function isGenerated(hunkId) { return Boolean(state.generated?.hunkIds.has(hunkId)) }
+
+// Check whether the group still needs the reviewer: it has no verdict, or a hunk of it is unseen.
+export function generatedNeedsReview() {
+  return hasGenerated() && (!groupVerdict() || [...state.generated.hunkIds].some((id) => !isSeen(id)))
+}
 
 // Get the generated files with their hunk and the flow steps that hold the same hunk.
 export function generatedFiles() {
@@ -39,17 +48,24 @@ export function generatedFilesInOrder() {
   return generatedFiles().sort((a, b) => rank(a) - rank(b) || a.path.localeCompare(b.path))
 }
 
+// Count the added and removed lines of a hunk; a file without line changes counts 0 and 0.
+export function lineCounts(hunk) {
+  const rows = diffRows(hunk)
+  return { added: rows.filter((row) => row.kind === 'add').length, removed: rows.filter((row) => row.kind === 'del').length }
+}
+
 // Get the text that tells why a file counts as generated.
 export function reasonLabel(file) { return REASON_LABELS[file.reason] ?? file.detail ?? '' }
 
 // Get the reviewer's own verdict on the group.
-export function groupVerdict() { return state.reviewer.generatedVerdict || null }
+// A verdict from before an update that removed the group is kept, but no longer applies.
+export function groupVerdict() { return (hasGenerated() && state.reviewer.generatedVerdict) || null }
 
 // Get the verdict the group counts as: a shared hunk the reviewer judged in its flow can be worse than the group verdict.
 export function groupCountsAs() {
-  if (!hasGenerated() || !groupVerdict()) return null
-  const levels = [...state.generated.hunkIds].map((id) => SEVERITY_ORDER.indexOf(verdictOf(id)))
-  return SEVERITY_ORDER[Math.max(...levels)]
+  if (!groupVerdict()) return null
+  // The group's own verdict counts too: a hunk with its own verdict does not fall back to it.
+  return worstVerdict([groupVerdict(), ...[...state.generated.hunkIds].map((id) => verdictOf(id))])
 }
 
 // Get the verdict name the verdict buttons use, in lower case: approve, request changes or comment.

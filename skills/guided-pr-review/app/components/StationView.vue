@@ -56,8 +56,10 @@ function hideLeaving(element: Element) {
 
         <p v-if="state.freshHunks.has(hunk.id)" class="mt-0 mb-2.5 inline-block rounded-md bg-warning px-2.5 py-1.5 text-label font-semibold text-inverted">This hunk is new or changed since your last session.</p>
 
-        <div v-if="others.length" class="mb-2.5 flex flex-wrap items-center gap-2 text-label text-toned">
-          Also in
+        <div v-if="others.length || seenBefore(hunk.id)" class="mb-2.5 flex flex-wrap items-center gap-2 text-label text-toned">
+          <template v-if="others.length">
+            Also in
+          </template>
           <UButton
             v-for="other in others"
             :key="other.line.id"
@@ -72,15 +74,15 @@ function hideLeaving(element: Element) {
             <FlowIcon :icon="other.line.icon" class="size-[1.05em] text-(--line)" :style="{ '--line': `var(--color-${other.line.color})` }" />{{ other.line.name }}
             <span class="font-mono text-meta leading-none font-semibold whitespace-nowrap text-muted">{{ other.code }}</span>
           </UButton>
-          <span v-if="seenBefore(hunk.id)">You saw this hunk in another flow already.</span>
+          <span v-if="seenBefore(hunk.id)">{{ seenBefore(hunk.id) }}</span>
         </div>
 
         <StationContext :hunk="hunk" :why="stop.why">
           <!-- The icon box is one line high, so the cog stays on the first line when the text wraps. -->
           <p v-if="generatedFile" class="mt-1.5 mb-0 flex flex-wrap items-start gap-x-2 gap-y-1 text-ui leading-6 text-muted" data-generated-note>
-            <span class="flex h-6 shrink-0 items-center"><FlowBullet :line="GENERATED_LINE" mini class="ml-0!"><UIcon name="i-lucide-cog" class="relative size-[1.2em]" /></FlowBullet></span>
+            <span class="flex h-6 shrink-0 items-center"><FlowBullet :line="GENERATED_LINE" mini class="ml-0!" /></span>
             <span class="min-w-0 flex-1 basis-80">
-              <b class="font-semibold text-toned">A tool writes this file</b><template v-if="reasonLabel(generatedFile)"> ({{ reasonLabel(generatedFile) }})</template>. It is also one of the {{ generatedCount }} files in <b class="font-semibold text-toned">Generated files</b>. Your verdict here counts for that group: the group takes the most severe verdict of its files.
+              <b class="font-semibold text-toned">A tool writes this file</b><template v-if="reasonLabel(generatedFile)"> ({{ reasonLabel(generatedFile) }})</template>. It is also {{ generatedCount === 1 ? 'the one file' : `one of the ${generatedCount} files` }} in <b class="font-semibold text-toned">Generated files</b>. Your verdict here counts for that group: the group takes the most severe verdict of its files.
             </span>
             <UButton color="neutral" variant="soft" size="sm" trailing-icon="i-lucide-arrow-right" class="font-normal text-default" @click="goGenerated()">Open the group</UButton>
           </p>

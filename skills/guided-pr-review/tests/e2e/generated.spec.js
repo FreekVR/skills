@@ -300,6 +300,14 @@ test('every icon next to text on the group page lines up with that text', async 
   await expectAligned(page, band.locator('[data-counts-as] .iconify'), band.locator('[data-counts-as] > span').last());
   const main = page.getByRole('main');
   await expectAligned(page, main.locator('[data-counts-as] .iconify'), main.locator('[data-counts-as] > span').last());
+  const finding = main.getByRole('row').nth(1).getByText('1 finding');
+  // The tag is the first child of the span, and its own text is not the text to line up with: that is the count after it.
+  const [tag, count] = await finding.evaluate((element) => {
+    const range = document.createRange();
+    range.selectNodeContents(element.lastChild);
+    return [element.firstElementChild.getBoundingClientRect(), range.getClientRects()[0]].map(({ y, height }) => ({ y, height }));
+  });
+  expect(Math.abs((tag.y + tag.height / 2) - (count.y + count.height / 2))).toBeLessThanOrEqual(1);
   const shared = main.getByRole('row').nth(2).getByRole('button', { name: /B2/ });
   await expectAligned(page, shared.getByTitle('Store the forecast'), shared.getByText('B2'));
   await expectAligned(page, shared.locator('.iconify').last(), shared.getByText('B2'));
@@ -472,4 +480,107 @@ test('the hint is absent when the stop is not more severe than the group', async
   await openAt(page, '/B2', { reviewer: { generatedVerdict: 'comment', hunkVerdicts: { [H.lock]: 'approved' } } });
   await expect(page.getByRole('button', { name: 'Approve' })).toBeVisible();
   await expect(page.locator('[data-group-hint]')).toHaveCount(0);
+});
+
+// A PR that changes only generated files.
+function onlyGenerated(data) {
+  withGenerated(data);
+  data.hunks = data.hunks.filter((hunk) => Object.values(GEN).includes(hunk.id));
+  data.flows = [];
+  data.notInAnyFlow = [];
+  data.reviewComments = [];
+  data.ownRemarks = [];
+  data.findings = data.findings.filter((finding) => finding.hunkId === GEN.api);
+  data.generated.files.pop();
+}
+
+test('a PR of only generated files has no All files line, and j, the rail and Submit review work', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  await openAt(page, '/', { mutate: onlyGenerated });
+  await expect(page.getByRole('main')).not.toContainText('All files');
+  await expect(rail(page)).not.toContainText('All files');
+  await expect(rail(page).getByRole('listitem')).toHaveCount(1);
+  await page.keyboard.press('j');
+  await expect(heading(page)).toHaveText('Generated files');
+  await page.keyboard.press('j');
+  await expect(page).toHaveURL(/\/submit$/);
+  await expect(heading(page)).toHaveText(/Submit review|Post a new review/);
+  await page.keyboard.press('k');
+  await expect(heading(page)).toHaveText('Generated files');
+  expect(errors).toEqual([]);
+});
+
+test('Submit review links a generated file with no stop to the file dialog', async ({ page }) => {
+  await openAt(page, '/submit', { reviewer: { seen: HANDWRITTEN_SEEN } });
+  await page.getByText('Your verdicts per hunk').click();
+  await page.locator('#term-hunk-verdicts').getByRole('button', { name: 'src/api/generated/WeatherApi.ts' }).click();
+  await expect(page.getByRole('dialog').getByRole('region', { name: 'Diff of src/api/generated/WeatherApi.ts' })).toBeVisible();
+});
+
+test('n opens the group while it has a verdict but a hunk of it is unseen', async ({ page }) => {
+  await openAt(page, '/A1', { reviewer: { seen: [...HANDWRITTEN_SEEN, H.lock, GEN.model, GEN.sql], generatedVerdict: 'approved' } });
+  await page.keyboard.press('n');
+  await expect(heading(page)).toHaveText('Generated files');
+});
+
+test('show new comments opens the file of a comment on a generated file with no stop', async ({ page }) => {
+  const review = await openAt(page, '/', { reviewer: { knownComments: ['c1', 'c2'] } });
+  review.update((data) => data.reviewComments.push({ id: 'c3', reviewId: 501, threadId: 'T-c3', author: 'other-reviewer', hunkId: GEN.api, path: 'src/api/generated/WeatherApi.ts', line: 1, side: 'RIGHT', body: 'Is this regenerated?', diffHunk: '', resolved: false, replies: [] }));
+  await page.getByRole('button', { name: 'Show', exact: true }).click();
+  await expect(page.getByRole('dialog').getByRole('region', { name: 'Diff of src/api/generated/WeatherApi.ts' })).toBeVisible();
+});
+
+test('copying a comment on a generated file with no stop opens the remark form in the file dialog', async ({ page }) => {
+  const comment = { id: 'c3', reviewId: 501, threadId: 'T-c3', author: 'other-reviewer', hunkId: GEN.api, path: 'src/api/generated/WeatherApi.ts', line: 1, side: 'RIGHT', body: 'Is this regenerated?', diffHunk: '@@ -0,0 +1 @@\n+generated', resolved: false, replies: [] };
+  await openAt(page, '/reviews', { mutate: (data) => { withGenerated(data); data.reviewComments = [comment]; }, reviewer: { knownComments: ['c3'] } });
+  await page.getByRole('button', { name: 'Copy to my review' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(dialog.getByRole('region', { name: 'Diff of src/api/generated/WeatherApi.ts' })).toBeVisible();
+  await expect(dialog.getByRole('textbox')).toHaveValue(/> @other-reviewer: Is this regenerated\?/);
+});
+
+test('an update that removes the group while its page is open opens Home', async ({ page }) => {
+  const errors = [];
+  page.on('pageerror', (error) => errors.push(error.message));
+  const review = await openAt(page, '/generated');
+  review.update((data) => { delete data.generated; });
+  await expect(page).not.toHaveURL(/\/generated$/);
+  await expect(heading(page)).toHaveText('Home');
+  await page.keyboard.press('a');
+  expect(errors).toEqual([]);
+});
+
+test('a group of one file says this file, in the verdict, the note on its stop and once the review is posted', async ({ page }) => {
+  const oneFile = (data) => { withGenerated(data); data.generated.files = [{ path: 'package-lock.json', reason: 'name' }]; };
+  const review = await openAt(page, '/generated', { mutate: oneFile });
+  const main = page.getByRole('main');
+  await expect(main.getByRole('heading', { name: 'Your verdict on this file' })).toBeVisible();
+  await expect(main.getByRole('group', { name: /^Your verdict on this file\./ })).toBeVisible();
+  await page.goto(review.url + '/B2');
+  await expect(page.locator('[data-generated-note]')).toContainText('It is also the one file in Generated files');
+  await page.goto(review.url + '/generated');
+  await main.getByRole('group').getByRole('button', { name: 'Approve' }).click();
+  await review.saved((reviewer) => reviewer.generatedVerdict === 'approved');
+});
+
+test('once the review is posted the group page says the verdict with approved, not approve', async ({ page }) => {
+  const posted = { sent: [{ id: 'p1', type: 'post', kind: 'final' }], generatedVerdict: 'approved' };
+  await openAt(page, '/generated', { reviewer: posted, mutate: (data) => { withGenerated(data); data.posts = [{ eventId: 'p1', kind: 'final', status: 'posted', message: 'ok', url: 'https://github.com/example-org/sample-widget/pull/17#pullrequestreview-10', reviewId: 10 }]; } });
+  await expect(page.getByRole('main')).toContainText('Your verdict on all 4 files: approved · review posted');
+});
+
+test('the Worst line on Home names Generated files for a finding on a generated file with no stop', async ({ page }) => {
+  await openAt(page, '/', { mutate: (data) => { withGenerated(data); data.findings = data.findings.filter((finding) => finding.id === 'g1'); } });
+  await expect(page.getByRole('main')).toContainText('Worst: Generated call differs (Generated files, minor)');
+});
+
+test('the group page says Generated files when you saw a stop there first, and the verdict counts the group verdict', async ({ page }) => {
+  await openAt(page, '/B2', { reviewer: { seen: [H.lock], seenIn: { [H.lock]: '__generated' } } });
+  await expect(page.getByRole('main')).toContainText('You saw this hunk in Generated files already.');
+});
+
+test('the band says request changes when the group has that verdict and every file has an approval of its own', async ({ page }) => {
+  await openAt(page, '/generated', { reviewer: { generatedVerdict: 'changes', hunkVerdicts: { [H.lock]: 'approved', [GEN.api]: 'approved', [GEN.model]: 'approved', [GEN.sql]: 'approved' } } });
+  await expect(page.getByRole('banner')).toContainText('Counts as request changes');
 });

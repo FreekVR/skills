@@ -50,8 +50,8 @@ function scrollToFocus() {
     :ui="{
       content: 'w-[min(1200px,calc(100vw-32px))] max-w-none h-[min(860px,calc(100dvh-32px))] rounded-xl ring-accented shadow-[0_16px_48px_rgba(0,0,0,.35)]',
       header: 'flex-wrap gap-x-3 gap-y-2 bg-elevated py-3 pr-3.5 pl-4.5 min-h-0',
-      wrapper: 'min-w-0 flex-auto',
-      title: 'font-mono text-ui font-semibold wrap-anywhere',
+      wrapper: 'min-w-0 flex-1',
+      title: 'font-mono text-ui font-semibold wrap-break-word',
       description: 'sr-only',
       close: 'static',
       body: 'p-0 sm:p-0 overflow-auto overscroll-contain',
@@ -59,11 +59,11 @@ function scrollToFocus() {
     @after:enter="scrollToFocus"
   >
     <template #title>
-      <span v-if="file?.list" class="inline-flex items-center gap-2">
-        <FlowBullet :line="GENERATED_LINE" class="size-5! text-tag!"><UIcon name="i-lucide-cog" class="relative size-[1.2em]" /></FlowBullet>
-        <span>{{ file.file }}</span>
+      <span class="inline-flex items-center gap-2">
+        <FlowBullet v-if="file?.list" :line="GENERATED_LINE" class="size-5! text-tag!" />
+        <!-- A path breaks only in its folder part, so a file name stays whole. -->
+        <span><template v-for="(part, index) in codeName(folderOf(file?.file ?? ''))" :key="index">{{ part }}<wbr></template>{{ fileName(file?.file ?? '') }}</span>
       </span>
-      <template v-else>{{ file?.file }}</template>
     </template>
     <template #actions>
       <!-- On a phone the tools take their own row under the title, so the close button stays on the title row. -->

@@ -2,7 +2,7 @@
 // verdict icons (approved, changes, comment, undecided) and status icons (ok, bad, warn, finding, none, coverage, notRead, progress, link).
 import { state, VERDICTS, FIX_LABELS, REVIEW_STATES, AC_VERDICTS, POST_NOUNS } from './state.js'
 import { acceptedItems, commentsOutsideDiff, criterionById, isCurrentReview, decisionOf, findingSeverity, hunkById, isSeen, liveFindings, outdatedFindings, outdatedRemarks, plural, resumeHelp, severities, severityLevel, severityRank, severityTone, stationCode, stationsOf, ticketCriteria, timeLabel, unseenHunks, verdictOf, viewerLogin, worstOf } from './review.js'
-import { generatedFiles, groupVerdict, hasGenerated } from './generated.js'
+import { GENERATED_LINE, generatedFiles, generatedNeedsReview, isGenerated } from './generated.js'
 import { agentState, answerFor, buildPost, isFinishing, missingComments, newComments, pendingReplies, postFor, postedOwnRemarks, postedReview, postedVerdict, proposedVerdict, sentEvents, threadCall, threadsToCheck, threadsToUnresolve, threadsWithoutCall, doubtfulResolved, threadsNeedingCall, hunksWithoutVerdict, pendingSummaryDraft } from './posting.js'
 import { diffRows, lineLabel } from './diff.js'
 
@@ -98,10 +98,11 @@ export function advice(hunk) {
 
 export function explainPending(hunk) { return sentEvents('explain', hunk.id).length > 0 && !hunk.explanationMore }
 
-// The reviewer saw the hunk in view first in another flow.
+// Get the line that says the reviewer saw the hunk in view first somewhere else: in another flow or in the group.
 export function seenBefore(hunkId) {
   const where = state.reviewer.seenIn[hunkId]
-  return Boolean(where && where !== state.view.line)
+  if (!where || where === state.view.line) return ''
+  return `You saw this hunk in ${where === GENERATED_LINE.id ? 'Generated files' : 'another flow'} already.`
 }
 
 // A resolved comment and a posted comment of the reviewer always get a take, so a missing one shows as not checked.
@@ -226,7 +227,7 @@ export function homeChecks() {
   if (open.length) {
     const worst = worstOf(open)
     const station = worst.hunkId ? stationsOf(worst.hunkId)[0] : null
-    const where = station ? stationCode(station.line, station.index) : 'the whole PR'
+    const where = station ? stationCode(station.line, station.index) : isGenerated(worst.hunkId) ? 'Generated files' : 'the whole PR'
     attention.push({ id: 'findings', level: severityLevel(findingSeverity(worst)), severity: findingSeverity(worst), icon: 'finding', title: plural(open.length, 'open AI finding'), line: `Worst: ${worst.title} (${where}, ${findingSeverity(worst)})` })
   } else if (liveFindings().length) quiet.push({ id: 'findings', tone: 'ok', title: 'All AI findings decided' })
 
@@ -369,7 +370,7 @@ export function terminus() {
     unseenByFlow: state.lines
       .map((line) => ({ line, open: line.stops.map((stop, index) => ({ stop, index })).filter(({ stop }) => !isSeen(stop.hunkId)) }))
       .filter(({ open }) => open.length),
-    generatedOpen: hasGenerated() && (!groupVerdict() || [...state.generated.hunkIds].some((id) => !isSeen(id))) ? { files: generatedFiles().length } : null,
+    generatedOpen: generatedNeedsReview() ? { files: generatedFiles().length } : null,
   }
 }
 

@@ -1,7 +1,7 @@
 import { state, SHORTCUTS } from './state.js'
 import { decisionOf, hunkById, isSeen, lineById, lines, liveFindings, stationCode } from './review.js'
 import { postedReview } from './posting.js'
-import { GENERATED_LINE, groupVerdict, hasGenerated, setGeneratedVerdict } from './generated.js'
+import { GENERATED_LINE, generatedNeedsReview, hasGenerated, setGeneratedVerdict } from './generated.js'
 import { markSeen, saveReviewer, setHunkVerdict } from './actions.js'
 import { notify } from './notify.js'
 
@@ -13,8 +13,8 @@ export function stopOrder(view) {
 
 // The hunk in view counts as seen. The old page did this on every redraw.
 export function markCurrentSeen() {
-  if (state.view.kind === 'station' && !state.view.line) state.view.line = lines()[0].id
-  if (state.view.kind !== 'station') return
+  if (state.view.kind !== 'station' || !lines().length) return
+  if (!state.view.line) state.view.line = lines()[0].id
   const stop = lineById(state.view.line).stops[state.view.index]
   if (stop) markSeen(stop.hunkId, state.view.line)
 }
@@ -145,11 +145,11 @@ export function step(delta) {
 }
 
 // After a verdict: the next unseen hunk in reading order after the hunk in view, else the first unseen hunk from the top.
-// When the reviewer saw every hunk, the group of generated files if it has no verdict, else Submit review.
+// When the reviewer saw every hunk, the group of generated files if it needs the reviewer, else Submit review.
 export function nextAfterVerdict() {
   const next = nextStopWhere((hunkId) => !isSeen(hunkId))
   if (next) return go(next.line, next.index)
-  return hasGenerated() && !groupVerdict() ? goGenerated() : goTerminus()
+  return generatedNeedsReview() ? goGenerated() : goTerminus()
 }
 
 // The first hunk in reading order after the hunk in view whose ID passes the check; after the last one, start at the top.
@@ -164,7 +164,7 @@ export function nextUnseen() {
     const index = line.stops.findIndex((stop) => !isSeen(stop.hunkId))
     if (index !== -1) return go(line.id, index)
   }
-  return hasGenerated() && !groupVerdict() ? goGenerated() : goTerminus()
+  return generatedNeedsReview() ? goGenerated() : goTerminus()
 }
 
 // A verdict key does what the verdict button of the hunk in view does, so both follow the same rules.
