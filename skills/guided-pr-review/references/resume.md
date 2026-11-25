@@ -12,17 +12,16 @@ Read this when the review directory already holds `review.json`: the reviewer st
 4. If the PR's base branch on GitHub is not `pr.baseRef`, tell the user that the base changed and set `pr.baseRef` to the new base. Fetch the diff against the new base, then continue as for a changed head commit.
 5. If the PR head commit is the same as `pr.headSha`: do step 9.
 6. If it changed:
-   1. Write `changesSince` (see `references/review-data.md`).
-   2. Run steps 3 and 4 again. Hunk IDs depend on the hunk content, so unchanged hunks keep their ID, explanation and "seen" state, and changed hunks get a new ID and show as not reviewed.
-   3. Match every comment in `reviewComments` and `ownRemarks` to the new hunks, as `references/review-data.md` says for `hunkId` and `line`.
-   4. Run steps 5 to 8 for the new hunks only.
-   5. Check the other AI findings against the new code: each finding on an unchanged hunk or on the whole PR that the reviewer did not dismiss (`decisions` in `reviewer.json`) and that no final review posted yet.
+   1. Set `pr.headSha` to the new head commit, then run steps 3 and 4 again. Hunk IDs depend on the hunk content, so unchanged hunks keep their ID, explanation and "seen" state, and changed hunks get a new ID and show as not reviewed. Item 6 of step 4 writes `changesSince`.
+   2. Match every comment in `reviewComments` and `ownRemarks` to the new hunks, as `references/review-data.md` says for `hunkId` and `line`.
+   3. Run steps 5 to 8 for the new hunks only. On a re-review, the checks of steps 6 and 8 get only the hunks in `changesSince.hunks`, as step 6 says; step 7 places every new hunk.
+   4. Check the other AI findings against the new code: each finding on an unchanged hunk or on the whole PR that the reviewer did not dismiss (`decisions` in `reviewer.json`) and that no final review posted yet.
       - Still holds: keep it with its ID.
       - Holds in another form: rewrite its `title` and `body`, with the same ID.
       - Fixed by the new commits: remove it when it is open. You MUST NOT remove a finding the reviewer included: start its `body` with a line that says the new commits fixed it, so the reviewer can dismiss it.
       - On a hunk that is gone: leave it as it is. The review page does not post it.
-   6. Run `check <review-dir>/review.json --diff <diff-file>` again, with the new diff file.
-   7. Do step 9.
+   5. Run `check <review-dir>/review.json --diff <diff-file>` again, with the new diff file.
+   6. Do step 9.
 7. In a stack, follow the Resume section of `references/stack.md` as well.
 
 ## Old hunk IDs

@@ -4,14 +4,14 @@ const review = computed(() => state.review)
 const position = computed(() => (hasStack() ? stackPosition() : null))
 
 const flows = computed(() => {
-  const items = lines().map((line: { id: string, stops: { hunkId: string }[] }) => ({
+  const items = shownLines().map((line: { id: string, stops: { hunkId: string }[] }) => ({
     line,
     seen: line.stops.filter((stop) => isSeen(stop.hunkId)).length,
     verdict: flowVerdict(line),
     group: false,
   }))
   // The group has its own row, under the flows.
-  return hasGenerated() ? [...items, { line: { ...GENERATED_LINE, stops: generatedFiles().map(({ hunkId }: { hunkId: string }) => ({ hunkId })) }, seen: 0, verdict: groupCountsAs(), group: true }] : items
+  return groupShown() ? [...items, { line: { ...GENERATED_LINE, stops: generatedFiles().filter(({ hunkId }: { hunkId: string }) => inScope(hunkId)).map(({ hunkId }: { hunkId: string }) => ({ hunkId })) }, seen: 0, verdict: groupCountsAs(), group: true }] : items
 })
 
 function tileLabel(flow: { line: { stops: { hunkId: string }[] }, seen: number, verdict: string | null, group: boolean }) {

@@ -3,11 +3,12 @@ import { reviewPath, transport } from './api.js'
 import { notify } from './notify.js'
 import { acceptedItems, emptyReviewer, firstStationOf, hunkById, isSeen, lineById, lines, noteFreshHunks, setReview, severities } from './review.js'
 import { answerFor, applySummaryDraft, buildPost, ghCommand, importOwnReview, newComments, openOwnThreads, proposedVerdict, startNewRound, startRoundOnNewCommits } from './posting.js'
-import { composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
+import { commentable, composerFor, diffRows, languageOf, firstChangedLine, lineLabel, rowIndexOf, rowLocation, rowMatches, wholeFileRows, wholeHunkComposer } from './diff.js'
 import { go, goHome, goTerminus, markCurrentSeen, nextAfterVerdict, openPath } from './navigation.js'
 import { composerKey, newerOnGitHub, refreshState } from './panels.js'
 import { hasStack } from './stack.js'
 import { GENERATED_LINE, generatedFilesInOrder, hasGenerated, isGenerated } from './generated.js'
+import { shownHunk } from './since.js'
 
 let saveTimer = null
 let pollTimer = null
@@ -313,12 +314,13 @@ export function cancelRemark() {
 
 // Open the remark form on one row. Mouse selection uses startRowDrag; this is for the keyboard.
 export function remarkOnRow(hunkId, row) {
-  return openComposer(composerFor(hunkById(hunkId), row, row))
+  return openComposer(composerFor(shownHunk(hunkId), row, row))
 }
 
 // Open the remark form on all changed lines of a hunk.
+// Without a line that takes a remark in the diff since the last review, the remark goes on the hunk's own lines.
 export function remarkOnHunk(hunkId) {
-  return openComposer(wholeHunkComposer(hunkById(hunkId)))
+  return openComposer(wholeHunkComposer(shownHunk(hunkId)) || wholeHunkComposer(hunkById(hunkId)))
 }
 
 // Add the remark of the open remark form.
@@ -336,7 +338,7 @@ export function addRemark(text, severity) {
 export function startRowDrag(hunkId, row, shiftKey) {
   const composer = state.ui.composer
   const anchor = shiftKey && composer && composer.hunkId === hunkId
-    ? rowIndexOf(diffRows(hunkById(hunkId)), composer.startLine, composer.startSide)
+    ? rowIndexOf(diffRows(shownHunk(hunkId)), composer.startLine, composer.startSide)
     : row
   state.ui.drag = { hunkId, anchor, current: row }
 }
@@ -351,7 +353,7 @@ export function endRowDrag() {
   const drag = state.ui.drag
   if (!drag) return
   state.ui.drag = null
-  openComposer(composerFor(hunkById(drag.hunkId), drag.anchor, drag.current))
+  openComposer(composerFor(shownHunk(drag.hunkId), drag.anchor, drag.current))
 }
 
 // Turn the agent's answer to a question into a remark on the first changed line of its hunk.
@@ -359,7 +361,9 @@ export function answerToRemark(eventId) {
   const answer = answerFor(eventId)
   const hunk = answer && hunkById(answer.hunkId)
   if (!hunk) return
-  const row = diffRows(hunk).find((candidate) => candidate.kind !== 'meta' && candidate.kind !== 'ctx') || diffRows(hunk)[0]
+  // The first changed line the reviewer sees, else the first changed line of the hunk's own diff.
+  const firstChanged = (view) => diffRows(view).find((candidate) => (candidate.kind === 'add' || candidate.kind === 'del') && commentable(view, candidate))
+  const row = firstChanged(shownHunk(hunk.id)) || firstChanged(hunk) || diffRows(hunk)[0]
   const { side, line } = row ? rowLocation(row) : { side: 'RIGHT', line: null }
   return openComposer({ hunkId: hunk.id, startLine: line, startSide: side, line, side, text: answer.answer, aiSuggested: true })
 }

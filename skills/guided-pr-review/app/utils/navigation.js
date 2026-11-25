@@ -4,6 +4,7 @@ import { postedReview } from './posting.js'
 import { GENERATED_LINE, generatedNeedsReview, hasGenerated, setGeneratedVerdict } from './generated.js'
 import { markSeen, saveReviewer, setHunkVerdict } from './actions.js'
 import { notify } from './notify.js'
+import { groupShown, inScope, shownStops } from './since.js'
 
 // Where a hunk sits in reading order, so a move between hunks has a direction.
 export function stopOrder(view) {
@@ -63,8 +64,10 @@ export function openFlow(lineId) {
   const saved = state.reviewer.flowPositions?.[line.id]
   const unchanged = saved?.stops?.join() === line.stops.map((stop) => stop.hunkId).join()
   const remembered = unchanged ? line.stops.findIndex((stop) => stop.hunkId === saved.hunkId) : -1
-  const unseen = line.stops.findIndex((stop) => !isSeen(stop.hunkId))
-  return go(line.id, remembered !== -1 ? remembered : unseen === -1 ? 0 : unseen)
+  const shown = shownStops(line)
+  const first = shown.find((stop) => !isSeen(stop.hunkId)) ?? shown[0]
+  const keep = remembered !== -1 && inScope(saved.hunkId)
+  return go(line.id, keep ? remembered : first?.index ?? 0)
 }
 
 // Get the address of a view. Home is the PR's own address, so a link to a review always opens its Home;
@@ -124,10 +127,10 @@ export function isOwnAddress(path) {
 // The views of the reading order: the hunks of the flows, then the group of generated files, then the hunks
 // that are not in a flow.
 function readingOrder() {
-  const stopsOf = (line) => line.stops.map((stop, index) => ({ kind: 'station', line: line.id, index }))
+  const stopsOf = (line) => shownStops(line).map(({ index }) => ({ kind: 'station', line: line.id, index }))
   const flows = lines().filter((line) => line.id !== '__none')
   const unplaced = lines().filter((line) => line.id === '__none')
-  return [...flows.flatMap(stopsOf), ...(hasGenerated() ? [{ kind: 'generated' }] : []), ...unplaced.flatMap(stopsOf)]
+  return [...flows.flatMap(stopsOf), ...(groupShown() ? [{ kind: 'generated' }] : []), ...unplaced.flatMap(stopsOf)]
 }
 
 function openInOrder(view) { return view.kind === 'generated' ? goGenerated() : go(view.line, view.index) }
@@ -149,22 +152,22 @@ export function step(delta) {
 export function nextAfterVerdict() {
   const next = nextStopWhere((hunkId) => !isSeen(hunkId))
   if (next) return go(next.line, next.index)
-  return generatedNeedsReview() ? goGenerated() : goTerminus()
+  return generatedNeedsReview() && groupShown() ? goGenerated() : goTerminus()
 }
 
 // The first hunk in reading order after the hunk in view whose ID passes the check; after the last one, start at the top.
 function nextStopWhere(check) {
   const stops = lines().flatMap((line) => line.stops.map((stop, index) => ({ line: line.id, index, hunkId: stop.hunkId })))
   const at = state.view.kind === 'station' ? stops.findIndex((stop) => stop.line === state.view.line && stop.index === state.view.index) : -1
-  return [...stops.slice(at + 1), ...stops.slice(0, at + 1)].find((stop) => check(stop.hunkId))
+  return [...stops.slice(at + 1), ...stops.slice(0, at + 1)].find((stop) => inScope(stop.hunkId) && check(stop.hunkId))
 }
 
 export function nextUnseen() {
   for (const line of lines()) {
-    const index = line.stops.findIndex((stop) => !isSeen(stop.hunkId))
+    const index = line.stops.findIndex((stop) => inScope(stop.hunkId) && !isSeen(stop.hunkId))
     if (index !== -1) return go(line.id, index)
   }
-  return generatedNeedsReview() ? goGenerated() : goTerminus()
+  return generatedNeedsReview() && groupShown() ? goGenerated() : goTerminus()
 }
 
 // A verdict key does what the verdict button of the hunk in view does, so both follow the same rules.

@@ -32,6 +32,13 @@ export function languageOf(path) {
   return LANGUAGE_BY_EXTENSION[extension] || extension
 }
 
+// Check whether a row of a hunk takes a remark. In a hunk shown since the last review, a removed row is a line of the
+// review commit, and GitHub takes comments only on the lines of the PR's own diff.
+export function commentable(hunk, row) {
+  if (!hunk.sinceReview) return true
+  return Boolean(row) && row.kind !== 'del' && row.kind !== 'meta' && hunk.prLines.has(row.newNo)
+}
+
 export function rowLocation(row) {
   const side = row.kind === 'del' ? 'LEFT' : 'RIGHT'
   return { side, line: side === 'LEFT' ? row.oldNo : row.newNo }
@@ -48,6 +55,9 @@ export function composerFor(hunk, fromIndex, toIndex) {
   // GitHub only accepts a range inside one part of the diff, so a range stops at a gap of skipped lines.
   const gap = rows.slice(from, to).findLastIndex((row) => row.gap)
   if (gap !== -1) from += gap + 1
+  while (from < to && !commentable(hunk, rows[from])) from++
+  while (to > from && !commentable(hunk, rows[to])) to--
+  if (!commentable(hunk, rows[from]) || !commentable(hunk, rows[to])) return null
   const [first, last] = [rows[from], rows[to]]
   const start = rowLocation(first)
   const end = rowLocation(last)
@@ -56,7 +66,7 @@ export function composerFor(hunk, fromIndex, toIndex) {
 
 // A hunk without line changes (a rename or a binary file) has no line to attach a remark to.
 export function wholeHunkComposer(hunk) {
-  const changed = diffRows(hunk).map((row, index) => (row.kind === 'add' || row.kind === 'del' ? index : -1)).filter((index) => index !== -1)
+  const changed = diffRows(hunk).map((row, index) => ((row.kind === 'add' || row.kind === 'del') && commentable(hunk, row) ? index : -1)).filter((index) => index !== -1)
   return changed.length ? composerFor(hunk, changed[0], changed[changed.length - 1]) : null
 }
 
@@ -87,24 +97,29 @@ export function hunkDiff(hunk) {
     return { rows, added, removed, ranges, empty, rowNotes: [], loose: notes, noteRanges: new Map(), selected: null, composer: null, composerRow: -1 }
   }
   const placed = new Set()
+  // In the diff since the last review, the old line numbers are those of the review commit, not of the base branch, so a
+  // note or remark form on the base side has no row there.
+  const matches = (row, item) => !(hunk.sinceReview && item.side === 'LEFT') && rowMatches(row, item)
+  const indexOf = (line, side) => (hunk.sinceReview && side === 'LEFT' ? -1 : rowIndexOf(rows, line, side))
   const composer = state.ui.composer && state.ui.composer.hunkId === hunk.id ? state.ui.composer : null
-  const selected = composer ? [rowIndexOf(rows, composer.startLine ?? composer.line, composer.startSide ?? composer.side), rowIndexOf(rows, composer.line, composer.side)].sort((a, b) => a - b) : null
+  const located = composer && indexOf(composer.line, composer.side) !== -1 && indexOf(composer.startLine ?? composer.line, composer.startSide ?? composer.side) !== -1
+  const selected = located ? [indexOf(composer.startLine ?? composer.line, composer.startSide ?? composer.side), indexOf(composer.line, composer.side)].sort((a, b) => a - b) : null
   // The rows each note covers, by note key. As on GitHub, the diff marks them only while the reviewer points at the note.
   const noteRanges = new Map()
   for (const note of notes) {
     if (!note.item.line) continue
-    const end = rows.findIndex((row) => rowMatches(row, note.item))
-    const start = note.item.startLine ? rows.findIndex((row) => rowMatches(row, { line: note.item.startLine, side: note.item.startSide || note.item.side })) : end
+    const end = rows.findIndex((row) => matches(row, note.item))
+    const start = note.item.startLine ? rows.findIndex((row) => matches(row, { line: note.item.startLine, side: note.item.startSide || note.item.side })) : end
     if (end !== -1) noteRanges.set(noteKey(note), [Math.max(0, Math.min(start, end)), end])
   }
   const rowNotes = rows.map((row) => {
     if (row.kind === 'meta') return []
-    const attached = notes.filter((note) => !placed.has(note) && note.item.line && rowMatches(row, note.item))
+    const attached = notes.filter((note) => !placed.has(note) && note.item.line && matches(row, note.item))
     attached.forEach((note) => placed.add(note))
     return attached
   })
   const loose = notes.filter((note) => !placed.has(note))
-  return { rows, added, removed, ranges, empty: null, rowNotes, loose, noteRanges, selected, composer, composerRow: composer ? rowIndexOf(rows, composer.line, composer.side) : -1 }
+  return { rows, added, removed, ranges, empty: null, rowNotes, loose, noteRanges, selected, composer, composerRow: located ? indexOf(composer.line, composer.side) : -1 }
 }
 
 export function noteKey(note) { return `${note.type}:${note.item.id}` }

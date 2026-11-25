@@ -5,11 +5,14 @@ interface Line { id: string, letter: string, name: string, color: string, shape?
 const line = computed(() => lineById(state.view.line) as Line)
 const stop = computed(() => line.value.stops[state.view.index])
 const hunk = computed(() => (stop.value ? hunkById(stop.value.hunkId) : null))
-const isFirst = computed(() => line.value === lines()[0] && state.view.index === 0)
+// The first hunk in reading order: with the scope on, the first hunk in the scope.
+const isFirst = computed(() => line.value === shownLines()[0] && state.view.index === shownStops(line.value)[0]?.index)
+const change = computed(() => (hunk.value ? fileChange(hunk.value.id) : null))
 // The generated file this hunk is, when a flow also uses it.
 const generatedFile = computed(() => (hunk.value ? generatedFiles().find((file: { hunkId: string }) => file.hunkId === hunk.value.id) : null))
 const generatedCount = computed(() => generatedFiles().length)
-const showIntro = computed(() => state.view.index === 0 && Boolean(line.value.explanation || line.value.entry))
+// The flow's first shown hunk carries its intro; with the scope on, that can be a later stop than the first.
+const showIntro = computed(() => state.view.index === shownStops(line.value)[0]?.index && Boolean(line.value.explanation || line.value.entry))
 
 // The other flows that pass this hunk, each with the stop where they do.
 const others = computed(() => (hunk.value ? (linesOf(hunk.value.id) as Line[]).filter((other) => other.id !== line.value.id) : []).map((other) => {
@@ -85,6 +88,12 @@ function hideLeaving(element: Element) {
               <b class="font-semibold text-toned">A tool writes this file</b><template v-if="reasonLabel(generatedFile)"> ({{ reasonLabel(generatedFile) }})</template>. It is also {{ generatedCount === 1 ? 'the one file' : `one of the ${generatedCount} files` }} in <b class="font-semibold text-toned">Generated files</b>. Your verdict here counts for that group: the group takes the most severe verdict of its files.
             </span>
             <UButton color="neutral" variant="soft" size="sm" trailing-icon="i-lucide-arrow-right" class="font-normal text-default" @click="goGenerated()">Open the group</UButton>
+          </p>
+          <p v-if="change" class="mt-2.5 mb-0 flex items-start gap-2 rounded-lg bg-[color-mix(in_srgb,var(--ui-warning)_12%,var(--ui-bg))] px-3 py-2 text-ui leading-6 text-toned" data-since-note>
+            <span class="flex h-6 shrink-0 items-center"><UIcon name="i-lucide-history" class="size-4 text-default" aria-hidden="true" /></span>
+            <span class="min-w-0 flex-1">
+              <b class="font-semibold text-default">Since your last review:</b> <MarkupText :text="change.summary" /><template v-if="change.previousPath">{{ ' ' }}<span class="text-muted">(moved from <code class="font-mono text-label">{{ change.previousPath }}</code>)</span></template>
+            </span>
           </p>
         </StationContext>
         <DiffView :hunk="hunk" />

@@ -7,6 +7,9 @@ import type { CodeToken } from './DiffCode.vue'
 // `noWholeFile` leaves out the Whole file button, for a diff that is already in the file dialog.
 const props = defineProps<{ hunk: { id: string, file: string, status?: string, oldFile?: string, lines: string[] }, noWholeFile?: boolean }>()
 
+// With the scope on, a hunk changed since the last review shows those lines; the remark actions read the same hunk.
+const hunk = computed(() => (shownHunk(props.hunk.id) || props.hunk) as typeof props.hunk & { sinceReview?: boolean, sinceFrom?: string, sinceTo?: string })
+
 // The status of the file in the head, as an icon with a tooltip.
 const STATUSES: Record<string, { icon: string, label: string }> = {
   added: { icon: 'i-lucide-file-plus', label: 'New file' },
@@ -15,27 +18,27 @@ const STATUSES: Record<string, { icon: string, label: string }> = {
   renamed: { icon: 'i-lucide-file-symlink', label: 'Renamed file' },
 }
 const fileStatus = computed(() => {
-  const status = STATUSES[props.hunk.status!]!
-  return props.hunk.status === 'renamed' && props.hunk.oldFile ? { ...status, label: `Renamed from ${props.hunk.oldFile}` } : status
+  const status = STATUSES[hunk.value.status!]!
+  return hunk.value.status === 'renamed' && hunk.value.oldFile ? { ...status, label: `Renamed from ${hunk.value.oldFile}` } : status
 })
 
 interface Row { kind: string, text: string, oldNo?: number, newNo?: number, gap?: boolean }
-const diff = computed(() => hunkDiff(props.hunk))
+const diff = computed(() => hunkDiff(hunk.value))
 const rows = computed<Row[]>(() => diff.value.rows)
 
 // The colours load after the rows; until then the rows show plain text.
 const tokens = ref<(CodeToken[] | null)[] | null>(null)
-watch(() => `${props.hunk.file}\n${props.hunk.lines.join('\n')}`, async (key) => {
+watch(() => `${hunk.value.file}\n${hunk.value.lines.join('\n')}`, async (key) => {
   tokens.value = null
-  const result = await highlightRows(rows.value, props.hunk.file)
-  if (key === `${props.hunk.file}\n${props.hunk.lines.join('\n')}`) tokens.value = result
+  const result = await highlightRows(rows.value, hunk.value.file)
+  if (key === `${hunk.value.file}\n${hunk.value.lines.join('\n')}`) tokens.value = result
 }, { immediate: true })
 
 // A deleted file shows only its head until the reviewer opens its lines. A comment link into those lines, or a remark
 // form on them, opens them as well, and they stay open.
-const deleted = computed(() => props.hunk.status === 'removed' && !diff.value.empty)
+const deleted = computed(() => hunk.value.status === 'removed' && !diff.value.empty)
 const deletedOpen = ref(false)
-watch(() => props.hunk.id, () => {
+watch(() => hunk.value.id, () => {
   deletedOpen.value = diff.value.rowNotes.flat().some((note: { item: { id: string } }) => state.ui.focusTarget === `note-${note.item.id}`)
 }, { immediate: true })
 watch(() => diff.value.composer, (composer) => {
@@ -50,7 +53,7 @@ function location(row: Row) { return rowLocation(row) as { side: string, line: n
 // The rows of a drag in progress, or of the open remark form.
 const selecting = computed(() => {
   const drag = state.ui.drag
-  if (!drag || drag.hunkId !== props.hunk.id) return null
+  if (!drag || drag.hunkId !== hunk.value.id) return null
   return [Math.min(drag.anchor, drag.current), Math.max(drag.anchor, drag.current)]
 })
 
@@ -71,22 +74,22 @@ function markNote(key: string | null) { state.ui.activeNote = key }
 function onPointerDown(event: PointerEvent, index: number) {
   if (event.button !== 0) return
   event.preventDefault()
-  startRowDrag(props.hunk.id, index, event.shiftKey)
+  startRowDrag(hunk.value.id, index, event.shiftKey)
 }
 
 // A click without a pointer press (detail 0) comes from the keyboard.
 function onClick(event: MouseEvent, index: number) {
-  if (event.detail === 0) remarkOnRow(props.hunk.id, index)
+  if (event.detail === 0) remarkOnRow(hunk.value.id, index)
 }
 
 useEventListener(document, 'pointermove', (event: PointerEvent) => {
   const drag = state.ui.drag
-  if (!drag || drag.hunkId !== props.hunk.id) return
+  if (!drag || drag.hunkId !== hunk.value.id) return
   const row = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>(`tr[data-hunk-row="${drag.hunkId}"]`)
   if (row) moveRowDrag(Number(row.dataset.row))
 })
 useEventListener(document, 'pointerup', () => {
-  if (state.ui.drag?.hunkId === props.hunk.id) endRowDrag()
+  if (state.ui.drag?.hunkId === hunk.value.id) endRowDrag()
 })
 </script>
 
@@ -101,6 +104,9 @@ useEventListener(document, 'pointerup', () => {
           </span>
         </UTooltip>
         <span class="min-w-0 wrap-anywhere">{{ hunk.file }}</span>
+      </span>
+      <span v-if="hunk.sinceReview" class="flex items-center gap-1.5 font-sans text-meta text-toned" data-since-head>
+        <UIcon name="i-lucide-history" class="size-3.5" aria-hidden="true" />Since your review: <CommitLink :sha="hunk.sinceFrom" /> → <CommitLink :sha="hunk.sinceTo" />
       </span>
       <UButton
         v-if="deleted"
@@ -127,6 +133,8 @@ useEventListener(document, 'pointerup', () => {
     <div v-if="diff.loose.length" class="flex flex-col gap-1.5 bg-muted">
       <DiffNote v-for="note in diff.loose" :key="`${note.type}:${note.item.id}`" :note="note" />
     </div>
+    <!-- A remark form on a line this diff does not show, such as a line of the base branch in the diff since the last review. -->
+    <DiffComposer v-if="diff.composer && diff.composerRow === -1" :key="composerKey(diff.composer)" :composer="diff.composer" />
 
     <div v-if="!diff.empty && showRows" class="station-diff overflow-x-auto [container-type:inline-size]" tabindex="0" role="region" :aria-label="`Diff of ${hunk.file}`">
       <table class="w-full border-collapse font-mono text-label leading-[1.7] tabular-nums">
@@ -140,7 +148,7 @@ useEventListener(document, 'pointerup', () => {
                 <td v-for="side in ['LEFT', 'RIGHT']" :key="side" class="num">
                   <template v-if="side === 'LEFT' ? row.oldNo : row.newNo">
                     <button
-                      v-if="location(row).side === side"
+                      v-if="location(row).side === side && commentable(hunk, row)"
                       :aria-label="`Write a remark on line ${location(row).line}`"
                       @pointerdown="onPointerDown($event, index)"
                       @click="onClick($event, index)"
@@ -150,6 +158,7 @@ useEventListener(document, 'pointerup', () => {
                 </td>
                 <td class="sign">
                   <button
+                    v-if="commentable(hunk, row)"
                     class="add-line"
                     :aria-label="`Add a remark on line ${location(row).line}`"
                     @pointerdown="onPointerDown($event, index)"

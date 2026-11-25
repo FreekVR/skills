@@ -3,10 +3,10 @@
 interface GroupFile { path: string, reason: string, detail?: string, hunkId: string, shared: { line: { id: string, name: string, letter: string, color: string, shape?: string }, index: number }[] }
 interface Finding { id: string, hunkId: string, severity: string }
 
-const files = computed(() => generatedFilesInOrder() as GroupFile[])
+const files = computed(() => (generatedFilesInOrder() as GroupFile[]).filter((file) => inScope(file.hunkId)))
 const summary = computed(() => ({ id: GENERATED_LINE.id, explanation: state.review.generated?.summary || '' }))
 const sources = computed(() => (state.review.generated?.sourceHunkIds || []).map(hunkById).filter(Boolean))
-const findings = computed(() => liveFindings().filter((finding: Finding) => isGenerated(finding.hunkId)) as Finding[])
+const findings = computed(() => liveFindings().filter((finding: Finding) => isGenerated(finding.hunkId) && inScope(finding.hunkId)) as Finding[])
 const findingsByHunk = computed(() => {
   const byHunk = new Map<string, Finding[]>()
   for (const finding of findings.value) {
