@@ -14,7 +14,7 @@ Read this when the review directory already holds `review.json`: the reviewer st
 6. If it changed:
    1. Set `pr.headSha` to the new head commit, then run steps 3 and 4 again. Hunk IDs depend on the hunk content, so unchanged hunks keep their ID, explanation and "seen" state, and changed hunks get a new ID and show as not reviewed. Item 6 of step 4 writes `changesSince`.
    2. Match every comment in `reviewComments` and `ownRemarks` to the new hunks, as `references/review-data.md` says for `hunkId` and `line`.
-   3. Run steps 5 to 8 for the new hunks only. On a re-review, the checks of steps 6 and 8 get only the new hunks in `changesSince.files`; step 7 places every new hunk.
+   3. Run steps 5 to 8 for the new hunks only. On a re-review, the checks of steps 6 and 8 get only the hunks in `changesSince.hunks`, as step 6 says; step 7 places every new hunk.
    4. Check the other AI findings against the new code: each finding on an unchanged hunk or on the whole PR that the reviewer did not dismiss (`decisions` in `reviewer.json`) and that no final review posted yet.
       - Still holds: keep it with its ID.
       - Holds in another form: rewrite its `title` and `body`, with the same ID.

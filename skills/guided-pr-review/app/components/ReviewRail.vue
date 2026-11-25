@@ -20,8 +20,8 @@ const rows = computed(() => {
 })
 const generatedCount = computed(() => plural(generatedFiles().length, 'file'))
 
-// Only a re-review with a list of changed files gets the choice; the list starts at the reviewer's newest review.
-const scopes = computed(() => (sinceFiles().size ? [{ label: 'Changed since last review', value: 'since' }, { label: `Changes vs ${state.review.pr.baseRef || 'the base branch'}`, value: 'all' }] : []))
+// Only a re-review with hunks changed since the last review gets the choice; the list starts at the reviewer's newest review.
+const scopes = computed(() => (scopeAvailable() ? [{ label: 'Changed since last review', value: 'since' }, { label: `Changes vs ${state.review.pr.baseRef || 'the base branch'}`, value: 'all' }] : []))
 const scope = computed({ get: () => (scopeActive() ? 'since' : 'all'), set: setScope })
 
 const reviewCounts = computed(() => {

@@ -3,26 +3,39 @@ import { hunkById, lines } from './review.js'
 import { changesSince, newestOwnReview, sameCommit } from './panels.js'
 import { saveReviewer } from './actions.js'
 import { hasGenerated } from './generated.js'
+import { diffRows } from './diff.js'
 
-// Get the files changed or moved since the viewer's newest review, by path. Empty without a list from the agent, and
-// for a list from before a newer review, until the agent writes it again.
-export function sinceFiles() {
+// Get changesSince while it is about the viewer's newest review. A newer review makes it stale until the agent writes it again.
+function currentSince() {
   const changes = changesSince()
-  if (!changes?.files || !sameCommit(newestOwnReview()?.commitId, changes.from)) return new Map()
-  return new Map(changes.files.map((file) => [file.path, file]))
+  return changes && sameCommit(newestOwnReview()?.commitId, changes.from) ? changes : null
 }
 
+// Get the hunks changed since the viewer's newest review, by hunk ID, each with its lines of the diff since then.
+export function sinceHunks() { return currentSince()?.hunks || {} }
+
+// Check whether the review has hunks changed since the last review, so the reviewer can choose to see only those.
+export function scopeAvailable() { return Object.keys(sinceHunks()).length > 0 }
+
 // Check whether the page shows only the hunks changed since the last review.
-export function scopeActive() { return state.reviewer.scope !== 'all' && sinceFiles().size > 0 }
+export function scopeActive() { return state.reviewer.scope !== 'all' && scopeAvailable() }
 
 // Check whether a hunk is shown in the current scope.
-export function inScope(hunkId) {
-  const files = sinceFiles()
-  return state.reviewer.scope === 'all' || !files.size || files.has(hunkById(hunkId)?.file)
+export function inScope(hunkId) { return !scopeActive() || Object.hasOwn(sinceHunks(), hunkId) }
+
+// Get a hunk as the page shows it: with the scope on, its lines since the last review in place of its diff against the
+// base branch. `prLines` keeps the lines of the hunk's own diff in the head commit, the only lines GitHub takes comments on.
+export function shownHunk(hunkId) {
+  const hunk = hunkById(hunkId)
+  const changes = scopeActive() && currentSince()
+  const since = changes && changes.hunks[hunkId]
+  if (!hunk || !since?.lines) return hunk
+  const prLines = new Set(diffRows(hunk).filter((row) => row.kind === 'add' || row.kind === 'ctx').map((row) => row.newNo))
+  return { ...hunk, ...since, sinceReview: true, sinceFrom: changes.from, sinceTo: changes.to, prLines }
 }
 
 // Get what changed in the file of a hunk since the last review, or null.
-export function fileChange(hunkId) { return sinceFiles().get(hunkById(hunkId)?.file) || null }
+export function fileChange(hunkId) { return (currentSince()?.files || []).find((file) => file.path === hunkById(hunkId)?.file) || null }
 
 // Choose between the changes since the last review (`since`) and all changes against the base branch (`all`).
 export function setScope(scope) {

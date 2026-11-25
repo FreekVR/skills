@@ -12,11 +12,13 @@
 //                                                        Check that every hunk is in a flow or in "notInAnyFlow".
 //                                                        With --diff, also check that the hunks of review.json are
 //                                                        the hunks of that diff.
-//   node review-data.js since <review-file> [<old-diff> <new-diff>]
+//   node review-data.js since <review-file> [<old-diff> <new-diff> [<since-diff>]]
 //                                                        Write changesSince.from and to for the user's newest submitted
 //                                                        review and print "from <commit>", or remove changesSince and
 //                                                        print "none". With the PR's diff at that commit and now, also
-//                                                        write and print the files changed or moved since then.
+//                                                        write and print the files changed or moved since then, and
+//                                                        write the hunks changed since then, each with its lines of the
+//                                                        diff from that commit to the head commit.
 //   node review-data.js stack <owner>/<repo> <pr-number> Print the stack of a PR as JSON, or "null" when it is in no stack.
 //                                                        Exit 3 and print the split when the branches above it split.
 //   node review-data.js own-diff <clone> <old-head> <first-subject>
@@ -318,12 +320,10 @@ function newestOwnReview(review) {
 
 // The files of the new diff with a hunk that the old diff does not have: changed or moved since the old diff.
 // Both diffs are split with the same whole files, so an unchanged hunk has the same ID in both.
-function changedFiles(oldText, newText, whole) {
-  const old = parseDiff(oldText, whole);
+function changedFiles(old, next) {
   const oldIds = new Set(old.map((hunk) => hunk.id));
   const oldPaths = new Set(old.map((hunk) => hunk.file));
   const files = new Map();
-  const next = parseDiff(newText, whole);
   for (const hunk of next) {
     if (oldIds.has(hunk.id) || files.has(hunk.file)) continue;
     const entry = { path: hunk.file };
@@ -338,6 +338,31 @@ function changedFiles(oldText, newText, whole) {
   const nextPaths = new Set(next.map((hunk) => hunk.file));
   for (const hunk of old) if (!nextIds.has(hunk.id) && nextPaths.has(hunk.file) && !files.has(hunk.file)) files.set(hunk.file, { path: hunk.file });
   return [...files.values()];
+}
+
+// The hunks of the new diff that the old diff does not have, each with the parts of the since diff (from the review
+// commit to the head commit) whose lines in the head commit overlap its own; {} when no part does.
+function sinceHunks(old, next, sinceText) {
+  const oldIds = new Set(old.map((hunk) => hunk.id));
+  const parts = sinceText ? parseDiff(sinceText).filter((part) => part.lines.length) : [];
+  // A part that only removes lines has no line in the head commit; it sits after line newStart.
+  const last = (start, count) => start + Math.max(count, 1) - 1;
+  const result = {};
+  for (const hunk of next) {
+    if (oldIds.has(hunk.id)) continue;
+    const start = hunk.newStart || 0;
+    const end = last(start, hunk.newLines || 0);
+    const overlap = parts.filter((part) => part.file === hunk.file && part.newStart <= end && last(part.newStart, part.newLines) >= start);
+    if (!overlap.length) {
+      result[hunk.id] = {};
+      continue;
+    }
+    const [first, final] = [overlap[0], overlap.at(-1)];
+    // Several parts join with the header line that a --whole file keeps between its parts.
+    const lines = overlap.flatMap((part, index) => [...(index ? [`@@ -${part.oldStart},${part.oldLines} +${part.newStart},${part.newLines} @@`] : []), ...part.lines]);
+    result[hunk.id] = { oldStart: first.oldStart, oldLines: final.oldStart + final.oldLines - first.oldStart, newStart: first.newStart, newLines: final.newStart + final.newLines - first.newStart, lines };
+  }
+  return result;
 }
 
 // Write changesSince.from and to for the newest own review, or remove changesSince when there is none. With both diffs,
@@ -355,9 +380,11 @@ function writeSince(reviewFile, diffs) {
   const same = before?.from === newest.commitId && before?.to === review.pr.headSha;
   const since = same ? { ...before } : { from: newest.commitId, to: review.pr.headSha };
   if (diffs) {
+    const whole = new Set(review.wholeFiles || []);
+    const [old, next] = diffs.slice(0, 2).map((file) => parseDiff(fs.readFileSync(file, 'utf8'), whole));
     const summaries = new Map((since.files || []).map((file) => [file.path, file.summary]));
-    since.files = changedFiles(fs.readFileSync(diffs[0], 'utf8'), fs.readFileSync(diffs[1], 'utf8'), new Set(review.wholeFiles || []))
-      .map((file) => (summaries.get(file.path) ? { ...file, summary: summaries.get(file.path) } : file));
+    since.files = changedFiles(old, next).map((file) => (summaries.get(file.path) ? { ...file, summary: summaries.get(file.path) } : file));
+    since.hunks = sinceHunks(old, next, diffs[2] && fs.readFileSync(diffs[2], 'utf8'));
   }
   review.changesSince = since;
   writeAtomic(reviewFile, JSON.stringify(review) + '\n');
@@ -365,7 +392,8 @@ function writeSince(reviewFile, diffs) {
   else since.files.forEach((file) => console.log(file.previousPath ? `${file.path} (moved from ${file.previousPath})` : file.path));
 }
 
-// List the problems of changesSince: a stale `from`, and files that are not in the diff or have no summary.
+// List the problems of changesSince: a stale `from`, files that are not in the diff or have no summary, and hunks that
+// are not hunks.
 function checkSince(review) {
   const changes = review.changesSince;
   if (!changes) return [];
@@ -377,6 +405,8 @@ function checkSince(review) {
     if (!filesInDiff.has(file.path)) problems.push(`since: ${file.path} is not a file in the diff; run since again`);
     else if (!file.summary?.trim()) problems.push(`since: ${file.path} has no summary`);
   }
+  const hunkIds = new Set((review.hunks || []).map((hunk) => hunk.id));
+  for (const id of Object.keys(changes.hunks || {})) if (!hunkIds.has(id)) problems.push(`since: hunks has ${id}, which is not a hunk; run since again`);
   return problems;
 }
 
@@ -668,8 +698,8 @@ function main([command, ...args]) {
     console.log('ok: every hunk is placed');
     return 0;
   }
-  if (command === 'since' && (args.length === 1 || args.length === 3) && args.every((file) => fs.existsSync(file))) {
-    writeSince(args[0], args.length === 3 ? args.slice(1) : null);
+  if (command === 'since' && [1, 3, 4].includes(args.length) && args.every((file) => fs.existsSync(file))) {
+    writeSince(args[0], args.length > 1 ? args.slice(1) : null);
     return 0;
   }
   const watchArgs = command === 'watch' ? parseWatchArgs(args) : null;
@@ -748,7 +778,7 @@ function main([command, ...args]) {
     });
     return 0;
   }
-  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | generated <diff-file> <root> | check <review-file> [--diff <diff-file>] | since <review-file> [<old-diff> <new-diff>] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart | --resume] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | checked <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | static <review-dir> <out-file> | shell [<out-file>] | list');
+  console.error('Usage: node review-data.js dir <owner>/<repo> <pr-number> | hunks <diff-file> <review-file> [--whole <path>]... | generated <diff-file> <root> | check <review-file> [--diff <diff-file>] | since <review-file> [<old-diff> <new-diff> [<since-diff>]] | watch <review-dir> [--worktree <path>] [--idle-minutes <n>] [--restart | --resume] | waiting <question> <review-dir>... | answered <review-dir>... | preparing <review-dir> <step> | prepared <review-dir> | checked <review-dir> | stack <owner>/<repo> <pr-number> | own-diff <clone> <old-head> <first-subject> | static <review-dir> <out-file> | shell [<out-file>] | list');
   return 2;
 }
 
